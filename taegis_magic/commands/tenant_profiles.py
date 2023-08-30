@@ -1,0 +1,599 @@
+"""Taegis Magic tenant-profiles commands."""
+import inspect
+import logging
+from dataclasses import asdict, field
+from typing import Any, List, Optional
+
+import typer
+from taegis_magic.core.log import tracing
+from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_sdk_python import GraphQLNoRowsInResultSetError
+
+from taegis_sdk_python.services.tenant_profiles.types import (
+    NetworkRangeCreateMtpInput,
+    MtpNetworkType,
+    NetworkRangeUpdateMtpInput,
+    CriticalContactMtpInput,
+    CustomerContactPreferenceMtp,
+    NetworkRangeMtp,
+    SecurityControlCreateMtpInput,
+    SecurityControlUpdateMtpInput,
+    SecurityControlServiceMtp,
+    SecurityControlSourceMtp,
+    SecurityControlMtp,
+    MfaAccessCreateMtpInput,
+    MfaAccessUpdateMtpInput,
+    MfaServiceMtp,
+    MfaAccessMtp,
+)
+
+from taegis_magic.core.service import get_service
+from typing_extensions import Annotated
+
+log = logging.getLogger(__name__)
+
+app = typer.Typer()
+contacts = typer.Typer()
+network = typer.Typer()
+note = typer.Typer()
+security_controls = typer.Typer()
+mfa = typer.Typer()
+
+
+app.add_typer(contacts, name="contacts", help="Manage tenant profile contacts.")
+app.add_typer(network, name="network", help="Manage tenant profile networks.")
+app.add_typer(note, name="note", help="Manage tenant profile note.")
+app.add_typer(
+    security_controls,
+    name="security-controls",
+    help="Manage tenant profile security control device information.",
+)
+app.add_typer(mfa, name="mfa", help="Manage tenant profile multifactor authentication.")
+
+
+class TaegisTenantProfileResultNormalizer(TaegisResultsNormalizer):
+    """Tenant Profiles single response normalizer."""
+
+    raw_results: Any = field(default=None)
+
+    @property
+    def results(self):
+        return [asdict(self.raw_results)]
+
+
+class TaegisTenantProfileResultsNormalizer(TaegisResultsNormalizer):
+    """Tenant Profiles response list normalizer."""
+
+    raw_results: List[Any] = field(default_factory=list)
+
+    @property
+    def results(self):
+        return [asdict(r) for r in self.raw_results]
+
+
+@app.command(name="list")
+@tracing
+def tenant_profile_list(
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """List a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.query.managed_tenant_profile()
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@contacts.command(name="list")
+@tracing
+def contacts_list(
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """List contacts in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.query.cse_contacts_mtp()
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@contacts.command(name="add")
+@tracing
+def contacts_add(
+    user_id: Annotated[str, typer.Option()],
+    preference: Annotated[CustomerContactPreferenceMtp, typer.Option()],
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Add a contact in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.mutation.create_critical_contact_mtp(
+        CriticalContactMtpInput(
+            tdr_user_id=user_id,
+            preference=preference,
+        )
+    )
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@contacts.command(name="update")
+@tracing
+def contacts_update(
+    id_: Annotated[str, typer.Option("--id")],
+    user_id: Annotated[Optional[str], typer.Option()] = None,
+    preference: Annotated[
+        Optional[CustomerContactPreferenceMtp], typer.Option()
+    ] = None,
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Update a contact in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.mutation.update_critical_contact_mtp(
+        id_=id_,
+        input_=CriticalContactMtpInput(
+            tdr_user_id=user_id,
+            preference=preference,
+        ),
+    )
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@contacts.command(name="remove")
+@tracing
+def contacts_remove(
+    id_: Annotated[Optional[str], typer.Option("--id")],
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Remove a contact in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.mutation.delete_critical_contact_mtp(id_=id_)
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@network.command(name="list")
+@tracing
+def network_list(
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """List network ranges in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.query.network_ranges_mtp()
+
+    normalized_results = TaegisTenantProfileResultsNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@network.command(name="add")
+@tracing
+def network_add(
+    cidr: Annotated[str, typer.Option()],
+    description: Annotated[str, typer.Option()],
+    network_type: Annotated[MtpNetworkType, typer.Option()],
+    is_critical: Annotated[bool, typer.Option()] = False,
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Add a network range to tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.mutation.create_network_range_mtp(
+        NetworkRangeCreateMtpInput(
+            cidr=cidr,
+            description=description,
+            is_critical=is_critical,
+            network_type=network_type,
+        )
+    )
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@network.command(name="update")
+@tracing
+def network_update(
+    id_: Annotated[str, typer.Option("--id")],
+    cidr: Annotated[Optional[str], typer.Option()] = None,
+    description: Annotated[Optional[str], typer.Option()] = None,
+    network_type: Annotated[Optional[MtpNetworkType], typer.Option()] = None,
+    is_critical: Annotated[Optional[bool], typer.Option()] = None,
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Update a network range in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.mutation.update_network_range_mtp(
+        id_=id_,
+        network=NetworkRangeUpdateMtpInput(
+            cidr=cidr,
+            description=description,
+            is_critical=is_critical,
+            network_type=network_type,
+        ),
+    )
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@network.command(name="remove")
+@tracing
+def network_remove(
+    id_: Annotated[Optional[str], typer.Option("--id")],
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Remove a network range in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    try:
+        results = service.tenant_profiles.mutation.delete_network_range_mtp(id_=id_)
+    except GraphQLNoRowsInResultSetError:
+        results = NetworkRangeMtp()
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@note.command(name="list")
+@tracing
+def note_list(
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """List the note in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.query.note_mtp()
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@note.command(name="update")
+@tracing
+def note_update(
+    contents: Annotated[str, typer.Option()],
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Update the note in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.mutation.update_note_mtp(contents=contents)
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@security_controls.command(name="list")
+@tracing
+def security_controls_list(
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """List security controls in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.query.security_controls_mtp()
+
+    normalized_results = TaegisTenantProfileResultsNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@security_controls.command(name="add")
+@tracing
+def security_controls_add(
+    ip: Annotated[str, typer.Option()],
+    details: Annotated[str, typer.Option()],
+    service_: Annotated[SecurityControlServiceMtp, typer.Option("--service")],
+    source: Annotated[SecurityControlSourceMtp, typer.Option()],
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Add a security control in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.mutation.create_security_control_mtp(
+        SecurityControlCreateMtpInput(
+            ip=ip,
+            details=details,
+            service=service_,
+            source=source,
+        )
+    )
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@security_controls.command(name="update")
+@tracing
+def security_controls_update(
+    id_: Annotated[str, typer.Option("--id")],
+    ip: Annotated[str, typer.Option()],
+    details: Annotated[str, typer.Option()],
+    service_: Annotated[SecurityControlServiceMtp, typer.Option("--service")],
+    source: Annotated[SecurityControlSourceMtp, typer.Option()],
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Update a security control in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.mutation.update_security_control_mtp(
+        id_=id_,
+        input_=SecurityControlUpdateMtpInput(
+            ip=ip,
+            details=details,
+            service=service_,
+            source=source,
+        ),
+    )
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@security_controls.command(name="remove")
+@tracing
+def security_controls_remove(
+    id_: Annotated[str, typer.Option("--id")],
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Remove a security control in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    try:
+        results = service.tenant_profiles.mutation.delete_security_control_mtp(id_=id_)
+    except GraphQLNoRowsInResultSetError:
+        results = SecurityControlMtp()
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@mfa.command(name="list")
+@tracing
+def mfa_list(
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """List MFA access in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.query.mfa_accesses_mtp()
+
+    normalized_results = TaegisTenantProfileResultsNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@mfa.command(name="add")
+@tracing
+def mfa_add(
+    ip: Annotated[Optional[str], typer.Option()],
+    exceptions: Annotated[Optional[str], typer.Option()],
+    details: Annotated[Optional[str], typer.Option()],
+    service_: Annotated[Optional[MfaServiceMtp], typer.Option("--service")],
+    mfa_required: Annotated[Optional[bool], typer.Option()] = False,
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Add a MFA access in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.mutation.create_mfa_access_mtp(
+        MfaAccessCreateMtpInput(
+            ip=ip,
+            mfa_required=mfa_required,
+            exceptions=exceptions,
+            details=details,
+            service=service_,
+        )
+    )
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@mfa.command(name="update")
+@tracing
+def mfa_update(
+    id_: Annotated[Optional[str], typer.Option("--id")],
+    ip: Annotated[Optional[str], typer.Option()],
+    exceptions: Annotated[Optional[str], typer.Option()],
+    details: Annotated[Optional[str], typer.Option()],
+    service_: Annotated[Optional[MfaServiceMtp], typer.Option("--service")],
+    mfa_required: Annotated[Optional[bool], typer.Option()] = False,
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Update a MFA access in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.mutation.update_mfa_access_mtp(
+        id_=id_,
+        input_=MfaAccessUpdateMtpInput(
+            ip=ip,
+            mfa_required=mfa_required,
+            exceptions=exceptions,
+            details=details,
+            service=service_,
+        ),
+    )
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@mfa.command(name="remove")
+@tracing
+def mfa_remove(
+    id_: Annotated[Optional[str], typer.Option("--id")],
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Remove a MFA access in a tenant profile."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    try:
+        results = service.tenant_profiles.mutation.delete_mfa_access_mtp(
+            id_=id_,
+        )
+    except GraphQLNoRowsInResultSetError:
+        results = MfaAccessMtp()
+
+    normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
