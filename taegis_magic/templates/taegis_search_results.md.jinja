@@ -1,0 +1,15 @@
+**Taegis Search Results**
+
+{% if obj.query_identifier -%}
+ID: *{{ obj.query_identifier }}*
+{% endif %}
+
+{% if obj.aggregate %}
+|Region          |Tenant             |Service          |Status          |Num. Total                      |Num. Aggregates           |
+|----------------|-------------------|-----------------|----------------|--------------------------------|--------------------------|
+|{{ obj.region }}|{{ obj.tenant_id }}|{{ obj.service }}|{{ obj.status }}|{{ obj.total_results|validate_int }}|{{ obj.aggregate|length }}|
+{% else %}
+|Region          |Tenant             |Service          |Status          |Num. Total                          |Num. Returned                          |Link                   |
+|----------------|-------------------|-----------------|----------------|------------------------------------|---------------------------------------|:----------------------|
+|{{ obj.region }}|{{ obj.tenant_id }}|{{ obj.service }}|{{ obj.status }}|{{ obj.total_results|validate_int }}|{{ obj.results_returned|validate_int }}|{{ obj.shareable_url }}|
+{% endif %}
