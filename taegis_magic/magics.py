@@ -59,12 +59,59 @@ class TaegisMagics(Magics):
     def __init__(self, shell=None, **kwargs):
         super().__init__(shell, **kwargs)
 
-        try:
-            notebook_name = ipynbname.path().name
-        except FileNotFoundError:
-            notebook_name = None
+        # The notebook filename is important so that
+        # the magics can find the correct notebook in
+        # the current working directory.
+        #
+        # Due to the way that Jupyter works, it is non-trivial 
+        # to determine this information at runtime from inside
+        # the notebook itself.
+        #
+        # When parameterizing a notebook via papermill or
+        # running a notebook from vscode, for example, some
+        # notebook engines will automatically inject this
+        # information to make it easier. We want to default
+        # to these values, if available, otherwise attempt
+        # to determine the current notebook file based on
+        # heuristics.
 
-        self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"] = notebook_name
+        notebook_path: str = ""
+        
+        # papermill CLI support
+        if "PAPERMILL_OUTPUT_PATH" in self.shell.user_ns:
+            notebook_path = self.shell.user_ns["PAPERMILL_OUTPUT_PATH"]
+
+        # vscode support
+        elif "__vsc_ipynb_file__" in self.shell.user_ns:
+            notebook_path = self.shell.user_ns["__vsc_ipynb_file__"]
+
+        # manually-assigned
+        elif "TAEGIS_MAGIC_NOTEBOOK_PATH" in self.shell.user_ns:
+            notebook_path = self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_PATH"]
+
+        # ask Jupyter server
+        else:
+
+            try:
+                notebook_path = str(ipynbname.path())
+            except (FileNotFoundError, IndexError):
+                pass
+
+        self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_PATH"] = notebook_path
+        self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"] = Path(notebook_path).name if notebook_path else ""
+
+        # Lastly, it is common that hunting notebooks will want
+        # to convert the .ipynb file into a .md markdown file
+        # and using the markdown for the key findings section of
+        # a Taegis investigation. We set a default filename for this
+        # markdown report here:
+
+        if notebook_path and self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"]:
+            self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_REPORT_FILENAME"] = str(
+                Path(self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"]).with_suffix(".md")
+            )
+        else:
+            self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_REPORT_FILENAME"] = ""
 
     @line_cell_magic
     def taegis(self, line: str, cell: Optional[str] = None):
