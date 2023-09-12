@@ -40,6 +40,7 @@ setuptools.setup(
         "nbformat",
         "typer[all]>=0.9.0",
         "pandas",
+        "pandas[excel]",
         "taegis-sdk-python",
         "Jinja2",
         "compress_pickle>=2.1.0",

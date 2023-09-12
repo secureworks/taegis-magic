@@ -1,33 +1,37 @@
 """Taegis Magic tenant-profiles commands."""
 import inspect
 import logging
+import warnings
 from dataclasses import asdict, field
+from enum import Enum
+from pathlib import Path
 from typing import Any, List, Optional
 
+import pandas as pd
+import numpy as np
 import typer
+from taegis_magic.core.callbacks import verify_file
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_magic.core.service import get_service
 from taegis_sdk_python import GraphQLNoRowsInResultSetError
-
 from taegis_sdk_python.services.tenant_profiles.types import (
-    NetworkRangeCreateMtpInput,
-    MtpNetworkType,
-    NetworkRangeUpdateMtpInput,
     CriticalContactMtpInput,
     CustomerContactPreferenceMtp,
-    NetworkRangeMtp,
-    SecurityControlCreateMtpInput,
-    SecurityControlUpdateMtpInput,
-    SecurityControlServiceMtp,
-    SecurityControlSourceMtp,
-    SecurityControlMtp,
     MfaAccessCreateMtpInput,
+    MfaAccessMtp,
     MfaAccessUpdateMtpInput,
     MfaServiceMtp,
-    MfaAccessMtp,
+    MtpNetworkType,
+    NetworkRangeCreateMtpInput,
+    NetworkRangeMtp,
+    NetworkRangeUpdateMtpInput,
+    SecurityControlCreateMtpInput,
+    SecurityControlMtp,
+    SecurityControlServiceMtp,
+    SecurityControlSourceMtp,
+    SecurityControlUpdateMtpInput,
 )
-
-from taegis_magic.core.service import get_service
 from typing_extensions import Annotated
 
 log = logging.getLogger(__name__)
@@ -35,10 +39,13 @@ log = logging.getLogger(__name__)
 app = typer.Typer()
 contacts = typer.Typer()
 network = typer.Typer()
+network_template = typer.Typer()
 note = typer.Typer()
 security_controls = typer.Typer()
 mfa = typer.Typer()
 
+
+network.add_typer(network_template, name="template", help="Network Range templates")
 
 app.add_typer(contacts, name="contacts", help="Manage tenant profile contacts.")
 app.add_typer(network, name="network", help="Manage tenant profile networks.")
@@ -49,6 +56,14 @@ app.add_typer(
     help="Manage tenant profile security control device information.",
 )
 app.add_typer(mfa, name="mfa", help="Manage tenant profile multifactor authentication.")
+
+
+def excel_normalize(value):
+    if isinstance(value, bool):
+        return str(value)
+    if isinstance(value, Enum):
+        return value.value
+    return value
 
 
 class TaegisTenantProfileResultNormalizer(TaegisResultsNormalizer):
@@ -589,6 +604,194 @@ def mfa_remove(
         results = MfaAccessMtp()
 
     normalized_results = TaegisTenantProfileResultNormalizer(
+        raw_results=results,
+        service="tenant_profiles",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@network_template.command("generate")
+@tracing
+def network_template_generate(
+    filename: Annotated[
+        Path,
+        typer.Option(
+            exists=False,
+            file_okay=True,
+            dir_okay=False,
+            readable=False,
+            writable=True,
+            resolve_path=True,
+            callback=verify_file,
+        ),
+    ] = Path("taegis_network_range_template.xlsx"),
+):
+    """Generate a template file for tenant profiles network ranges."""
+
+    input_ = NetworkRangeCreateMtpInput(
+        cidr="192.0.2.0/24",
+        description="RFC 5737 TEST-NET-1",
+        network_type=MtpNetworkType.OTHER,
+        is_critical=False,
+    )
+    df = pd.json_normalize([asdict(input_)], max_level=3)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        df = df.applymap(excel_normalize, na_action="ignore")
+
+    df.to_excel(filename, index=False)
+
+    normalized_results = TaegisResultsNormalizer(
+        raw_results=[{"filename": str(filename.resolve())}],
+        service="tenant_profiles",
+        tenant_id="N/A",
+        region="N/A",
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@network_template.command("export")
+@tracing
+def network_template_export(
+    filename: Annotated[
+        Path,
+        typer.Option(
+            exists=False,
+            file_okay=True,
+            dir_okay=False,
+            readable=False,
+            writable=True,
+            resolve_path=True,
+            callback=verify_file,
+        ),
+    ] = Path("taegis_network_range_export.xlsx"),
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Export tenant profiles network ranges to a file."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.tenant_profiles.query.network_ranges_mtp()
+    df = pd.json_normalize([asdict(result) for result in results], max_level=3)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        df = df.applymap(excel_normalize, na_action="ignore")
+
+    df.to_excel(filename, index=False)
+
+    normalized_results = TaegisResultsNormalizer(
+        raw_results=[{"filename": str(filename.resolve())}],
+        service="tenant_profiles",
+        tenant_id="N/A",
+        region="N/A",
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@network_template.command("upload")
+@tracing
+def network_template_upload(
+    filename: Annotated[
+        Path,
+        typer.Option(
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            writable=False,
+            resolve_path=True,
+        ),
+    ] = Path("taegis_network_range_template.xlsx"),
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Create/Update Tenant Profile Network Ranges."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    try:
+        df = pd.read_excel(filename)
+    except ValueError as exc:
+        log.error(f"{filename.resolve()} is not an Excel file.")
+        raise typer.Exit() from exc
+    except FileNotFoundError as exc:
+        log.error(f"{filename.resolve()} not found.")
+        raise typer.Exit() from exc
+
+    def excel_decode(row, networks):
+        try:
+            for network in networks:
+                if network.cidr == row.cidr:
+                    return NetworkRangeUpdateMtpInput(
+                        cidr=row["cidr"],
+                        description=row["description"],
+                        is_critical=row["is_critical"],
+                        network_type=MtpNetworkType(row["network_type"]),
+                    )
+
+            return NetworkRangeCreateMtpInput(
+                cidr=row["cidr"],
+                description=row["description"],
+                is_critical=row["is_critical"],
+                network_type=MtpNetworkType(row["network_type"]),
+            )
+        except ValueError as exc:
+            if "MtpNetworkType" in exc.args[0]:
+                log.error(
+                    f"{exc}.  Use {[item.value for item in list(MtpNetworkType)]} instead."
+                )
+            else:
+                log.error(exc)
+
+            return np.nan
+        except Exception as exc:
+            log.error(exc)
+
+            return np.nan
+
+    networks = service.tenant_profiles.query.network_ranges_mtp()
+
+    series = df.apply(excel_decode, axis=1, networks=networks).dropna()
+
+    create_networks = [
+        row for row in series if isinstance(row, NetworkRangeCreateMtpInput)
+    ]
+    update_networks = [
+        row for row in series if isinstance(row, NetworkRangeUpdateMtpInput)
+    ]
+
+    for network in create_networks:
+        try:
+            results = service.tenant_profiles.mutation.create_network_range_mtp(network)
+        except Exception as exc:
+            log.error(exc)
+            continue
+
+    for network in update_networks:
+        try:
+            id_ = next(iter([n.id for n in networks if n.cidr == network.cidr]))
+        except StopIteration:
+            log.error(f"Could not find `id` for network: {network.cidr}")
+            continue
+
+        try:
+            service.tenant_profiles.mutation.update_network_range_mtp(id_, network)
+        except Exception as exc:
+            log.error(exc)
+            continue
+
+    results = service.tenant_profiles.query.network_ranges_mtp()
+
+    normalized_results = TaegisTenantProfileResultsNormalizer(
         raw_results=results,
         service="tenant_profiles",
         tenant_id=service.tenant_id,

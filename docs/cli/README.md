@@ -24,3 +24,7 @@ $ taegis investigations evidence show --database test_database.db
 $ echo "This is a a test" > test_kf.md
 $ taegis investigations create --title "CLI Test" --key-findings test_kf.md --priority LOW --type SECURITY_INVESTIGATION --status OPEN --assignee-id @customer --database test_database.db
 ```
+
+## Further Reading
+
+* [Tenant Profiles](tenant-profiles.md)
