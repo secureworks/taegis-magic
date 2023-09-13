@@ -132,7 +132,7 @@ class TaegisMagics(Magics):
 
                 log.info(f"re-setting {magic_args.assign}:{cache_digest} to cache...")
                 display_cache(magic_args.assign, cache_digest, data)
-                display(Javascript("IPython.notebook.save_checkpoint();"))
+                display(Javascript("IPython.notebook.save_checkpoint();"), exclude=["text/plain"])
 
                 return
 
@@ -190,9 +190,9 @@ class TaegisMagics(Magics):
 
         if magic_args.cache:
             display_cache(magic_args.assign, cache_digest, result)
-            display(Javascript("IPython.notebook.save_checkpoint();"))
+            display(Javascript("IPython.notebook.save_checkpoint();"), exclude=["text/plain"])
         else:
-            display(result)
+            display(result, exclude=["text/plain"])
 
 
 def load_ipython_extension(ipython):
