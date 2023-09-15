@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "taegis-magic"
+dynamic = ["version"]
+description = "Taegis IPython Magics"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+authors = [{ name = "Micah Pegman", email = "sdks@secureworks.com" }]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "click",
+    "compress_pickle>=2.1.0",
+    "dataclasses_json",
+    "gql",
+    "ipynbname",
+    "ipython",
+    "Jinja2",
+    "nbformat",
+    "pandas",
+    "pandas[excel]",
+    "requests",
+    "taegis-sdk-python",
+    "typer[all]>=0.9.0",
+]
+
+[project.optional-dependencies]
+dev = ["black", "pylint", "jupyter"]
+
+[project.scripts]
+taegis = "taegis_magic.cli:cli"
+
+[project.urls]
+"Homepage" = "https://github.com/secureworks/taegis-magic"
+"Bug Reports" = "https://github.com/secureworks/taegis-magic/issues"
+"Source" = "https://github.com/secureworks/taegis-magic"
+"Package" = "https://pypi.org/project/taegis-magic/"
+
+[tool.hatch.version]
+path = "taegis_magic/_version.py"
+
+[tool.hatch.build.targets.sdist]
+include = ["/taegis_magic"]
