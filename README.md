@@ -47,7 +47,7 @@ $ taegis --help
 
 ## Sample Usage
 
-For more in depth examples see [docs](docs/README.md).
+For more in depth examples see [docs](https://github.com/secureworks/taegis-magic/blob/main/docs/README.md).
 
 ### CLI
 
