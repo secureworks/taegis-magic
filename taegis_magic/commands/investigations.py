@@ -7,6 +7,8 @@ from enum import Enum
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Union
+import mimetypes
+import requests
 
 import typer
 from dataclasses_json import dataclass_json
@@ -25,11 +27,16 @@ from taegis_magic.commands.utils.investigations import (
     unstage_investigation_evidence,
 )
 from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import DataFrameNormalizer, TaegisResultsNormalizer
-
-from taegis_magic.core.utils import remove_output_node
-from taegis_magic.core.service import get_service
+from taegis_magic.core.normalizer import (
+    DataFrameNormalizer,
+    TaegisResult,
+    TaegisResults,
+    TaegisResultsNormalizer,
+)
 from taegis_magic.core.queries import get_query, update_query
+from taegis_magic.core.service import get_service
+from taegis_magic.core.utils import remove_output_node
+from taegis_magic.core.callbacks import verify_file
 from taegis_sdk_python import build_output_string
 from taegis_sdk_python.services.investigations2.types import (
     CreateInvestigationInput,
@@ -38,6 +45,10 @@ from taegis_sdk_python.services.investigations2.types import (
     InvestigationsV2Arguments,
     InvestigationType,
     InvestigationV2,
+    InvestigationFileV2Arguments,
+    InvestigationFilesV2Arguments,
+    DeleteInvestigationFileInput,
+    InitInvestigationFileUploadInput,
 )
 from taegis_sdk_python.services.sharelinks.types import ShareLinkCreateInput
 from typing_extensions import Annotated
@@ -46,11 +57,23 @@ log = logging.getLogger(__name__)
 
 
 app = typer.Typer()
+investigations_attachment = typer.Typer()
 investigations_evidence = typer.Typer()
 investigations_search_queries = typer.Typer()
 
-app.add_typer(investigations_evidence, name="evidence")
-app.add_typer(investigations_search_queries, name="search-queries")
+app.add_typer(
+    investigations_attachment,
+    name="attachment",
+    help="Investigation File Attachment commands.",
+)
+app.add_typer(
+    investigations_evidence, name="evidence", help="Investigation Evidence commands."
+)
+app.add_typer(
+    investigations_search_queries,
+    name="search-queries",
+    help="Investigation Search Query commands.",
+)
 
 
 class InvestigationPriority(str, Enum):
@@ -378,7 +401,7 @@ def create(
     tenant: Optional[str] = None,
 ):
     """
-    Create a new investigation
+    Create a new Investigation.
     """
     service = get_service(environment=region, tenant_id=tenant)
 
@@ -667,6 +690,221 @@ def investigations_search_queries_stage(
         service="investigations",
         tenant_id="N/A",
         region="N/A",
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@investigations_attachment.command(name="list")
+@tracing
+def investigations_attachment_list(
+    investigation_id: Annotated[str, typer.Option()],
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """List file attachments for a given investigation."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    page = 1
+    per_page = 20
+
+    files = []
+
+    results = service.investigations2.query.investigation_files_v2(
+        InvestigationFilesV2Arguments(
+            investigation_id=investigation_id,
+            page=page,
+            per_page=per_page,
+        )
+    )
+    total_count = results.total_count
+    files.extend(results.files)
+
+    remaining_pages = -(-(total_count - per_page) // per_page)
+
+    for page in range(2, remaining_pages + 2):
+        results = service.investigations2.query.investigation_files_v2(
+            InvestigationFilesV2Arguments(
+                investigation_id=investigation_id,
+                page=page,
+                per_page=per_page,
+            )
+        )
+        files.extend(results.files)
+
+    normalized_results = TaegisResults(
+        raw_results=files,
+        service="investigations",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@investigations_attachment.command(name="get")
+@tracing
+def investigations_attachment_get(
+    file_id: Annotated[str, typer.Option()],
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Get a file attachment."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.investigations2.query.investigation_file_v2(
+        InvestigationFileV2Arguments(
+            file_id=file_id,
+        )
+    )
+
+    normalized_results = TaegisResult(
+        raw_results=results,
+        service="investigations",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@investigations_attachment.command(name="remove")
+@tracing
+def investigations_attachment_remove(
+    file_id: Annotated[str, typer.Option()],
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Delete file attachment."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.investigations2.mutation.delete_investigation_file(
+        DeleteInvestigationFileInput(
+            file_id=file_id,
+        )
+    )
+
+    normalized_results = TaegisResult(
+        raw_results=results,
+        service="investigations",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@investigations_attachment.command(name="upload")
+@tracing
+def investigations_attachment_upload(
+    investigation_id: Annotated[str, typer.Option()],
+    file: Annotated[
+        Path,
+        typer.Option(
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            writable=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Upload file attachment."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    file_input = InitInvestigationFileUploadInput(
+        investigation_id=investigation_id,
+        name=file.name,
+        content_type=str(mimetypes.guess_type(file)[0]),
+        size=file.stat().st_size,
+    )
+    log.debug(file_input)
+
+    results = service.investigations2.mutation.init_investigation_file_upload(
+        input_=file_input
+    )
+    log.debug(results)
+
+    with file.open("rb") as f:
+        upload_response = requests.put(
+            results.presigned_url,
+            headers={
+                "Accept": "*/*",
+                "Content-Type": str(mimetypes.guess_type(file)[0]),
+                "Content-Length": str(file.stat().st_size),
+            },
+            data=f,
+        )
+    log.debug(upload_response)
+
+    verify_upload = service.investigations2.query.investigation_file_v2(
+        InvestigationFileV2Arguments(
+            file_id=results.file.id,
+        )
+    )
+    log.debug(verify_upload)
+
+    normalized_results = TaegisResult(
+        raw_results=verify_upload,
+        service="investigations",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@investigations_attachment.command("download")
+@tracing
+def investigations_attachment_download(
+    file_id: Annotated[
+        str,
+        typer.Option(),
+    ],
+    save_as: Annotated[Optional[str], typer.Option()] = None,
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    """Get a file attachment."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.investigations2.query.investigation_file_v2(
+        InvestigationFileV2Arguments(
+            file_id=file_id,
+        )
+    )
+
+    if not results.download_url:
+        log.error("Cannot download file, no download url found.")
+        raise typer.Exit(code=1)
+
+    with requests.get(results.download_url, stream=True) as r:
+        r.raise_for_status()
+
+        if save_as:
+            filename = save_as
+        else:
+            filename = results.name
+
+        file_path = verify_file(filename)
+
+        with file_path.open("wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+    normalized_results = TaegisResult(
+        raw_results=results,
+        service="investigations",
+        tenant_id=service.tenant_id,
+        region=service.environment,
         arguments=inspect.currentframe().f_locals,
     )
 
