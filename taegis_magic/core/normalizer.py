@@ -1,6 +1,6 @@
 """Taegis Base Normalizer."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Union
 
 import jinja2
@@ -65,6 +65,26 @@ class TaegisResultsNormalizer:
 
         template = jinja_env.get_template(template_name)
         return template.render(obj=self)
+
+
+class TaegisResult(TaegisResultsNormalizer):
+    """Generic single result normalizer."""
+
+    raw_results: Any = field(default=None)
+
+    @property
+    def results(self):
+        return [asdict(self.raw_results)]
+
+
+class TaegisResults(TaegisResultsNormalizer):
+    """Generic multiple results normalizer."""
+
+    raw_results: List[Any] = field(default_factory=list)
+
+    @property
+    def results(self):
+        return [asdict(r) for r in self.raw_results]
 
 
 @dataclass_json
