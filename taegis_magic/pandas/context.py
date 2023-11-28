@@ -1,7 +1,11 @@
 """Context gathering functions."""
 
 import pandas as pd
-from IPython.display import display, HTML
+from IPython.core.display import display
+from typing import Dict, List
+import panel as pn
+
+pn.extension("tabulator")
 
 
 def normalize_entities(df: pd.DataFrame) -> pd.DataFrame:
@@ -260,53 +264,89 @@ def generate_context_queries(df: pd.DataFrame) -> pd.DataFrame:
     return df2
 
 
-def display_facet(df: pd.DataFrame, columns: list[str]):
-    display(
-        HTML(
-            df.fillna("n/a")
-            .groupby(columns)
-            .size()
-            .rename("count")
-            .to_frame()
-            .to_html()
-        )
+def get_facet(df: pd.DataFrame, columns: List[str], title: str) -> pn.Card:
+    df = (
+        df.groupby(columns)
+        .size()
+        .rename("count")
+        .sort_values(ascending=False)
+        .to_frame()
+        .reset_index()
     )
 
+    header_filters = {
+        column: {"type": "input", "func": "like", "placeholder": "Filter"}
+        for column in df.columns
+    }
 
-def display_facets(queries: dict[str, pd.DataFrame]):
+    widget = pn.widgets.Tabulator(
+        df,
+        width=1050,
+        height=500,
+        formatters={"bool": {"type": "tickCross"}},
+        layout="fit_data",
+        theme="bootstrap5",
+        theme_classes=["thead-dark", "table-sm"],
+        # pagination="local",
+        # page_size=50,
+        header_filters=header_filters,
+    )
+    card = pn.Card(widget, title=title)
+    return card
+
+
+def display_facets(queries: Dict[str, pd.DataFrame]):
     for entity in queries:
-        print(entity)
-        print("Open Alerts")
-        display(
-            HTML(
-                queries[entity]["open_alerts"]
-                .explode("entities.entities")
-                .groupby(
-                    [
-                        "metadata.title",
-                        "entities.entities",
-                    ]
-                )
-                .size()
-                .rename("count")
-                .to_frame()
-                .to_html()
+        if not queries[entity]["open_alerts"].empty:
+            open_alerts = get_facet(
+                df=queries[entity]["open_alerts"].explode("entities.entities"),
+                columns=[
+                    "metadata.title",
+                    "entities.entities",
+                ],
+                title="Open Alerts",
             )
-        )
-        print("Investigations")
-        display(queries[entity]["investigations"])
-        print("Resolved Alerts")
-        display(queries[entity]["resolved_alerts"])
-        print("Related Events")
-        for schema in (
-            queries[entity]["events"]["resource_id"]
-            .apply(lambda x: x.split(":")[2].split(".")[1])
-            .unique()
-        ):
+        else:
+            open_alerts = pn.Card(title="Open Alerts")
+
+        if not queries[entity]["investigations"].empty:
+            investigations = get_facet(
+                queries[entity]["investigations"],
+                columns=[
+                    "metadata.title",
+                    "entities",
+                    "investigation_ids",
+                    "status",
+                ],
+                title="Investigations",
+            )
+        else:
+            investigations = pn.Card(title="Investigations")
+
+        if not queries[entity]["resolved_alerts"].empty:
+            resolved_alerts = get_facet(
+                df=queries[entity]["resolved_alerts"],
+                columns=["metadata.title", "entities", "status", "resolution_reason"],
+                title="Resolved Alerts",
+            )
+        else:
+            resolved_alerts = pn.Card(title="Resolved Alerts")
+
+        schema_cards = []
+
+        try:
+            schemas = (
+                queries[entity]["events"]["resource_id"]
+                .apply(lambda x: x.split(":")[2].split(".")[1])
+                .unique()
+            )
+        except Exception:
+            schemas = []
+
+        for schema in schemas:
             df = queries[entity]["events"][
                 queries[entity]["events"]["resource_id"].str.contains(schema)
             ].dropna(how="all", axis=1)
-            print(schema)
             if schema == "auth":
                 columns = [
                     "source_address",
@@ -324,7 +364,14 @@ def display_facets(queries: dict[str, pd.DataFrame]):
                     "ontology",
                 ]
             elif schema == "dnsquery":
-                pass
+                columns = [
+                    "hostname",
+                    "os.os",
+                    "os.arch",
+                    "processcorrelationid.pid",
+                    "query_name",
+                    "query_type",
+                ]
             elif schema == "cloudaudit":
                 columns = [
                     "source_address",
@@ -334,16 +381,51 @@ def display_facets(queries: dict[str, pd.DataFrame]):
                     "mfa_used",
                     "user_agent",
                 ]
-            elif schema == "managementevent":
-                pass
             elif schema == "http":
-                pass
+                columns = [
+                    "source_username",
+                    "source_address",
+                    "destination_address",
+                    "destination_port",
+                    "user_agent",
+                    "http_method",
+                    "response_code",
+                    "uri_host",
+                    "uri_path",
+                    "tx_byte_count",
+                    "rx_byte_count",
+                ]
             elif schema == "netflow":
-                pass
+                columns = [
+                    "hostname",
+                    "sensor_type",
+                    "protocol",
+                    "source_address",
+                    "destination_address",
+                    "destination_port",
+                    "dns_name",
+                ]
             elif schema == "nids":
-                pass
+                columns = [
+                    "source_address",
+                    "destination_address",
+                    "action",
+                    "blocked",
+                    "enrichSummary",
+                ]
             elif schema == "process":
-                pass
+                columns = [
+                    "hostname",
+                    "os.os",
+                    "os.arch",
+                    "sensor_type",
+                    "username",
+                    "user_is_admin",
+                    "process_is_admin",
+                    "image_path",
+                    "commandline",
+                    "was_blocked",
+                ]
             elif schema == "scriptblock":
                 df["decoded_block_text_truncated"] = df["decoded_block_text"].apply(
                     lambda x: x[:200]
@@ -359,5 +441,14 @@ def display_facets(queries: dict[str, pd.DataFrame]):
             else:
                 columns = list(df.columns)
 
-            display_facet(df, columns)
-    print()
+            schema_cards.append(get_facet(df=df, columns=columns, title=schema))
+
+        display(
+            pn.Card(
+                open_alerts,
+                investigations,
+                resolved_alerts,
+                *schema_cards,
+                title=entity,
+            )
+        )

@@ -10,3 +10,5 @@ dataclasses_json
 click
 requests
 ipynbname
+panel
+tabulator
