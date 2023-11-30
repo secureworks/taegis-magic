@@ -33,6 +33,8 @@ dependencies = [
     "requests",
     "taegis-sdk-python",
     "typer[all]>=0.9.0",
+    "panel",
+    "tabulator",
 ]
 
 [project.optional-dependencies]

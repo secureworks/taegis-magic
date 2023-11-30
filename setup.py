@@ -49,6 +49,8 @@ setuptools.setup(
         "click",
         "requests",
         "ipynbname",
+        "panel",
+        "tabulator",
     ],
     python_requires=">=3.8",
     entry_points={"console_scripts": ["taegis = taegis_magic.cli:cli"]},
