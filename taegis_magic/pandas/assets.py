@@ -21,7 +21,7 @@ def get_assets(
     service: GraphQLService,
     filter: AssetFilter,
 ) -> List[AssetV2]:
-    """Takes a asset filter to obtain a list of assets
+    """Takes an asset filter to obtain a list of assets
 
     Parameters
     ----------
@@ -42,7 +42,7 @@ def get_assets(
             filter_=filter,
         )
     except Exception as exc:
-        log.error(exc)
+        raise exc
 
     all_assets.extend(response.assets)
     more_pages = response.page_info.has_next_page
@@ -55,7 +55,7 @@ def get_assets(
                 filter_=filter,
             )
         except Exception as exc:
-            log.error(exc)
+            raise exc
         more_pages = response.page_info.has_next_page
         end_cursor = response.page_info.end_cursor
         all_assets.extend(response.assets)
@@ -81,23 +81,21 @@ def assets_from_list(
     List[AssetV2]
         Returns a list of AssetV2 objects.
     """
-    try:
-        asset_data = get_assets(
-            service=service,
-            filter=AssetFilter(
-                where=AssetWhereInputV2(
-                    or_=[AssetWhereInputV2(host_id=x) for x in asset_list]
-                )
-            ),
-        )
-    except Exception as exc:
-        log.error(exc)
+    asset_data = get_assets(
+        service=service,
+        filter=AssetFilter(
+            where=AssetWhereInputV2(
+                or_=[AssetWhereInputV2(host_id=x) for x in asset_list]
+            )
+        ),
+    )
 
     return asset_data
 
 
 def lookup_assets(df: pd.DataFrame, env: str) -> pd.DataFrame:
-    """_summary_
+    """Takes a Taegis pandas dataframe that contains host_ids and tenant_ids columns
+    and preforms a assetv2 lookup using the Taegis SDK on the unique host_ids.
 
     Parameters
     ----------
