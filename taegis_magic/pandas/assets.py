@@ -37,25 +37,19 @@ def get_assets(
     """
     all_assets = []
 
-    try:
-        response = service.assets2.query.assets_v2(
-            filter_=filter,
-        )
-    except Exception as exc:
-        raise exc
+    response = service.assets2.query.assets_v2(
+        filter_=filter,
+    )
 
     all_assets.extend(response.assets)
     more_pages = response.page_info.has_next_page
     end_cursor = response.page_info.end_cursor
 
     while more_pages:
-        try:
-            response = service.assets2.query.assets_v2(
-                after=end_cursor,
-                filter_=filter,
-            )
-        except Exception as exc:
-            raise exc
+        response = service.assets2.query.assets_v2(
+            after=end_cursor,
+            filter_=filter,
+        )
         more_pages = response.page_info.has_next_page
         end_cursor = response.page_info.end_cursor
         all_assets.extend(response.assets)
@@ -136,7 +130,7 @@ def lookup_assets(df: pd.DataFrame, env: str) -> pd.DataFrame:
         service = get_service(environment=env)
 
         with service(tenant_id=tenant):
-            for host_ids in chunk_list(host_list, 10000):
+            for host_ids in chunk_list(host_list, 2000):
                 asset_results = assets_from_list(
                     service=service,
                     asset_list=host_ids,
@@ -158,7 +152,7 @@ def lookup_assets(df: pd.DataFrame, env: str) -> pd.DataFrame:
 
     return df.merge(
         assets_df,
-        how="inner",
+        how="left",
         left_on=host_id_col,
         right_on="asset_info.host_id",
     )
