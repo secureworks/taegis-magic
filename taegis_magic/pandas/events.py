@@ -36,7 +36,7 @@ def convert_event_timestamps(
         return df
 
     df = df.copy()
-    df.d
+
     for column in [
         column
         for column in df.columns
@@ -58,17 +58,18 @@ def convert_event_timestamps(
 
 
 def inflate_original_data(
-    df: pd.DataFrame, og_data_columns: Optional[List[str]] = None
+    df: pd.DataFrame, original_data_columns: Optional[List[str]] = None
 ) -> pd.DataFrame:
     """Takes a DataFrame containing a valid Event original_data column
     and concats the nested JSON blob containing the
     event original data as columns. Returns a DataFrame.
 
-
     Parameters
     ----------
     df : pd.DataFrame
         Taegis Alerts or Events Query Dataframe
+    original_data_columns : Optional[List[str]], optional
+        A list of columns that contain Taegis Event original data, by default None
 
     Returns
     -------
@@ -85,27 +86,22 @@ def inflate_original_data(
     if df.empty:
         return df
 
-    if og_data_columns is None:
-        og_data_columns = [
+    if original_data_columns is None:
+        original_data_columns = [
             "original_data",
             "event_data.original_data",
-            "data.original_data",
-            "source.original_data",
         ]
 
-    valid_og_data_columns = []
+    valid_original_data_columns = []
 
-    for og_data_col in og_data_columns:
-        if og_data_col in df.columns:
-            valid_og_data_columns.append(og_data_col)
+    for original_data_col in original_data_columns:
+        if original_data_col in df.columns:
+            valid_original_data_columns.append(original_data_col)
 
-    if not valid_og_data_columns:
+    if not valid_original_data_columns:
         raise ValueError(
-            f"DataFrame does not contain a vaild original data column: {og_data_columns}"
+            f"DataFrame does not contain a vaild original data column: {original_data_columns}"
         )
-
-    og_data_identifier_col = "original_data"
-    df[og_data_identifier_col] = coalesce_columns(df, valid_og_data_columns)
 
     if any(df.columns.str.startswith("original_data.")) is False:
 
@@ -113,7 +109,7 @@ def inflate_original_data(
             [
                 df,
                 pd.json_normalize(
-                    df[og_data_identifier_col].apply(load_json)
+                    coalesce_columns(df, valid_original_data_columns).apply(load_json)
                 ).add_prefix("original_data."),
             ],
             axis=1,
