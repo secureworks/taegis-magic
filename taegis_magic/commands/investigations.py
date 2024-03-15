@@ -1,4 +1,5 @@
 """Taegis Magic investigations commands."""
+
 import inspect
 import logging
 import re
@@ -417,31 +418,10 @@ def create(
 
     # verify and save valid search queries
     if not dry_run:
-        valid_search_queries = []
-        for search_query in search_queries or []:
-            query = get_query(service, search_query)
-            if query.get("error"):
-                log.error(f"Error finding search query: {search_query}")
-                continue
+        if search_queries:
+            queries = service.queries.query.ql_queries(rns=search_queries)
 
-            if query.get("id"):
-                query_update = {
-                    "name": query.get("description", f"{title} Query"),
-                    "metadata": query.get("metadata", {}),
-                }
-                for metadata in query_update.get("metadata", []):
-                    if metadata.get("id", "") == "isSaved":
-                        metadata["value"] == "true"
-
-                query = update_query(service, search_query, query_update)
-                if query.get("error"):
-                    log.error(
-                        f"Error saving search query::{search_query}::{query.get('error')}"
-                    )
-                    continue
-
-                valid_search_queries.append(search_query)
-        search_queries = valid_search_queries or None
+        search_queries = [query.rn for query in queries.queries]
 
     create_investigation_input = CreateInvestigationInput(
         alerts=alerts,
