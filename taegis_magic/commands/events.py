@@ -1,4 +1,5 @@
 """Taegis Magic events commands."""
+
 import inspect
 import logging
 from dataclasses import asdict, dataclass, field
@@ -145,36 +146,7 @@ class TaegisEventQueryNormalizer(TaegisResultsNormalizer):
         if not self.raw_results:
             return None
 
-        if self._query_id:
-            return self._query_id
-
-        if not self.query:
-            raise ValueError("No query found to generate query id")
-
-        query_name = query if self.is_saved else "cql"
-        data = {
-            "query": None,
-            "name": query_name,
-            "description": self.query,
-            "query_source": "cql",
-            "metadata": [
-                {"id": "start"},
-                {"id": "dateOption", "value": "custom"},
-                {"id": "timeDescription"},
-                {"id": "searchTerms"},
-                {"id": "isSaved", "value": str(self.is_saved).lower()},
-                {"id": "isRedql", "value": "true"},
-            ],
-        }
-        service = get_service(environment=self.region, tenant_id=self.tenant_id)
-        query_id = create_query(service, data).get("id")
-
-        if not query_id:
-            raise ValueError("No query id returned from Query API")
-
-        self._query_id = query_id
-
-        return self._query_id
+        return self.raw_results[0].query_id
 
     @property
     def shareable_url(self) -> str:
