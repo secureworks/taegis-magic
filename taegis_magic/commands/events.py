@@ -1,4 +1,5 @@
 """Taegis Magic events commands."""
+
 import inspect
 import logging
 from dataclasses import asdict, dataclass, field
@@ -148,10 +149,14 @@ class TaegisEventQueryNormalizer(TaegisResultsNormalizer):
         if self._query_id:
             return self._query_id
 
-        if not self.query:
-            raise ValueError("No query found to generate query id")
+        if self.raw_results[0].query_id:
+            self._query_id = self.raw_results[0].query_id
+            return self._query_id
 
-        query_name = query if self.is_saved else "cql"
+        if not self.query:
+            raise None
+
+        query_name = self.query if self.is_saved else "cql"
         data = {
             "query": None,
             "name": query_name,

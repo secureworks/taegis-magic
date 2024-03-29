@@ -1,4 +1,5 @@
 """Taegis Magic alerts commands."""
+
 import logging
 from dataclasses import asdict, dataclass, field
 from pprint import pprint
@@ -139,6 +140,10 @@ class AlertsResultsNormalizer(TaegisResultsNormalizer):
             return None
 
         if self._query_id:
+            return self._query_id
+
+        if self.raw_results[0].query_id:
+            self._query_id = self.raw_results[0].query_id
             return self._query_id
 
         if not self.query:
@@ -313,6 +318,9 @@ def search(
                 cql_query=cell,
                 offset=0,
                 limit=limit,
+                metadata={
+                    "callerName": "Taegis Magic",
+                },
             ),
         )
 
