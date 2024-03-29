@@ -51,6 +51,7 @@ from taegis_sdk_python.services.investigations2.types import (
     DeleteInvestigationFileInput,
     InitInvestigationFileUploadInput,
 )
+from taegis_sdk_python.services.queries.types import QLQueriesInput
 from taegis_sdk_python.services.sharelinks.types import ShareLinkCreateInput
 from typing_extensions import Annotated
 
@@ -419,7 +420,9 @@ def create(
     # verify and save valid search queries
     if not dry_run:
         if search_queries:
-            queries = service.queries.query.ql_queries(rns=search_queries)
+            queries = service.queries.query.ql_queries(
+                QLQueriesInput(rns=search_queries)
+            )
 
         search_queries = [query.rn for query in queries.queries]
 
