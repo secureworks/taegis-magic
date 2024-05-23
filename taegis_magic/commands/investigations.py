@@ -34,7 +34,6 @@ from taegis_magic.core.normalizer import (
     TaegisResults,
     TaegisResultsNormalizer,
 )
-from taegis_magic.core.queries import get_query, update_query
 from taegis_magic.core.service import get_service
 from taegis_magic.core.utils import remove_output_node
 from taegis_magic.core.callbacks import verify_file
