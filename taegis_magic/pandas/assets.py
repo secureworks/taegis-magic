@@ -120,7 +120,14 @@ def lookup_assets(df: pd.DataFrame, env: str) -> pd.DataFrame:
     if not host_id_col:
         raise ValueError("Dataframe does not contain an host_id column")
 
-    tenants_series = df.tenant_id.apply(get_tenant_id)
+    if "tenant_id" in df.columns:
+        tenant_identifier = "tenant_id"
+    elif "tenant.id" in df.columns:
+        tenant_identifier = "tenant.id"
+    else:
+        raise ValueError("DataFrame does not contain a valid tenant identifier")
+
+    tenants_series = df[tenant_identifier].apply(get_tenant_id)
     tenants_list = list(tenants_series.dropna().unique())
     assets_df = pd.DataFrame()
 

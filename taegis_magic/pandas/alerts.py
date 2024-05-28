@@ -167,9 +167,11 @@ def get_alerts_from_aggregation(
     replacement = "\\'"
     for _, row in df.iterrows():
         row_query = [
-            f"{col} = '{row[col]}'"
-            if not str(row[col]).find("'") > -1
-            else f"{col} = e'{str(row[col]).replace(single_quote, replacement)}'"
+            (
+                f"{col} = '{row[col]}'"
+                if not str(row[col]).find("'") > -1
+                else f"{col} = e'{str(row[col]).replace(single_quote, replacement)}'"
+            )
             for col in cols
             if col in row
         ]
@@ -375,10 +377,17 @@ def provide_feedback(
 
     service = get_service(environment=environment)
 
-    tenants = set(df["tenant_id"].to_list())
+    if "tenant_id" in df.columns:
+        tenant_identifier = "tenant_id"
+    elif "tenant.id" in df.columns:
+        tenant_identifier = "tenant.id"
+    else:
+        raise ValueError("DataFrame does not contain a valid tenant identifier")
+
+    tenants = set(df[tenant_identifier].to_list())
 
     for tenant in tenants:
-        alert_ids = df[df["tenant_id"] == tenant]["id"].unique()
+        alert_ids = df[df[tenant_identifier] == tenant]["id"].unique()
 
         with service(tenant_id=tenant):
             for chunk in chunk_list(alert_ids, 250):
