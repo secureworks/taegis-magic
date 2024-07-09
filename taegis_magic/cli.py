@@ -1,4 +1,5 @@
 """Taegis Magic CLI definitions."""
+
 import json
 import logging
 import sys
@@ -7,6 +8,7 @@ import typer
 from gql.transport.exceptions import TransportQueryError
 from taegis_magic.commands import (
     alerts,
+    authentication,
     audits,
     clients,
     configure,
@@ -27,6 +29,7 @@ CONTEXT_SETTINGS = dict(help_option_names=["--help", "-h"])
 
 app = typer.Typer(context_settings=CONTEXT_SETTINGS)
 app.add_typer(alerts.app, name="alerts")
+app.add_typer(authentication.app, name="auth")
 app.add_typer(audits.app, name="audits")
 app.add_typer(clients.app, name="clients")
 app.add_typer(configure.app, name="configure")
