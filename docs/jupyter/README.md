@@ -104,3 +104,4 @@ This showcases three parts: the parsed field, the generic query, passing the que
 * [Investigations](investigations.md) 
 * [Rules](rules.md)
 * [Threat](threat.md)
+* [Save Notebook and Save Report](save_report.md)
