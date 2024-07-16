@@ -97,6 +97,21 @@ query = f"FROM process WHERE @user CONTAINS '{user}' EARLIEST=-3d"
 
 This showcases three parts: the parsed field, the generic query, passing the query via `--cell`.  Normally this would be done in multiple cells.
 
+### Notebooks
+
+A notebook can be started via an included template.  OUTPUT_NOTEBOOK will be the file path for the new notebook.
+
+```bash
+taegis notebook create [OUTPUT_NOTEBOOK]
+```
+
+Notebook execution can be automated, like running a notebook across a list of tenants.  This utilizes `papermill` underneath the hood, but helps parameterize a notebook to work against Taegis.
+
+```bash
+taegis notebook execute sample.ipynb --tenant XXXXX --region charlie --title "My Awesome Report" -k python3
+```
+
+
 ## Further Reading
 
 * [Alerts](alerts.md)

@@ -14,7 +14,7 @@ Options:
 
 ## Saving a markdown report
 
-Use the `%save_report` magic.
+Use the `%generate_report` magic.
 
 Notes: 
 

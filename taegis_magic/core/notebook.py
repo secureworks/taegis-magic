@@ -1,37 +1,84 @@
 import logging
 from pathlib import Path
+from time import sleep
+from typing import Optional, Union
 
+import ipynbname
 import jinja2
 import nbconvert
+from ipylab import JupyterFrontEnd
+from IPython import get_ipython
+from IPython.display import HTML, Javascript, display
 from nbconvert.preprocessors.tagremove import TagRemovePreprocessor
 from traitlets.config import Config
 
-
-from typing import Union
-
 log = logging.getLogger(__name__)
 
-from IPython.display import display, HTML
-from time import sleep
+
+def find_notebook_name() -> Optional[str]:
+    """Find the name of the current notebook."""
+    notebook_name = None
+
+    try:
+        notebook_name = ipynbname.name()
+    except Exception as e:
+        log.debug(f"Error finding notebook name using ipynbname: {e}")
+
+    if not notebook_name:
+        ip = get_ipython()
+        if "__vsc_ipynb_file__" in ip.user_ns:
+            path = Path(ip.user_ns["__vsc_ipynb_file__"])
+            notebook_name = path.name
+        else:
+            log.debug("Could not find notebook name using __vsc_ipynb_file__")
+
+    return notebook_name
 
 
 def save_notebook(delay: int = 0):
-    script = """
-    this.nextElementSibling.focus();
-    this.dispatchEvent(new KeyboardEvent('keydown', {key:'s', keyCode: 83, ctrlKey: true}));
-    """
-    display(
-        HTML(
-            (
-                '<img src onerror="{}" style="display:none">'
-                '<input style="width:0;height:0;border:0">'
-            ).format(script)
+    """Save the current notebook."""
+    ip = get_ipython()
+    if "__vsc_ipynb_file__" in ip.user_ns:
+        log.error(
+            "save_notebook does not work in VS Code notebooks, please save manually before proceeding."
         )
-    )
+        return
+
+    display('<-- #region tags=["remove_cell"] -->')
+
+    try:
+        script = """
+        this.nextElementSibling.focus();
+        this.dispatchEvent(new KeyboardEvent('keydown', {key:'s', keyCode: 83, ctrlKey: true}));
+        """
+        display(
+            HTML(
+                (
+                    '<img src onerror="{}" style="display:none">'
+                    '<input style="width:0;height:0;border:0">'
+                ).format(script)
+            )
+        )
+    except:
+        pass
+
+    try:
+        app = JupyterFrontEnd()
+        app.commands.execute("docmanager:save")
+    except Exception:
+        pass
+
+    try:
+        display(Javascript("IPython.notebook.save_checkpoint();"))
+    except Exception:
+        pass
+
+    display("<-- #endregion -->")
+
     sleep(delay)
 
 
-def save_report(filename: Union[str, Path]) -> Path:
+def generate_report(filename: Union[str, Path]) -> Path:
     """Takes path to Jupyter notebook and uses nbconvert
     to export notebook as markdown.
 
