@@ -5,15 +5,17 @@ import logging
 import sys
 
 import typer
+
 from gql.transport.exceptions import TransportQueryError
 from taegis_magic.commands import (
     alerts,
-    authentication,
     audits,
+    authentication,
     clients,
     configure,
     events,
     investigations,
+    notebook,
     preferences,
     rules,
     tenant_profiles,
@@ -35,6 +37,7 @@ app.add_typer(clients.app, name="clients")
 app.add_typer(configure.app, name="configure")
 app.add_typer(events.app, name="events")
 app.add_typer(investigations.app, name="investigations")
+app.add_typer(notebook.app, name="notebook")
 app.add_typer(preferences.app, name="preferences")
 app.add_typer(rules.app, name="rules")
 app.add_typer(tenant_profiles.app, name="tenant-profiles")
