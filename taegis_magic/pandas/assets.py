@@ -38,6 +38,7 @@ def get_assets(
     all_assets = []
 
     response = service.assets2.query.assets_v2(
+        first=1000,
         filter_=filter,
     )
 
@@ -47,6 +48,7 @@ def get_assets(
 
     while more_pages:
         response = service.assets2.query.assets_v2(
+            first=1000,
             after=end_cursor,
             filter_=filter,
         )
