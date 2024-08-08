@@ -27,4 +27,5 @@ $ taegis investigations create --title "CLI Test" --key-findings test_kf.md --pr
 
 ## Further Reading
 
+* [Taegis Notebook](notebook.md)
 * [Tenant Profiles](tenant-profiles.md)

@@ -423,7 +423,9 @@ def create(
                 QLQueriesInput(rns=search_queries)
             )
 
-        search_queries = [query.rn for query in queries.queries]
+            search_queries = [query.rn for query in queries.queries or []]
+        else:
+            search_queries = []
 
     create_investigation_input = CreateInvestigationInput(
         alerts=alerts,
