@@ -2,6 +2,19 @@ from typing import Optional, List, Dict, Any
 import pandas as pd
 
 
+def get_tenant_id_column(df: pd.DataFrame) -> str:
+    tenant_column = None
+    if "tenant_id" in df.columns:
+        tenant_column = "tenant_id"
+    elif "tenant.id" in df.columns:
+        tenant_column = "tenant.id"
+
+    if tenant_column is None:
+        raise ValueError("Tenant ID column not found in DataFrame")
+
+    return tenant_column
+
+
 def remove_output_node(
     output: str, node: str, start: Optional[int] = None, end: Optional[int] = None
 ) -> str:
