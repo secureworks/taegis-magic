@@ -6,20 +6,21 @@ import time
 from typing import Dict, List, Optional
 
 import pandas as pd
-from taegis_magic.core.service import get_service
-from taegis_magic.pandas.utils import chunk_list, coalesce_columns
 from taegis_sdk_python.services.alerts.types import (
     ResolutionStatus,
     SearchRequestInput,
     TimestampInput,
     UpdateResolutionRequestInput,
 )
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
+
 from taegis_magic.commands.alerts import (
-    alerts_service_search_with_events,
-    alerts_service_poll_with_events,
     AlertsResultsNormalizer,
+    alerts_service_poll_with_events,
+    alerts_service_search_with_events,
 )
+from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_magic.core.service import get_service
+from taegis_magic.pandas.utils import chunk_list, coalesce_columns
 
 log = logging.getLogger(__name__)
 

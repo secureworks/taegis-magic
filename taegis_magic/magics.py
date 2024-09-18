@@ -3,20 +3,21 @@ import hashlib
 import logging
 import shlex
 from argparse import ArgumentError, ArgumentParser
-from typing import Optional
 from pathlib import Path
 from time import sleep
-import ipynbname
+from typing import Optional
 
+import ipynbname
 import pandas as pd
 from gql.transport.exceptions import TransportQueryError
 from IPython.core.magic import Magics, line_cell_magic, magics_class
-from IPython.display import display, display_markdown, Javascript
+from IPython.display import Javascript, display, display_markdown
+
 from taegis_magic.cli import app
 from taegis_magic.core.cache import (
-    get_cache_item,
     decode_base64_obj_as_pickle,
     display_cache,
+    get_cache_item,
 )
 
 log = logging.getLogger(__name__)
@@ -132,7 +133,10 @@ class TaegisMagics(Magics):
 
                 log.info(f"re-setting {magic_args.assign}:{cache_digest} to cache...")
                 display_cache(magic_args.assign, cache_digest, data)
-                display(Javascript("IPython.notebook.save_checkpoint();"), exclude=["text/plain"])
+                display(
+                    Javascript("IPython.notebook.save_checkpoint();"),
+                    exclude=["text/plain"],
+                )
 
                 return
 
@@ -190,7 +194,10 @@ class TaegisMagics(Magics):
 
         if magic_args.cache:
             display_cache(magic_args.assign, cache_digest, result)
-            display(Javascript("IPython.notebook.save_checkpoint();"), exclude=["text/plain"])
+            display(
+                Javascript("IPython.notebook.save_checkpoint();"),
+                exclude=["text/plain"],
+            )
         else:
             display(result, exclude=["text/plain"])
 

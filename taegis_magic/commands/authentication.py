@@ -1,16 +1,15 @@
-import logging
-import typer
 import inspect
+import logging
+from dataclasses import dataclass
+from typing import List, Optional
 
-from taegis_magic.core.service import get_service
+import typer
+from taegis_sdk_python._consts import TAEGIS_ENVIRONMENT_URLS
+from typing_extensions import Annotated
+
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResult
-from typing_extensions import Annotated
-from dataclasses import dataclass
-
-from taegis_sdk_python._consts import TAEGIS_ENVIRONMENT_URLS
-
-from typing import Optional, List
+from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 

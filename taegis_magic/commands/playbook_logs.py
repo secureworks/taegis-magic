@@ -1,20 +1,21 @@
-import logging
 import inspect
+import logging
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
 import typer
 from dataclasses_json import dataclass_json
+from taegis_sdk_python.services.trigger_action.types import PlaybookExecution
 from typing_extensions import Annotated
 
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
 from taegis_magic.core.service import get_service
-from taegis_sdk_python.services.trigger_action.types import PlaybookExecution
 
 log = logging.getLogger(__name__)
 
 app = typer.Typer()
+
 
 @dataclass_json
 @dataclass
@@ -34,13 +35,13 @@ class PlaybookExecutionLogsNormalizer(TaegisResultsNormalizer):
 def get_playbook_execution_logs(
     playbook_execution_id: str,
     region: Optional[str] = None,
-    tenant_id: Optional[str] = None
+    tenant_id: Optional[str] = None,
 ):
     """
     Get Playbook Execution Logs.
 
     Parameters
-    
+
     playbook_execution_id : str
         ID of the playbook execution
     region : Optional[str], optional
@@ -55,9 +56,7 @@ def get_playbook_execution_logs(
     service = get_service(environment=region, tenant_id=tenant_id)
 
     endpoint = "playbookExecutionLogs"
-    variables = {
-        "playbookExecutionId": playbook_execution_id
-    }
+    variables = {"playbookExecutionId": playbook_execution_id}
     output = """
         id
         taskID
@@ -67,8 +66,10 @@ def get_playbook_execution_logs(
         statusLogs
     """
 
-    results = service.core.execute_query(endpoint=endpoint, variables=variables, output=output)
-    results_json = results.get('playbookExecutionLogs', [])
+    results = service.core.execute_query(
+        endpoint=endpoint, variables=variables, output=output
+    )
+    results_json = results.get("playbookExecutionLogs", [])
 
     normalized_results = PlaybookExecutionLogsNormalizer(
         service="playbooks",
@@ -79,6 +80,7 @@ def get_playbook_execution_logs(
     )
 
     return normalized_results
+
 
 if __name__ == "__main__":
     app()

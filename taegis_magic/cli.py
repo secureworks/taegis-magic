@@ -6,22 +6,23 @@ import sys
 
 import typer
 from gql.transport.exceptions import TransportQueryError
+
 from taegis_magic.commands import (
     alerts,
-    authentication,
     audits,
+    authentication,
     clients,
     configure,
     events,
     investigations,
+    playbook_logs,
     preferences,
     rules,
     tenant_profiles,
     tenants,
     threat,
-    users,
     trigger_actions,
-    playbook_logs
+    users,
 )
 from taegis_magic.core.log import TRACE_LOG_LEVEL, get_module_logger
 
@@ -44,7 +45,7 @@ app.add_typer(tenants.app, name="tenants")
 app.add_typer(threat.app, name="threat")
 app.add_typer(users.app, name="users")
 app.add_typer(trigger_actions.app, name="trigger-actions")
-app.add_typer(playbook_logs.app, name = "playbook-logs")
+app.add_typer(playbook_logs.app, name="playbook-logs")
 
 
 CONFIG = configure.set_defaults()

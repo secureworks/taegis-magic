@@ -11,6 +11,7 @@ from typing import Any, Dict, Hashable, List, Optional, Union
 
 import pandas as pd
 from dataclasses_json import dataclass_json
+
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
 
 log = logging.getLogger(__name__)

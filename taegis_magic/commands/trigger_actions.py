@@ -1,23 +1,30 @@
-import logging
 import inspect
+import logging
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
 import typer
 from dataclasses_json import dataclass_json
+from taegis_sdk_python.services.trigger_action.types import (
+    ExecuteActionInput,
+    PlaybookActions,
+    PlaybookActionsV2Arguments,
+    PlaybookExecution,
+)
 from typing_extensions import Annotated
 
 from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResultsNormalizer, TaegisResults, TaegisResult
-from taegis_magic.core.service import get_service
-from taegis_sdk_python.services.trigger_action.types import (
-    PlaybookActions, PlaybookActionsV2Arguments,
-    ExecuteActionInput, PlaybookExecution
+from taegis_magic.core.normalizer import (
+    TaegisResult,
+    TaegisResults,
+    TaegisResultsNormalizer,
 )
+from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 
 app = typer.Typer()
+
 
 @dataclass_json
 @dataclass
@@ -31,18 +38,23 @@ class PlaybookActionsNormalizer(TaegisResultsNormalizer):
         """Results."""
         return [asdict(action) for action in self.raw_results]
 
+
 @dataclass_json
 @dataclass
 class PlaybookExecutionWrapper:
     """Playbook Execution Wrapper."""
+
     id: str
+
 
 @dataclass_json
 @dataclass
 class PlaybookExecutionNormalizer(TaegisResult):
     """Playbook Execution Normalizer."""
 
-    raw_result: PlaybookExecutionWrapper = field(default_factory=lambda: PlaybookExecutionWrapper(id=''))
+    raw_result: PlaybookExecutionWrapper = field(
+        default_factory=lambda: PlaybookExecutionWrapper(id="")
+    )
 
     @property
     def result(self) -> Dict[str, Any]:
@@ -53,6 +65,7 @@ class PlaybookExecutionNormalizer(TaegisResult):
     def results(self) -> List[Dict[str, Any]]:
         """Results."""
         return [self.result]
+
 
 @app.command()
 @tracing
@@ -74,7 +87,7 @@ def get_playbook_actions(
             PlaybookActionsV2Arguments(
                 proactive_response_only=proactive_response_only,
                 page=page,
-                per_page=per_page
+                per_page=per_page,
             )
         )
 
@@ -98,6 +111,7 @@ def get_playbook_actions(
 
     return results
 
+
 @app.command()
 @tracing
 def trigger_playbook(
@@ -115,15 +129,13 @@ def trigger_playbook(
     input_data = ExecuteActionInput(
         playbook_action_id=playbook_action_id,
         target_resource_id=target_resource_id,
-        reason=reason
+        reason=reason,
     )
 
     execution = service.trigger_action.mutation.execute_action(input_data)
 
     # Wrap the execution result in the PlaybookExecutionWrapper dataclass
-    execution_wrapper = PlaybookExecutionWrapper(
-        id=execution.id
-    )
+    execution_wrapper = PlaybookExecutionWrapper(id=execution.id)
 
     result = PlaybookExecutionNormalizer(
         service="trigger_action",
@@ -134,6 +146,7 @@ def trigger_playbook(
     )
 
     return result
+
 
 if __name__ == "__main__":
     app()

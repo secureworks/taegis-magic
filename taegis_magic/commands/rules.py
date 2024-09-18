@@ -2,29 +2,29 @@
 import inspect
 import logging
 from dataclasses import asdict, dataclass, field
+from enum import Enum
 from typing import List, Optional
 
 import typer
+from click.exceptions import BadOptionUsage
 from dataclasses_json import dataclass_json
-from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
-from taegis_magic.core.service import get_service
 from taegis_sdk_python import GraphQLNoRowsInResultSetError
 from taegis_sdk_python.services.rules.types import (
     Rule,
     RuleEventType,
+    RuleFilterInput,
+    RuleInput,
+    RuleQLFilterInput,
     RuleQueryKind,
     RuleType,
     SearchRulesInput,
     SearchRulesOutput,
-    RuleInput,
-    RuleQLFilterInput,
-    RuleFilterInput,
 )
 from typing_extensions import Annotated
-from enum import Enum
-from click.exceptions import BadOptionUsage
 
+from taegis_magic.core.log import tracing
+from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 
