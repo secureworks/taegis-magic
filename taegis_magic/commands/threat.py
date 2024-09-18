@@ -6,11 +6,11 @@ from urllib.parse import quote
 
 import typer
 from dataclasses_json import dataclass_json
+from taegis_sdk_python.services.threat.types import ThreatPublication
+
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
-
 from taegis_magic.core.service import get_service
-from taegis_sdk_python.services.threat.types import ThreatPublication
 
 log = logging.getLogger(__name__)
 
