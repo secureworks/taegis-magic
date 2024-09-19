@@ -1,23 +1,29 @@
 """Taegis IPython Magics."""
+
 import hashlib
 import logging
 import shlex
 from argparse import ArgumentError, ArgumentParser
 from pathlib import Path
-from time import sleep
+from textwrap import dedent
 from typing import Optional
 
-import ipynbname
 import pandas as pd
-from gql.transport.exceptions import TransportQueryError
-from IPython.core.magic import Magics, line_cell_magic, magics_class
-from IPython.display import Javascript, display, display_markdown
+from IPython.core.magic import Magics, line_cell_magic, line_magic, magics_class
+from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
+from IPython.display import display, display_markdown
 
+from gql.transport.exceptions import TransportQueryError
 from taegis_magic.cli import app
 from taegis_magic.core.cache import (
     decode_base64_obj_as_pickle,
     display_cache,
     get_cache_item,
+)
+from taegis_magic.core.notebook import (
+    find_notebook_name,
+    generate_report,
+    save_notebook,
 )
 
 log = logging.getLogger(__name__)
@@ -60,12 +66,31 @@ class TaegisMagics(Magics):
     def __init__(self, shell=None, **kwargs):
         super().__init__(shell, **kwargs)
 
-        try:
-            notebook_name = ipynbname.path().name
-        except FileNotFoundError:
-            notebook_name = None
+        log.debug("Trying to get notebook name for IPython shell...")
+        # try to get the notebook name from the environment
+        notebook_name = (
+            self.shell.user_ns.get("TAEGIS_MAGIC_NOTEBOOK_FILENAME")
+            or self.shell.user_ns.get("PAPERMILL_OUTPUT_PATH")
+            or self.shell.user_ns.get("PAPERMILL_INPUT_PATH")
+        )
 
-        self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"] = notebook_name
+        # try to find it through other means
+        if not notebook_name:
+            log.debug("Notebook name not found in environment variables...")
+            try:
+                notebook_name = find_notebook_name()
+            except Exception as e:
+                log.error(f"Error finding notebook name: {e}")
+                notebook_name = None
+
+        if notebook_name:
+            self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"] = notebook_name
+            if not self.shell.user_ns.get("REPORT_TITLE"):
+                self.shell.user_ns["REPORT_TITLE"] = Path(notebook_name).stem.title()
+        else:
+            log.error(
+                "Could not determine notebook name.  Please set TAEGIS_MAGIC_NOTEBOOK_FILENAME manually."
+            )
 
     @line_cell_magic
     def taegis(self, line: str, cell: Optional[str] = None):
@@ -133,10 +158,7 @@ class TaegisMagics(Magics):
 
                 log.info(f"re-setting {magic_args.assign}:{cache_digest} to cache...")
                 display_cache(magic_args.assign, cache_digest, data)
-                display(
-                    Javascript("IPython.notebook.save_checkpoint();"),
-                    exclude=["text/plain"],
-                )
+                save_notebook()
 
                 return
 
@@ -194,12 +216,50 @@ class TaegisMagics(Magics):
 
         if magic_args.cache:
             display_cache(magic_args.assign, cache_digest, result)
-            display(
-                Javascript("IPython.notebook.save_checkpoint();"),
-                exclude=["text/plain"],
-            )
+            save_notebook()
         else:
             display(result, exclude=["text/plain"])
+
+    @magic_arguments()
+    @argument(
+        "--delay",
+        type=int,
+        default=0,
+        help=("Delay in seconds while saving the notebook, defaults to 0 seconds"),
+    )
+    @line_magic
+    def save_notebook(self, line: str):
+        """Save the current notebook."""
+        args = parse_argstring(self.save_notebook, line)
+        save_notebook(delay=args.delay)
+
+    @line_magic
+    def generate_report(self, line: str = ""):
+        """Save the current notebook as a report.
+
+        Sets the TAEGIS_MAGIC_REPORT_FILENAME variable in the user namespace."""
+        if (
+            "TAEGIS_MAGIC_NOTEBOOK_FILENAME" not in self.shell.user_ns
+            or not self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"]
+        ):
+            raise ValueError(
+                "Cannot determine file name of notebook. Please set TAEGIS_MAGIC_NOTEBOOK_FILENAME."
+            )
+
+        if not Path(self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"]).exists():
+            raise FileNotFoundError(
+                dedent(
+                    f"""Notebook {self.shell.user_ns['TAEGIS_MAGIC_NOTEBOOK_FILENAME']} does not exist.
+                
+                    Save notebook manually or run %save_notebook to save the notebook to disk.
+                    """
+                )
+            )
+
+        report = generate_report(
+            filename=self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"]
+        )
+        self.shell.user_ns["TAEGIS_MAGIC_REPORT_FILENAME"] = str(report.resolve())
 
 
 def load_ipython_extension(ipython):

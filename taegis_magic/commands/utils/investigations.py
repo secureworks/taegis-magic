@@ -1,4 +1,5 @@
 """Taegis Investigation utilities."""
+
 import logging
 import operator
 import sqlite3
@@ -13,6 +14,7 @@ import pandas as pd
 from dataclasses_json import dataclass_json
 
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_magic.core.utils import get_tenant_id_column
 
 log = logging.getLogger(__name__)
 
@@ -178,16 +180,18 @@ def stage_investigation_evidence(
         db, evidence_type=evidence_type, investigation_id=investigation_id
     )
 
+    tenant_column = get_tenant_id_column(df)
+
     if (
         evidence_type == InvestigationEvidenceType.Event
         or evidence_type == InvestigationEvidenceType.Event.value
     ):
         df = df.assign(id=df["resource_id"])
 
-    df[["id", "tenant_id"]].assign(
+    df[["id", tenant_column]].assign(
         investigation_id=investigation_id,
         evidence_type=evidence_type,
-    )[["evidence_type", "id", "tenant_id", "investigation_id"]].to_sql(
+    )[["evidence_type", "id", tenant_column, "investigation_id"]].to_sql(
         "temp_table",
         con=db,
         index=False,
@@ -238,6 +242,7 @@ def unstage_investigation_evidence(
     investigation_id : str, optional
         Taegis investigation ID, by default "NEW"
     """
+    tenant_column = get_tenant_id_column(df)
 
     before_changes = read_database(
         db, evidence_type=evidence_type, investigation_id=investigation_id
@@ -251,7 +256,9 @@ def unstage_investigation_evidence(
             & (staged_evidence["investigation_id"] == investigation_id)
         )
     ]
-    remaining_evidence[["evidence_type", "id", "tenant_id", "investigation_id"]].to_sql(
+    remaining_evidence[
+        ["evidence_type", "id", tenant_column, "investigation_id"]
+    ].to_sql(
         "temp_table",
         con=db,
         index=False,

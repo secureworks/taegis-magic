@@ -4,6 +4,7 @@ import inspect
 import logging
 import mimetypes
 import re
+import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -13,21 +14,6 @@ from typing import Any, Dict, List, Optional, Union
 import requests
 import typer
 from dataclasses_json import dataclass_json
-from taegis_sdk_python import build_output_string
-from taegis_sdk_python.services.investigations2.types import (
-    CreateInvestigationInput,
-    DeleteInvestigationFileInput,
-    InitInvestigationFileUploadInput,
-    InvestigationFilesV2Arguments,
-    InvestigationFileV2Arguments,
-    InvestigationStatus,
-    InvestigationsV2,
-    InvestigationsV2Arguments,
-    InvestigationType,
-    InvestigationV2,
-)
-from taegis_sdk_python.services.queries.types import QLQueriesInput
-from taegis_sdk_python.services.sharelinks.types import ShareLinkCreateInput
 from typing_extensions import Annotated
 
 from taegis_magic.commands.utils.investigations import (
@@ -54,6 +40,21 @@ from taegis_magic.core.normalizer import (
 )
 from taegis_magic.core.service import get_service
 from taegis_magic.core.utils import remove_output_node
+from taegis_sdk_python import build_output_string
+from taegis_sdk_python.services.investigations2.types import (
+    CreateInvestigationInput,
+    DeleteInvestigationFileInput,
+    InitInvestigationFileUploadInput,
+    InvestigationFilesV2Arguments,
+    InvestigationFileV2Arguments,
+    InvestigationStatus,
+    InvestigationsV2,
+    InvestigationsV2Arguments,
+    InvestigationType,
+    InvestigationV2,
+)
+from taegis_sdk_python.services.queries.types import QLQueriesInput
+from taegis_sdk_python.services.sharelinks.types import ShareLinkCreateInput
 
 log = logging.getLogger(__name__)
 
@@ -424,7 +425,9 @@ def create(
                 QLQueriesInput(rns=search_queries)
             )
 
-        search_queries = [query.rn for query in queries.queries]
+            search_queries = [query.rn for query in queries.queries or []]
+        else:
+            search_queries = []
 
     create_investigation_input = CreateInvestigationInput(
         alerts=alerts,
@@ -483,7 +486,7 @@ def search(
     if not limit:
         if match and match.group(1) == "tail":  # pragma: no cover
             log.warning(
-                "tail is not currently supported, it will be used at the limit..."
+                "tail is not currently supported, it will be used as the limit..."
             )
 
         if match:
@@ -826,6 +829,7 @@ def investigations_attachment_upload(
             data=f,
         )
     log.debug(upload_response)
+    time.sleep(3)
 
     verify_upload = service.investigations2.query.investigation_file_v2(
         InvestigationFileV2Arguments(

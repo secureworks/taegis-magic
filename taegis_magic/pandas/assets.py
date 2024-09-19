@@ -1,19 +1,19 @@
 """Pandas functions for Asset Lookups in Event and Alert DataFrames."""
 
 import logging
-from dataclasses import asdict
-from typing import List, Optional
-
 import pandas as pd
+from typing import List, Optional
+from dataclasses import asdict
+
 from taegis_sdk_python import GraphQLService
 from taegis_sdk_python.services.assets2.types import (
-    AssetFilter,
     AssetV2,
+    AssetFilter,
     AssetWhereInputV2,
 )
-
-from taegis_magic.core.service import get_service
 from taegis_magic.pandas.utils import chunk_list, get_tenant_id
+from taegis_magic.core.service import get_service
+from taegis_magic.core.utils import to_dataframe
 
 log = logging.getLogger(__name__)
 
@@ -147,7 +147,7 @@ def lookup_assets(df: pd.DataFrame, env: str) -> pd.DataFrame:
                     assets_df = pd.concat(
                         [
                             assets_df,
-                            pd.json_normalize([asdict(x) for x in asset_results])
+                            to_dataframe(results=[asdict(x) for x in asset_results])
                             .assign(
                                 hostname=lambda x: x.hostnames.apply(
                                     lambda x: x[0].get("hostname", "N/A")
