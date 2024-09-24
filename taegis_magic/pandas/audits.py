@@ -2,9 +2,9 @@
 
 import difflib
 import logging
+import warnings
 
 import pandas as pd
-import warnings
 
 warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 
