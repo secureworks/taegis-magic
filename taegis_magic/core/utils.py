@@ -1,4 +1,19 @@
-from typing import Optional
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
+
+
+def get_tenant_id_column(df: pd.DataFrame) -> str:
+    tenant_column = None
+    if "tenant_id" in df.columns:
+        tenant_column = "tenant_id"
+    elif "tenant.id" in df.columns:
+        tenant_column = "tenant.id"
+
+    if tenant_column is None:
+        raise ValueError("Tenant ID column not found in DataFrame")
+
+    return tenant_column
 
 
 def remove_output_node(
@@ -50,3 +65,20 @@ def remove_output_node(
         end_idx = idx + 1
 
     return output[:start_idx] + output[end_idx:]
+
+
+def to_dataframe(results: List[Dict[str, Any]]) -> pd.DataFrame:
+    """Ingest a list of results and convert it to a DataFrame that contains no blank columns.
+
+    Parameters
+    ----------
+    results : List[Dict[str, Any]]
+        A list of dictionary results
+
+    Returns
+    -------
+    pd.DataFrame
+        Returns a dataFrame with no blank columns.
+    """
+
+    return pd.json_normalize(results, max_level=3).dropna(how="all", axis=1)

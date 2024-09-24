@@ -165,7 +165,7 @@ def verify_support_pin(pin: str, region: Optional[str] = None):
 @app.command()
 @tracing
 def current_user(region: Optional[str] = None):
-    """Get a PIN for Taegis support calls."""
+    """Get current user information."""
     service = get_service(environment=region)
 
     results = service.users.query.current_tdruser()

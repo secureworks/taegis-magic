@@ -1,4 +1,6 @@
 """Taegis Magic threat commands."""
+
+import inspect
 import logging
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
@@ -6,10 +8,11 @@ from urllib.parse import quote
 
 import typer
 from dataclasses_json import dataclass_json
-from taegis_sdk_python.services.threat.types import ThreatPublication
+from taegis_sdk_python.services.threat.types import ThreatParentType, ThreatPublication
+from typing_extensions import Annotated
 
 from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_magic.core.normalizer import TaegisResults, TaegisResultsNormalizer
 from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
@@ -121,3 +124,24 @@ def publications_search(
     )
 
     return results
+
+
+@app.command()
+@tracing
+def watchlist(
+    type_: Annotated[ThreatParentType, typer.Option("--type")],
+    tenant: Annotated[Optional[str], typer.Option()] = None,
+    region: Annotated[Optional[str], typer.Option()] = None,
+):
+    service = get_service(tenant_id=tenant, environment=region)
+    results = service.threat.query.threat_watchlist(type_)
+
+    normalized_results = TaegisResults(
+        service="threat",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        raw_results=results,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results

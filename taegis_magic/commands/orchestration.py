@@ -14,16 +14,17 @@ from taegis_sdk_python.services.trigger_action.types import (
 from typing_extensions import Annotated
 
 from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import (
-    TaegisResult,
-    TaegisResults,
-    TaegisResultsNormalizer,
-)
+from taegis_magic.core.normalizer import TaegisResult, TaegisResultsNormalizer
 from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 
 app = typer.Typer()
+playbook_app = typer.Typer()
+actions_app = typer.Typer()
+
+app.add_typer(playbook_app, name="playbook")
+playbook_app.add_typer(actions_app, name="actions")
 
 
 @dataclass_json
@@ -67,9 +68,22 @@ class PlaybookExecutionNormalizer(TaegisResult):
         return [self.result]
 
 
-@app.command()
+@dataclass_json
+@dataclass
+class PlaybookExecutionLogsNormalizer(TaegisResultsNormalizer):
+    """Playbook Execution Logs Normalizer."""
+
+    raw_results: List[Dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def results(self) -> List[Dict[str, Any]]:
+        """Results."""
+        return self.raw_results
+
+
+@actions_app.command("list")
 @tracing
-def get_playbook_actions(
+def list_playbook_actions(
     proactive_response_only: bool = True,
     page: Optional[int] = 1,
     per_page: Optional[int] = 50,
@@ -77,7 +91,7 @@ def get_playbook_actions(
     tenant_id: Optional[str] = None,
 ):
     """
-    Get Playbook Actions
+    List Playbook Actions
     """
     service = get_service(environment=region, tenant_id=tenant_id)
     all_playbooks = []
@@ -112,9 +126,9 @@ def get_playbook_actions(
     return results
 
 
-@app.command()
+@actions_app.command("execute")
 @tracing
-def trigger_playbook(
+def execute_playbook_action(
     playbook_action_id: str,
     target_resource_id: str,
     reason: Optional[str] = None,
@@ -122,7 +136,7 @@ def trigger_playbook(
     tenant_id: Optional[str] = None,
 ):
     """
-    Trigger a Playbook
+    Execute a Playbook Action
     """
     service = get_service(environment=region, tenant_id=tenant_id)
 
@@ -134,7 +148,6 @@ def trigger_playbook(
 
     execution = service.trigger_action.mutation.execute_action(input_data)
 
-    # Wrap the execution result in the PlaybookExecutionWrapper dataclass
     execution_wrapper = PlaybookExecutionWrapper(id=execution.id)
 
     result = PlaybookExecutionNormalizer(
@@ -146,6 +159,48 @@ def trigger_playbook(
     )
 
     return result
+
+
+@playbook_app.command("logs")
+@tracing
+def get_playbook_execution_logs(
+    playbook_execution_id: str,
+    region: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+):
+    """
+    Get Playbook Execution Logs.
+    """
+    service = get_service(environment=region, tenant_id=tenant_id)
+
+    endpoint = "playbookExecutionLogs"
+    variables = {"playbookExecutionId": playbook_execution_id}
+    output = """
+        id
+        taskID
+        parentID
+        message
+        children
+        statusLogs
+    """
+
+    results = service.core.execute_query(
+        endpoint=endpoint, variables=variables, output=output
+    )
+    results_json = results.get("playbookExecutionLogs", [])
+
+    if not isinstance(results_json, list):
+        raise TypeError("Results are not a list of dictionaries")
+
+    normalized_results = PlaybookExecutionLogsNormalizer(
+        service="playbooks",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        raw_results=results_json,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 """Taegis Magic tenants commands."""
+
 import inspect
 import logging
 from dataclasses import asdict, dataclass, field
@@ -8,7 +9,7 @@ from typing import List, Optional
 import typer
 from click.exceptions import BadOptionUsage
 from dataclasses_json import dataclass_json
-from taegis_sdk_python import GraphQLNoRowsInResultSetError
+from taegis_sdk_python import GraphQLNoRowsInResultSetError, build_output_string
 from taegis_sdk_python.services.rules.types import (
     Rule,
     RuleEventType,
@@ -25,6 +26,7 @@ from typing_extensions import Annotated
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
 from taegis_magic.core.service import get_service
+from taegis_magic.core.utils import remove_output_node
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +65,12 @@ RULE_SUPPRESSION_KEY_MAP = {
     "detector": "scwx.observation_v2.detector_id",
     "entity": "scwx.observation_v2.entity",
 }
+
+
+MULTIPLE_RULES_OUTPUT = remove_output_node(
+    build_output_string(Rule),
+    "generativeAIRuleExplain",
+)
 
 
 @dataclass_json
@@ -115,9 +123,10 @@ def rules_type(
 
     log.info(f"Getting page: {page}")
     try:
-        results = service.rules.query.rules(
-            page=page, count=per_page, rule_type=rule_type
-        )
+        with service(output=MULTIPLE_RULES_OUTPUT):
+            results = service.rules.query.rules(
+                page=page, count=per_page, rule_type=rule_type
+            )
     except GraphQLNoRowsInResultSetError:  # pragma: no cover
         results = []
     log.debug(f"Results returned: {len(results)}")
@@ -127,9 +136,10 @@ def rules_type(
         page += 1
         log.info(f"Getting page: {page}")
         try:
-            results = service.rules.query.rules(
-                page=page, count=per_page, rule_type=rule_type
-            )
+            with service(output=MULTIPLE_RULES_OUTPUT):
+                results = service.rules.query.rules(
+                    page=page, count=per_page, rule_type=rule_type
+                )
         except GraphQLNoRowsInResultSetError:  # pragma: no cover
             results = []
         log.debug(f"Results returned: {len(results)}")
@@ -161,7 +171,8 @@ def rules_all(
 
     log.info(f"Getting page: {page}")
     try:
-        results = service.rules.query.all_rules(page=page, count=per_page)
+        with service(output=MULTIPLE_RULES_OUTPUT):
+            results = service.rules.query.all_rules(page=page, count=per_page)
     except GraphQLNoRowsInResultSetError:  # pragma: no cover
         results = []
     log.debug(f"Results returned: {len(results)}")
@@ -171,7 +182,8 @@ def rules_all(
         page += 1
         log.info(f"Getting page: {page}")
         try:
-            results = service.rules.query.all_rules(page=page, count=per_page)
+            with service(output=MULTIPLE_RULES_OUTPUT):
+                results = service.rules.query.all_rules(page=page, count=per_page)
         except GraphQLNoRowsInResultSetError:  # pragma: no cover
             results = []
         log.debug(f"Results returned: {len(results)}")
@@ -205,7 +217,9 @@ def rules_suppression(
     log.info(f"Getting page: {page}")
     try:
         results = service.rules.query.suppression_rules(
-            page=page, count=per_page, kind=kind
+            page=page,
+            count=per_page,
+            kind=kind,
         )
     except GraphQLNoRowsInResultSetError:  # pragma: no cover
         results = []
@@ -217,7 +231,9 @@ def rules_suppression(
         log.info(f"Getting page: {page}")
         try:
             results = service.rules.query.suppression_rules(
-                page=page, count=per_page, kind=kind
+                page=page,
+                count=per_page,
+                kind=kind,
             )
         except GraphQLNoRowsInResultSetError:  # pragma: no cover
             results = []
@@ -251,9 +267,12 @@ def rules_deleted(
 
     log.info(f"Getting page: {page}")
     try:
-        results = service.rules.query.deleted_rules(
-            page=page, count=per_page, rule_type=rule_type
-        )
+        with service(output=MULTIPLE_RULES_OUTPUT):
+            results = service.rules.query.deleted_rules(
+                page=page,
+                count=per_page,
+                rule_type=rule_type,
+            )
     except GraphQLNoRowsInResultSetError:  # pragma: no cover
         results = []
     log.debug(f"Results returned: {len(results)}")
@@ -263,9 +282,12 @@ def rules_deleted(
         page += 1
         log.info(f"Getting page: {page}")
         try:
-            results = service.rules.query.deleted_rules(
-                page=page, count=per_page, rule_type=rule_type
-            )
+            with service(output=MULTIPLE_RULES_OUTPUT):
+                results = service.rules.query.deleted_rules(
+                    page=page,
+                    count=per_page,
+                    rule_type=rule_type,
+                )
         except GraphQLNoRowsInResultSetError:  # pragma: no cover
             results = []
         log.debug(f"Results returned: {len(results)}")
@@ -299,9 +321,10 @@ def rules_event_type(
 
     log.info(f"Getting page: {page}")
     try:
-        results = service.rules.query.rules_for_event(
-            page=page, count=per_page, event_type=event_type, rule_type=rule_type
-        )
+        with service(output=MULTIPLE_RULES_OUTPUT):
+            results = service.rules.query.rules_for_event(
+                page=page, count=per_page, event_type=event_type, rule_type=rule_type
+            )
     except GraphQLNoRowsInResultSetError:  # pragma: no cover
         results = []
     log.debug(f"Results returned: {len(results)}")
@@ -311,9 +334,13 @@ def rules_event_type(
         page += 1
         log.info(f"Getting page: {page}")
         try:
-            results = service.rules.query.rules_for_event(
-                page=page, count=per_page, event_type=event_type, rule_type=rule_type
-            )
+            with service(output=MULTIPLE_RULES_OUTPUT):
+                results = service.rules.query.rules_for_event(
+                    page=page,
+                    count=per_page,
+                    event_type=event_type,
+                    rule_type=rule_type,
+                )
         except GraphQLNoRowsInResultSetError:  # pragma: no cover
             results = []
         log.debug(f"Results returned: {len(results)}")
@@ -370,7 +397,9 @@ def rules_changes_since(
 
     try:
         results = service.rules.query.changes_since(
-            timestamp=timestamp, event_type=event_type, rule_type=rule_type
+            timestamp=timestamp,
+            event_type=event_type,
+            rule_type=rule_type,
         )
     except GraphQLNoRowsInResultSetError:  # pragma: no cover
         results = []
@@ -396,10 +425,40 @@ def rules_search(
     """Taegis rule changed by timestamp."""
     service = get_service(environment=region, tenant_id=tenant)
 
-    results = service.rules.query.search_rules(SearchRulesInput(query=cell))
+    page = 1
+    per_page = 500
+    rules = []
+
+    log.info(f"Getting page: {page}")
+    try:
+        with service(output=MULTIPLE_RULES_OUTPUT):
+            results = service.rules.query.search_rules(
+                SearchRulesInput(query=cell),
+                page=page,
+                count=per_page,
+            )
+    except GraphQLNoRowsInResultSetError:  # pragma: no cover
+        results = []
+    log.debug(f"Results returned: {len(results)}")
+    rules.extend(results)
+
+    while len(results) == per_page:
+        page += 1
+        log.info(f"Getting page: {page}")
+        try:
+            with service(output=MULTIPLE_RULES_OUTPUT):
+                results = service.rules.query.search_rules(
+                    SearchRulesInput(query=cell),
+                    page=page,
+                    count=per_page,
+                )
+        except GraphQLNoRowsInResultSetError:  # pragma: no cover
+            results = []
+        log.debug(f"Results returned: {len(results)}")
+        rules.extend(results)
 
     normalized_results = TaegisRulesSearchNormalizer(
-        raw_results=results,
+        raw_results=rules,
         service="rules",
         tenant_id=service.tenant_id,
         region=service.environment,
