@@ -14,6 +14,21 @@ from typing import Any, Dict, List, Optional, Union
 import requests
 import typer
 from dataclasses_json import dataclass_json
+from taegis_sdk_python import build_output_string
+from taegis_sdk_python.services.investigations2.types import (
+    CreateInvestigationInput,
+    DeleteInvestigationFileInput,
+    InitInvestigationFileUploadInput,
+    InvestigationFilesV2Arguments,
+    InvestigationFileV2Arguments,
+    InvestigationStatus,
+    InvestigationsV2,
+    InvestigationsV2Arguments,
+    InvestigationType,
+    InvestigationV2,
+)
+from taegis_sdk_python.services.queries.types import QLQueriesInput
+from taegis_sdk_python.services.sharelinks.types import ShareLinkCreateInput
 from typing_extensions import Annotated
 
 from taegis_magic.commands.utils.investigations import (
@@ -40,21 +55,6 @@ from taegis_magic.core.normalizer import (
 )
 from taegis_magic.core.service import get_service
 from taegis_magic.core.utils import remove_output_node
-from taegis_sdk_python import build_output_string
-from taegis_sdk_python.services.investigations2.types import (
-    CreateInvestigationInput,
-    DeleteInvestigationFileInput,
-    InitInvestigationFileUploadInput,
-    InvestigationFilesV2Arguments,
-    InvestigationFileV2Arguments,
-    InvestigationStatus,
-    InvestigationsV2,
-    InvestigationsV2Arguments,
-    InvestigationType,
-    InvestigationV2,
-)
-from taegis_sdk_python.services.queries.types import QLQueriesInput
-from taegis_sdk_python.services.sharelinks.types import ShareLinkCreateInput
 
 log = logging.getLogger(__name__)
 

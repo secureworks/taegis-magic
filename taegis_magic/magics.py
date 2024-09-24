@@ -9,11 +9,11 @@ from textwrap import dedent
 from typing import Optional
 
 import pandas as pd
+from gql.transport.exceptions import TransportQueryError
 from IPython.core.magic import Magics, line_cell_magic, line_magic, magics_class
 from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 from IPython.display import display, display_markdown
 
-from gql.transport.exceptions import TransportQueryError
 from taegis_magic.cli import app
 from taegis_magic.core.cache import (
     decode_base64_obj_as_pickle,
