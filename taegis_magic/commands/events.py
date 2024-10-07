@@ -249,7 +249,14 @@ def search(
         service="events",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments={
+            "cell": cell,
+            "tenant": service.tenant_id,
+            "region": service.region,
+            "save": save,
+            "track": track,
+            "database": database,
+        },
         query=cell,
         is_saved=save,
     )
