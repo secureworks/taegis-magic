@@ -1,4 +1,5 @@
 """Magics Configuration tool."""
+
 import logging
 from dataclasses import dataclass
 from typing import List
@@ -206,6 +207,32 @@ def queries_list():
             )
             for name, value in config[QUERIES_SECTION].items()
         ],
+    )
+    return results
+
+
+@queries.command(name="callername")
+@tracing
+def callername(
+    name: Annotated[
+        str,
+        typer.Argument(
+            help="Caller Name to use for Alert/Event queries; used for searching/filtering results from the Queries API."
+        ),
+    ]
+):
+    """Configure Alert/Event query callername by default."""
+    write_to_config(
+        QUERIES_SECTION,
+        "callername",
+        name,
+    )
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[dict(callername=name)],
     )
     return results
 
