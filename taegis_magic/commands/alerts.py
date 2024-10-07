@@ -287,7 +287,9 @@ def search(
                 offset=0,
                 limit=limit,
                 metadata={
-                    "callerName": "Taegis Magic",
+                    "callerName": CONFIG[QUERIES_SECTION].get(
+                        "callername", fallback="Taegis Magic"
+                    ),
                 },
             ),
         )

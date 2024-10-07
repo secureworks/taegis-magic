@@ -227,7 +227,15 @@ def search(
     )
     results = []
 
-    result = service.events.subscription.event_query(cell, options=options)
+    result = service.events.subscription.event_query(
+        cell,
+        options=options,
+        metadata={
+            "callerName": CONFIG[QUERIES_SECTION].get(
+                "callername", fallback="Taegis Magic"
+            ),
+        },
+    )
     results.extend(result)
     next_page = get_next_page(result)
 
