@@ -252,7 +252,7 @@ def search(
         arguments={
             "cell": cell,
             "tenant": service.tenant_id,
-            "region": service.region,
+            "region": service.environment,
             "save": save,
             "track": track,
             "database": database,
