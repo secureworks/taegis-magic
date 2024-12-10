@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 from time import sleep
 from typing import Optional, Union
+import re
 
 import ipynbname
 import jinja2
@@ -78,6 +79,15 @@ def save_notebook(delay: int = 0):
     sleep(delay)
 
 
+def remove_region_tags(body: str) -> str:
+    """Remove region tags from a report that may not be related to cells."""
+    region_pattern = (
+        r'<--\s*#region\s*tags=\["remove_cell"\]\s*-->(.*?)<--\s*#endregion\s*-->'
+    )
+    body = re.sub(region_pattern, "", body, flags=re.DOTALL)
+    return body
+
+
 def generate_report(filename: Union[str, Path]) -> Path:
     """Takes path to Jupyter notebook and uses nbconvert
     to export notebook as markdown.
@@ -143,6 +153,10 @@ def generate_report(filename: Union[str, Path]) -> Path:
 
     output_file = filename.with_suffix(".report.md")
     body, _ = exporter.from_filename(filename)
+
+    # clear output from --cache
+    body = remove_region_tags(body)
+
     log.info(f"Writing markdown output to {str(output_file.resolve())}")
     Path(output_file).write_text(body, encoding="utf-8", errors="replace")
 
