@@ -1,8 +1,7 @@
 """Taegis Magic application logging."""
-import logging
 import functools
+import logging
 from typing import Callable
-
 
 TRACE_LOG_LEVEL = 5
 logging.addLevelName(TRACE_LOG_LEVEL, "TRACE")

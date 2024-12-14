@@ -2,16 +2,16 @@
 
 import logging
 from dataclasses import dataclass
+from enum import Enum
 from typing import List
-from typing_extensions import Annotated
 
 import typer
 from dataclasses_json import dataclass_json
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_sdk_python.config import get_config, write_config, write_to_config
+from typing_extensions import Annotated
 
 from taegis_magic.core.log import tracing
-from taegis_sdk_python.config import get_config, write_config, write_to_config
-from enum import Enum
+from taegis_magic.core.normalizer import TaegisResultsNormalizer
 
 log = logging.getLogger(__name__)
 

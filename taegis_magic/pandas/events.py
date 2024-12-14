@@ -1,11 +1,12 @@
 """Pandas functions for Alerts DataFrames."""
 
-import logging
 import contextlib
 import json
+import logging
 from typing import Dict, List, Optional
 
 import pandas as pd
+
 from taegis_magic.core.service import get_service
 from taegis_magic.pandas.utils import chunk_list, coalesce_columns
 
@@ -104,7 +105,6 @@ def inflate_original_data(
         )
 
     if any(df.columns.str.startswith("original_data.")) is False:
-
         return pd.concat(
             [
                 df,

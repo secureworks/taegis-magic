@@ -4,14 +4,14 @@ from dataclasses import dataclass
 from typing import List
 
 import typer
+from taegis_sdk_python._consts import TAEGIS_ENVIRONMENT_URLS
+from taegis_sdk_python.config import get_config
 from typing_extensions import Annotated
 
 from taegis_magic.commands.configure import REGIONS_SECTION
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResult
 from taegis_magic.core.service import get_service
-from taegis_sdk_python._consts import TAEGIS_ENVIRONMENT_URLS
-from taegis_sdk_python.config import get_config
 
 log = logging.getLogger(__name__)
 

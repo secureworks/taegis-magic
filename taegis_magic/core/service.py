@@ -3,8 +3,8 @@
 from taegis_sdk_python import GraphQLService
 from taegis_sdk_python._consts import TAEGIS_ENVIRONMENT_URLS
 from taegis_sdk_python.config import get_config
-from taegis_magic._version import __version__
 
+from taegis_magic._version import __version__
 from taegis_magic.commands.configure import REGIONS_SECTION
 
 
