@@ -24,9 +24,22 @@ from taegis_magic.commands import (
     threat,
     users,
 )
+from taegis_magic.core.normalizer import TaegisResult
+from dataclasses_json import dataclass_json
+from dataclasses import dataclass
+
 from taegis_magic.core.log import TRACE_LOG_LEVEL, get_module_logger
 
 log = logging.getLogger(__name__)
+
+
+@dataclass_json
+@dataclass
+class MagicVersion:
+    python: str
+    taegis_sdk_python: str
+    taegis_magic: str
+
 
 CONTEXT_SETTINGS = dict(help_option_names=["--help", "-h"])
 
@@ -59,8 +72,10 @@ def main(
     verbose: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
         "verbose", fallback=False
     ),
-    debug: bool = CONFIG[configure.LOGGING_SECTION].getboolean("debug", fallback=False),
-    trace: bool = CONFIG[configure.LOGGING_SECTION].getboolean("trace", fallback=False),
+    debug: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
+        "debug", fallback=False),
+    trace: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
+        "trace", fallback=False),
     sdk_warning: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
         "sdk_warning", fallback=True
     ),
@@ -71,7 +86,7 @@ def main(
         "sdk_debug", fallback=False
     ),
 ):
-    """Taegis Magic main callback."""
+    """Taegis Magic help menu."""
     logger = get_module_logger()
     if trace:
         logger.setLevel(TRACE_LOG_LEVEL)
@@ -94,6 +109,26 @@ def main(
         sdk_logger.setLevel(logging.WARNING)
     else:
         sdk_logger.setLevel(logging.ERROR)
+
+
+@app.command()
+def version():
+    """Taegis Magic version information."""
+    import sys
+    from taegis_sdk_python._version import __version__ as sdk_version
+    from taegis_magic._version import __version__ as magic_version
+
+    return TaegisResult(
+        raw_results=MagicVersion(
+            python=sys.version,
+            taegis_sdk_python=sdk_version,
+            taegis_magic=magic_version,
+        ),
+        tenant_id=None,
+        region=None,
+        service="version",
+
+    )
 
 
 def cli():

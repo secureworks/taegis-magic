@@ -45,6 +45,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["black", "pylint", "jupyter"]
+grid = ["ipydatagrid"]
 
 [project.scripts]
 taegis = "taegis_magic.cli:cli"
