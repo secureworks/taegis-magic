@@ -15,6 +15,8 @@ from dataclasses_json import dataclass_json
 
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
 from taegis_magic.core.utils import get_tenant_id_column
+from taegis_magic.core.graphql.subjects import lookup_federated_subject
+from taegis_sdk_python import GraphQLService
 
 log = logging.getLogger(__name__)
 
@@ -525,3 +527,81 @@ def clear_search_queries(database_uri: str):
         DELETE FROM search_queries
         """
         )
+
+
+def lookup_assignee_id(service: GraphQLService, assignee_id: str) -> str:
+    """Lookup and format assignee ID for Taegis Investigations.
+
+    Parameters
+    ----------
+    service : GraphQLService
+        Taegis SDK for Python GraphQLService object.
+    assignee_id : str
+        Assignee ID to lookup.
+
+    Returns
+    -------
+    str
+        Formatted Assignee ID.
+
+    Raises
+    ------
+    ValueError
+    """
+    if assignee_id == "@me":
+        log.debug("Looking up current subject...")
+        subject = lookup_federated_subject(service)
+        assignee_id = subject.get("id")
+
+        if not assignee_id:
+            raise ValueError(f"Could not determine Subject ID: {subject}")
+
+        if subject.get("identity", {}).get("__typename") == "Client":
+            log.debug(
+                "Subject is client.  Updating assignee_id with `@clients`...")
+            assignee_id += "@clients"
+
+    elif assignee_id == "@partner":
+        log.debug("Looking up partner mention in preferences...")
+        preferences = service.preferences.query.partner_preferences()
+
+        if not preferences.mention:
+            raise ValueError(
+                f"Could not determine Partner Mention: {preferences}")
+
+        assignee_id = f"@{preferences.mention}"
+
+    # alias to keep the partner/organization/tenant language consistent
+    elif assignee_id == "@tenant":
+        assignee_id = "@customer"
+
+    elif "@" in assignee_id and not assignee_id.endswith("@clients"):
+        log.debug("Looking up user {assignee_id} by email...")
+
+        # search for email in subject accessible tenants
+        subject = service.subjects.query.current_subject()
+        users = []
+        for tenant_id in subject.role_assignment_data.assigned_tenant_ids:
+            log.debug("Looking up user {assignee_id} in {tenant_id}...")
+            with service(tenant_id=tenant_id):
+                users = service.users.query.tdrusers(email=assignee_id)
+                if users:
+                    break
+
+        # search for email in tenant context
+        if not users:
+            log.debug(
+                "Looking up user {assignee_id} in {service.tenant_id}...")
+            users = service.users.query.tdrusers(email=assignee_id)
+
+        if users:
+            log.debug("User {assignee_id} found. Using ID: {users[0].id}")
+            assignee_id = users[0].id
+
+            if not assignee_id:
+                raise ValueError(f"Could not determine User ID: {users}")
+        else:
+            log.warning(
+                f"User {assignee_id} not found.  Using ID: {assignee_id}...")
+
+    return assignee_id
