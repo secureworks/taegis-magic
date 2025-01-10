@@ -10,6 +10,7 @@ from enum import Enum
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Union
+from typing_extensions import Annotated
 
 import requests
 import typer
@@ -26,6 +27,7 @@ from taegis_magic.commands.utils.investigations import (
     get_investigation_evidence,
     insert_search_query,
     list_search_queries,
+    lookup_assignee_id,
     read_database,
     stage_investigation_evidence,
     unstage_investigation_evidence,
@@ -185,7 +187,8 @@ class InvestigationsSearchResultsNormalizer(TaegisResultsNormalizer):
         if self._shareable_url[index]:
             return self._shareable_url[index]
 
-        service = get_service(environment=self.region, tenant_id=self.tenant_id)
+        service = get_service(environment=self.region,
+                              tenant_id=self.tenant_id)
 
         result = service.sharelinks.mutation.create_share_link(
             ShareLinkCreateInput(
@@ -196,7 +199,8 @@ class InvestigationsSearchResultsNormalizer(TaegisResultsNormalizer):
         )
 
         self._shareable_url[index] = (
-            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+            service.investigations.sync_url.replace(
+                "api.", "") + f"/share/{result.id}"
         )
         return self._shareable_url[index]
 
@@ -293,7 +297,8 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
 
         investigation = self.raw_results
 
-        service = get_service(environment=self.region, tenant_id=self.tenant_id)
+        service = get_service(environment=self.region,
+                              tenant_id=self.tenant_id)
 
         result = service.sharelinks.mutation.create_share_link(
             ShareLinkCreateInput(
@@ -304,7 +309,8 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
         )
 
         self._shareable_url = (
-            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+            service.investigations.sync_url.replace(
+                "api.", "") + f"/share/{result.id}"
         )
 
         return self._shareable_url
@@ -323,7 +329,8 @@ def evidence_stage(
     """
     df = find_dataframe(dataframe)
     db = find_database(database)
-    changes = stage_investigation_evidence(df, db, evidence_type, investigation_id)
+    changes = stage_investigation_evidence(
+        df, db, evidence_type, investigation_id)
 
     return InvestigationEvidenceNormalizer(
         raw_results=changes,
@@ -348,7 +355,8 @@ def evidence_unstage(
 
     df = find_dataframe(dataframe)
     db = find_database(database)
-    changes = unstage_investigation_evidence(df, db, evidence_type, investigation_id)
+    changes = unstage_investigation_evidence(
+        df, db, evidence_type, investigation_id)
 
     return InvestigationEvidenceNormalizer(
         raw_results=changes,
@@ -390,18 +398,26 @@ def evidence_show(
 @app.command()
 @tracing
 def create(
-    title: str = typer.Option(),
-    key_findings: Path = typer.Option(),
-    priority: InvestigationPriority = InvestigationPriority.MEDIUM,
+    title: Annotated[str, typer.Option(help="Title for the Investigation.")],
+    key_findings: Annotated[Path, typer.Option(help="Markdown file with key findings.")],
+    priority: Annotated[InvestigationPriority, typer.Option(
+        help="Investigation Priority.")] = InvestigationPriority.MEDIUM,
     type_: Annotated[
-        InvestigationType, typer.Option("--type")
+        InvestigationType, typer.Option(
+            "--type", help="Investigation Type.")
     ] = InvestigationType.SECURITY_INVESTIGATION,
-    status: InvestigationStatus = InvestigationStatus.OPEN,
-    assignee_id: str = "@customer",
-    database: str = ":memory:",
-    dry_run: bool = False,
-    region: Optional[str] = None,
-    tenant: Optional[str] = None,
+    status: Annotated[InvestigationStatus, typer.Option(
+        help="Investigation Status.")] = InvestigationStatus.OPEN,
+    assignee_id: Annotated[str, typer.Option(
+        help="ID for Investigation assignment, may use @me, @partner or @tenant for quick reference.")] = "@tenant",
+    database: Annotated[str, typer.Option(
+        help="Investigation Evidence database location.  Can be a file path or ':memory:'.")] = ":memory:",
+    dry_run: Annotated[bool, typer.Option(
+        help="Setting to true only prints parameters.  API call is not submitted.")] = False,
+    region: Annotated[Optional[str], typer.Option(
+        help="Region Identifier.")] = None,
+    tenant: Annotated[Optional[str], typer.Option(
+        help="Tenant Context ID.")] = None,
 ):
     """
     Create a new Investigation.
@@ -413,7 +429,8 @@ def create(
     search_queries = None
 
     if database:
-        evidence = get_investigation_evidence(database, service.tenant_id, "NEW")
+        evidence = get_investigation_evidence(
+            database, service.tenant_id, "NEW")
         alerts = evidence.alerts
         events = evidence.events
         search_queries = evidence.search_queries
@@ -428,6 +445,8 @@ def create(
             search_queries = [query.rn for query in queries.queries or []]
         else:
             search_queries = []
+
+        assignee_id = lookup_assignee_id(service, assignee_id)
 
     create_investigation_input = CreateInvestigationInput(
         alerts=alerts,

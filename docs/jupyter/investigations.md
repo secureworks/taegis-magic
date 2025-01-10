@@ -70,7 +70,14 @@ When running Alert or Event search queries, the option `--track` may be used to 
 
 ### Creation
 
-Taegis investigations may be created from a Jupyter notebook.  The only requirements for a new Taegis investigation are a `--title` and `--key-findings`.  The key findings are read from a markdown file separate from the notebook (`%%writefile` [cell magic](https://ipython.readthedocs.io/en/stable/interactive/magics.html#cellmagic-writefile) is useful).  Evidence is read from the database at run time.  Evidence will be restricted to `NEW` investigations for a specified tenant.
+Taegis investigations may be created from a Jupyter notebook.  The only requirements for a new Taegis investigation are a `--title` and `--key-findings`.  The key findings are read from a markdown file separate from the notebook.  The `%generate_report` [line magic](generate_report.md) may be used to convert the running notebook to markdown.  Evidence is read from the database at run time.  Evidence will be restricted to `NEW` investigations for a specified tenant.
+
+The `--assignee-id` has a quick reference system to ease automation:
+
+* `@me`: sets assignment to the calling user or client id
+* `@partner`: sets assignment to the calling user's partner organization
+* `@tenant`: sets assignment to the investigation's tenant organization
+* Email addresses may be used instead of the user id as well
 
 ```
 %taegis investigations create --title "Test Investigation" --key-findings "key_findings.md" --priorty LOW --type SECURITY_INVESTIGATION --status OPEN

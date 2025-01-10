@@ -29,10 +29,8 @@ Running the above command displays the user information for the logged-in user. 
 ```bash
 $ export CLIENT_ID='<client_id>'
 $ export CLIENT_SECRET='<client_secret>'
-$ taegis users current-user
+$ taegis subjects current-subject --assign me --display me
 ```
-
-**Note**:  This command will fail as OAuth credentials are not considered a user.  Using this example for consistency.
 
 #### Username/Password
 
@@ -48,7 +46,7 @@ MFA Token: 12345
 ```bash
 $ taegis users current-user
 Username: user@secureworks.com
-Copy URL into a browser: https://taegis.taegis.auth0.com/activate?user_code=XXXX-XXXX
+Copy URL into a browser: https://api.ctpx.secureworks.com/auth/device/code/activate?user_code=XXXX-XXXX
 ```
 
 This link will bring you to the SSO provider page setup by your organization.
