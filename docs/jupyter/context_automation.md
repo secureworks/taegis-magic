@@ -55,7 +55,7 @@ entities_df = entities_df[
 ```python
 entities_df[
     [
-        "tenant_id",
+        "tenant.id",
         "metadata.title",
         "taegis_magic.entities.field",
         "taegis_magic.entities.value",
@@ -116,7 +116,7 @@ for entity in entity_queries:
         entity_queries[entity][query] = entity_queries[entity][query].pipe(
             add_threat_intel,
             correlations=[get_ti_pubs],
-            tenant_id=TENANT,
+            tenant.id=TENANT,
             region=REGION,
         )
 ```
