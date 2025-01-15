@@ -9,7 +9,7 @@ from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResult
 from taegis_magic.core.service import get_service
 
-app = typer.Typer()
+app = typer.Typer(help="Taegis Subjects Commands.")
 
 log = logging.getLogger(__name__)
 

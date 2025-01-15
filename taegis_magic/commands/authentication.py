@@ -15,7 +15,7 @@ from taegis_sdk_python.config import get_config
 
 log = logging.getLogger(__name__)
 
-app = typer.Typer()
+app = typer.Typer(help="Taegis Authentication Commands.")
 
 
 @dataclass

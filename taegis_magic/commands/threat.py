@@ -17,8 +17,8 @@ from taegis_sdk_python.services.threat.types import ThreatParentType, ThreatPubl
 
 log = logging.getLogger(__name__)
 
-app = typer.Typer()
-publications_app = typer.Typer()
+app = typer.Typer(help="Taegis Threat Intelligence Commands.")
+publications_app = typer.Typer(help="Search CTU Threat Publications.")
 app.add_typer(publications_app, name="publications")
 
 
@@ -55,19 +55,7 @@ def publications_latest(
     region: Optional[str] = None,
 ):
     """
-    Threat Publications Latest.
-
-    Parameters
-    ----------
-    size : int
-        Number of latest threat publications
-    region : Optional[str], optional
-        Taegis region, by default None
-
-    Returns
-    -------
-    ThreatPublicationsNormalizer
-        ThreatPublicationsNormalizer
+    Retrieve the latest CTU threat publications.
     """
     service = get_service(environment=region)
 
@@ -94,19 +82,7 @@ def publications_search(
     region: Optional[str] = None,
 ):
     """
-    Threat Publications Search.
-
-    Parameters
-    ----------
-    term : str
-        Search Term
-    region : Optional[str], optional
-        Taegis Region, by default None
-
-    Returns
-    -------
-    ThreatPublicationsNormalizer
-        ThreatPublicationsNormalizer
+    Search the CTU threat publications.
     """
     service = get_service(environment=region)
 
@@ -133,6 +109,9 @@ def watchlist(
     tenant: Annotated[Optional[str], typer.Option()] = None,
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
+    """
+    Retrieve CTU watchlist by indicator type.
+    """
     service = get_service(tenant_id=tenant, environment=region)
     results = service.threat.query.threat_watchlist(type_)
 

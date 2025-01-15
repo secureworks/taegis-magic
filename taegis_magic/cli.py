@@ -72,10 +72,8 @@ def main(
     verbose: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
         "verbose", fallback=False
     ),
-    debug: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
-        "debug", fallback=False),
-    trace: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
-        "trace", fallback=False),
+    debug: bool = CONFIG[configure.LOGGING_SECTION].getboolean("debug", fallback=False),
+    trace: bool = CONFIG[configure.LOGGING_SECTION].getboolean("trace", fallback=False),
     sdk_warning: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
         "sdk_warning", fallback=True
     ),
@@ -127,7 +125,6 @@ def version():
         tenant_id=None,
         region=None,
         service="version",
-
     )
 
 

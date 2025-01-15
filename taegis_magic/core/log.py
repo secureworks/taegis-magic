@@ -1,4 +1,5 @@
 """Taegis Magic application logging."""
+
 import logging
 import functools
 from typing import Callable

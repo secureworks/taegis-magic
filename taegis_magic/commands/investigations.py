@@ -61,23 +61,22 @@ from taegis_sdk_python.services.sharelinks.types import ShareLinkCreateInput
 log = logging.getLogger(__name__)
 
 
-app = typer.Typer()
-investigations_attachment = typer.Typer()
-investigations_evidence = typer.Typer()
-investigations_search_queries = typer.Typer()
+app = typer.Typer(help="Taegis Investigation Commands.")
+investigations_attachment = typer.Typer(help="Investigation File Attachment commands.")
+investigations_evidence = typer.Typer(help="Investigation Evidence commands.")
+investigations_search_queries = typer.Typer(help="Investigation Search Query commands.")
 
 app.add_typer(
     investigations_attachment,
     name="attachment",
-    help="Investigation File Attachment commands.",
 )
 app.add_typer(
-    investigations_evidence, name="evidence", help="Investigation Evidence commands."
+    investigations_evidence,
+    name="evidence",
 )
 app.add_typer(
     investigations_search_queries,
     name="search-queries",
-    help="Investigation Search Query commands.",
 )
 
 
@@ -187,8 +186,7 @@ class InvestigationsSearchResultsNormalizer(TaegisResultsNormalizer):
         if self._shareable_url[index]:
             return self._shareable_url[index]
 
-        service = get_service(environment=self.region,
-                              tenant_id=self.tenant_id)
+        service = get_service(environment=self.region, tenant_id=self.tenant_id)
 
         result = service.sharelinks.mutation.create_share_link(
             ShareLinkCreateInput(
@@ -199,8 +197,7 @@ class InvestigationsSearchResultsNormalizer(TaegisResultsNormalizer):
         )
 
         self._shareable_url[index] = (
-            service.investigations.sync_url.replace(
-                "api.", "") + f"/share/{result.id}"
+            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
         )
         return self._shareable_url[index]
 
@@ -297,8 +294,7 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
 
         investigation = self.raw_results
 
-        service = get_service(environment=self.region,
-                              tenant_id=self.tenant_id)
+        service = get_service(environment=self.region, tenant_id=self.tenant_id)
 
         result = service.sharelinks.mutation.create_share_link(
             ShareLinkCreateInput(
@@ -309,8 +305,7 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
         )
 
         self._shareable_url = (
-            service.investigations.sync_url.replace(
-                "api.", "") + f"/share/{result.id}"
+            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
         )
 
         return self._shareable_url
@@ -329,8 +324,7 @@ def evidence_stage(
     """
     df = find_dataframe(dataframe)
     db = find_database(database)
-    changes = stage_investigation_evidence(
-        df, db, evidence_type, investigation_id)
+    changes = stage_investigation_evidence(df, db, evidence_type, investigation_id)
 
     return InvestigationEvidenceNormalizer(
         raw_results=changes,
@@ -344,19 +338,25 @@ def evidence_stage(
 @investigations_evidence.command(name="unstage")
 @tracing
 def evidence_unstage(
-    evidence_type: InvestigationEvidenceType,
-    dataframe: str,
-    database: str = ":memory:",
-    investigation_id: str = "NEW",
+    evidence_type: Annotated[
+        InvestigationEvidenceType, typer.Option(help="Investigation Evidence Type.")
+    ],
+    dataframe: Annotated[str, typer.Option(help="Data Reference.")],
+    database: Annotated[
+        str,
+        typer.Option(help="Local database file.  Use :memory: for in-memory database."),
+    ],
+    investigation_id: Annotated[
+        str, typer.Option(help="Investigation Identifier.")
+    ] = "NEW",
 ):
     """
-    Remove staged evidence prior to linking to an investigation
+    Remove staged evidence prior to linking to an investigation.
     """
 
     df = find_dataframe(dataframe)
     db = find_database(database)
-    changes = unstage_investigation_evidence(
-        df, db, evidence_type, investigation_id)
+    changes = unstage_investigation_evidence(df, db, evidence_type, investigation_id)
 
     return InvestigationEvidenceNormalizer(
         raw_results=changes,
@@ -399,25 +399,38 @@ def evidence_show(
 @tracing
 def create(
     title: Annotated[str, typer.Option(help="Title for the Investigation.")],
-    key_findings: Annotated[Path, typer.Option(help="Markdown file with key findings.")],
-    priority: Annotated[InvestigationPriority, typer.Option(
-        help="Investigation Priority.")] = InvestigationPriority.MEDIUM,
+    key_findings: Annotated[
+        Path, typer.Option(help="Markdown file with key findings.")
+    ],
+    priority: Annotated[
+        InvestigationPriority, typer.Option(help="Investigation Priority.")
+    ] = InvestigationPriority.MEDIUM,
     type_: Annotated[
-        InvestigationType, typer.Option(
-            "--type", help="Investigation Type.")
+        InvestigationType, typer.Option("--type", help="Investigation Type.")
     ] = InvestigationType.SECURITY_INVESTIGATION,
-    status: Annotated[InvestigationStatus, typer.Option(
-        help="Investigation Status.")] = InvestigationStatus.OPEN,
-    assignee_id: Annotated[str, typer.Option(
-        help="ID for Investigation assignment, may use @me, @partner or @tenant for quick reference.")] = "@tenant",
-    database: Annotated[str, typer.Option(
-        help="Investigation Evidence database location.  Can be a file path or ':memory:'.")] = ":memory:",
-    dry_run: Annotated[bool, typer.Option(
-        help="Setting to true only prints parameters.  API call is not submitted.")] = False,
-    region: Annotated[Optional[str], typer.Option(
-        help="Region Identifier.")] = None,
-    tenant: Annotated[Optional[str], typer.Option(
-        help="Tenant Context ID.")] = None,
+    status: Annotated[
+        InvestigationStatus, typer.Option(help="Investigation Status.")
+    ] = InvestigationStatus.OPEN,
+    assignee_id: Annotated[
+        str,
+        typer.Option(
+            help="ID for Investigation assignment, may use @me, @partner or @tenant for quick reference."
+        ),
+    ] = "@tenant",
+    database: Annotated[
+        str,
+        typer.Option(
+            help="Investigation Evidence database location.  Can be a file path or ':memory:'."
+        ),
+    ] = ":memory:",
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            help="Setting to true only prints parameters.  API call is not submitted."
+        ),
+    ] = False,
+    region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
+    tenant: Annotated[Optional[str], typer.Option(help="Tenant Context ID.")] = None,
 ):
     """
     Create a new Investigation.
@@ -429,8 +442,7 @@ def create(
     search_queries = None
 
     if database:
-        evidence = get_investigation_evidence(
-            database, service.tenant_id, "NEW")
+        evidence = get_investigation_evidence(database, service.tenant_id, "NEW")
         alerts = evidence.alerts
         events = evidence.events
         search_queries = evidence.search_queries
@@ -587,7 +599,7 @@ def investigations_search_queries_add(
     total_results: Annotated[int, typer.Option()] = 0,
     database: Annotated[str, typer.Option()] = ":memory:",
 ):
-    """Add a Taegis investigations search query"""
+    """Add a Taegis investigations search query."""
     normalized_results = InsertSearchQueryNormalizer(
         query_identifier=query_id,
         tenant_id=tenant_id,
@@ -617,7 +629,7 @@ def investigations_search_queries_remove(
     query_id: Annotated[str, typer.Option()],
     database: Annotated[str, typer.Option()] = ":memory:",
 ):
-    """Add a Taegis investigations search query"""
+    """Remove a Taegis investigations search query."""
     delete_search_query(database, query_id)
 
     results = list_search_queries(database)
@@ -638,7 +650,7 @@ def investigations_search_queries_remove(
 def investigations_search_queries_clear(
     database: Annotated[str, typer.Option()] = ":memory:",
 ):
-    """Add a Taegis investigations search query"""
+    """Remove all Taegis investigations search queries."""
     clear_search_queries(database)
 
     results = list_search_queries(database)
@@ -659,7 +671,7 @@ def investigations_search_queries_clear(
 def investigations_search_queries_list(
     database: str = ":memory:",
 ):
-    """List a Taegis investigations search query"""
+    """List tracked Taegis investigations search queries."""
     results = list_search_queries(database)
 
     normalized_results = DataFrameNormalizer(
@@ -679,7 +691,7 @@ def investigations_search_queries_stage(
     database: Annotated[str, typer.Option()] = ":memory:",
     investigation_id: Annotated[str, typer.Option()] = "NEW",
 ):
-    """Add a Taegis investigations search query"""
+    """Stage Taegis investigations search queries to attach to investigation."""
     results = list_search_queries(database)
 
     db = find_database(database)

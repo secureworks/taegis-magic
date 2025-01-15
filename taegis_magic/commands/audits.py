@@ -1,4 +1,5 @@
 """Taegis Magic audits commands."""
+
 import inspect
 import logging
 from dataclasses import asdict, dataclass, field
@@ -24,7 +25,7 @@ from typing_extensions import Annotated
 
 log = logging.getLogger(__name__)
 
-app = typer.Typer()
+app = typer.Typer(help="Taegis Audit Commands.")
 
 
 @dataclass_json

@@ -1,4 +1,5 @@
 """Taegis Magic preferences commands."""
+
 import logging
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
@@ -12,7 +13,7 @@ from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 
-app = typer.Typer()
+app = typer.Typer(help="Taegis Preferences Commands.")
 
 
 @dataclass_json

@@ -21,7 +21,7 @@ from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 
-app = typer.Typer()
+app = typer.Typer(help="Taegis Notebook Commands.")
 
 
 @dataclass

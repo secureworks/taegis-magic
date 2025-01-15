@@ -1,4 +1,5 @@
 """Taegis Magic clients commands."""
+
 import logging
 from dataclasses import field, asdict
 from enum import Enum
@@ -20,9 +21,9 @@ from taegis_sdk_python.services.clients.types import (
 
 log = logging.getLogger(__name__)
 
-app = typer.Typer()
-rotate_app = typer.Typer()
-role_app = typer.Typer()
+app = typer.Typer(help="Taegis Clients Commands.")
+rotate_app = typer.Typer(help="Taegis Clients Rotate Commands.")
+role_app = typer.Typer(help="Taegis Clients Role Commands.")
 app.add_typer(rotate_app, name="rotate")
 app.add_typer(role_app, name="role")
 
