@@ -88,7 +88,9 @@ def assets_from_list(
     return asset_data
 
 
-def lookup_assets(df: pd.DataFrame, env: str) -> pd.DataFrame:
+def lookup_assets(
+    df: pd.DataFrame, env: Optional[str] = None, region: Optional[str] = None
+) -> pd.DataFrame:
     """Takes a Taegis pandas dataframe that contains host_ids and tenant_ids columns
     and preforms a assetv2 lookup using the Taegis SDK on the unique host_ids.
 
@@ -96,8 +98,10 @@ def lookup_assets(df: pd.DataFrame, env: str) -> pd.DataFrame:
     ----------
     df : pd.DataFrame
         A pandas DataFrame that contains Taegis host_ids and tenant_ids.
-    env : str
-        Taegis SDK Region/Environment that the asset lookup is for.
+    env : Optional[str], deprecated
+        Taegis SDK Region/Environment that the asset lookup is for.  Defaults to US1.
+    region : Optional[str]
+        Taegis SDK Region/Environment that the asset lookup is for.  Defaults to US1.
 
     Returns
     -------
@@ -109,6 +113,11 @@ def lookup_assets(df: pd.DataFrame, env: str) -> pd.DataFrame:
     ValueError
         If there are no valid host_id columns in the dataframe a value error will be raised.
     """
+    if env:
+        log.warning("The `env` parameter is deprecated. Please use `region` instead.")
+        if not region:
+            region = env
+
     df = df.copy()
 
     if df.empty:
@@ -128,14 +137,14 @@ def lookup_assets(df: pd.DataFrame, env: str) -> pd.DataFrame:
     else:
         raise ValueError("DataFrame does not contain a valid tenant identifier")
 
+    service = get_service(environment=region)
+
     tenants_series = df[tenant_identifier].apply(get_tenant_id)
     tenants_list = list(tenants_series.dropna().unique())
     assets_df = pd.DataFrame()
 
     for tenant in tenants_list:
         host_list = list(df[tenants_series == tenant][host_id_col].dropna().unique())
-
-        service = get_service(environment=env)
 
         with service(tenant_id=tenant):
             for host_ids in chunk_list(host_list, 2000):

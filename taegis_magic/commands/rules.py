@@ -33,8 +33,8 @@ from click.exceptions import BadOptionUsage
 
 log = logging.getLogger(__name__)
 
-app = typer.Typer()
-create_rule = typer.Typer()
+app = typer.Typer(help="Taegis Rules Commands.")
+create_rule = typer.Typer(help="Create a Custom Alerting or Suppression Rules.")
 app.add_typer(create_rule, name="create")
 
 
@@ -70,10 +70,11 @@ RULE_SUPPRESSION_KEY_MAP = {
 }
 
 
-MULTIPLE_RULES_OUTPUT = remove_output_node(
-    build_output_string(Rule),
-    "generativeAIRuleExplain",
-)
+def multiple_rules_output():
+    return remove_output_node(
+        build_output_string(Rule),
+        "generativeAIRuleExplain",
+    )
 
 
 @dataclass_json
@@ -126,7 +127,7 @@ def rules_type(
 
     log.info(f"Getting page: {page}")
     try:
-        with service(output=MULTIPLE_RULES_OUTPUT):
+        with service(output=multiple_rules_output()):
             results = service.rules.query.rules(
                 page=page, count=per_page, rule_type=rule_type
             )
@@ -139,7 +140,7 @@ def rules_type(
         page += 1
         log.info(f"Getting page: {page}")
         try:
-            with service(output=MULTIPLE_RULES_OUTPUT):
+            with service(output=multiple_rules_output()):
                 results = service.rules.query.rules(
                     page=page, count=per_page, rule_type=rule_type
                 )
@@ -174,7 +175,7 @@ def rules_all(
 
     log.info(f"Getting page: {page}")
     try:
-        with service(output=MULTIPLE_RULES_OUTPUT):
+        with service(output=multiple_rules_output()):
             results = service.rules.query.all_rules(page=page, count=per_page)
     except GraphQLNoRowsInResultSetError:  # pragma: no cover
         results = []
@@ -185,7 +186,7 @@ def rules_all(
         page += 1
         log.info(f"Getting page: {page}")
         try:
-            with service(output=MULTIPLE_RULES_OUTPUT):
+            with service(output=multiple_rules_output()):
                 results = service.rules.query.all_rules(page=page, count=per_page)
         except GraphQLNoRowsInResultSetError:  # pragma: no cover
             results = []
@@ -270,7 +271,7 @@ def rules_deleted(
 
     log.info(f"Getting page: {page}")
     try:
-        with service(output=MULTIPLE_RULES_OUTPUT):
+        with service(output=multiple_rules_output()):
             results = service.rules.query.deleted_rules(
                 page=page,
                 count=per_page,
@@ -285,7 +286,7 @@ def rules_deleted(
         page += 1
         log.info(f"Getting page: {page}")
         try:
-            with service(output=MULTIPLE_RULES_OUTPUT):
+            with service(output=multiple_rules_output()):
                 results = service.rules.query.deleted_rules(
                     page=page,
                     count=per_page,
@@ -324,7 +325,7 @@ def rules_event_type(
 
     log.info(f"Getting page: {page}")
     try:
-        with service(output=MULTIPLE_RULES_OUTPUT):
+        with service(output=multiple_rules_output()):
             results = service.rules.query.rules_for_event(
                 page=page, count=per_page, event_type=event_type, rule_type=rule_type
             )
@@ -337,7 +338,7 @@ def rules_event_type(
         page += 1
         log.info(f"Getting page: {page}")
         try:
-            with service(output=MULTIPLE_RULES_OUTPUT):
+            with service(output=multiple_rules_output()):
                 results = service.rules.query.rules_for_event(
                     page=page,
                     count=per_page,
@@ -434,7 +435,7 @@ def rules_search(
 
     log.info(f"Getting page: {page}")
     try:
-        with service(output=MULTIPLE_RULES_OUTPUT):
+        with service(output=multiple_rules_output()):
             results = service.rules.query.search_rules(
                 SearchRulesInput(query=cell),
                 page=page,
@@ -449,7 +450,7 @@ def rules_search(
         page += 1
         log.info(f"Getting page: {page}")
         try:
-            with service(output=MULTIPLE_RULES_OUTPUT):
+            with service(output=multiple_rules_output()):
                 results = service.rules.query.search_rules(
                     SearchRulesInput(query=cell),
                     page=page,

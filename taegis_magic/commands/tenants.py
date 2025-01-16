@@ -1,4 +1,5 @@
 """Taegis Magic tenants commands."""
+
 import inspect
 import json
 import logging
@@ -25,7 +26,7 @@ from click.exceptions import BadOptionUsage
 
 log = logging.getLogger(__name__)
 
-app = typer.Typer()
+app = typer.Typer(help="Taegis Tenant Commands.")
 
 
 @dataclass_json

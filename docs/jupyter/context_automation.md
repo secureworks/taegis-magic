@@ -55,7 +55,7 @@ entities_df = entities_df[
 ```python
 entities_df[
     [
-        "tenant_id",
+        "tenant.id",
         "metadata.title",
         "taegis_magic.entities.field",
         "taegis_magic.entities.value",

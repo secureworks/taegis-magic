@@ -1,4 +1,5 @@
 """Utility functions for use with Pandas."""
+
 import logging
 from typing import List
 

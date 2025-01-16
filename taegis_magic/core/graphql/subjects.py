@@ -16,7 +16,7 @@ def lookup_federated_subject(service: GraphQLService) -> Dict[str, Any]:
     -------
     Dict[str, Any]
         _description_
-    """    """"""
+    """
 
     output = service.output
 
@@ -29,6 +29,5 @@ def lookup_federated_subject(service: GraphQLService) -> Dict[str, Any]:
             }
         """
 
-    results = service.subjects.execute_query(
-        endpoint="currentSubject", output=output)
+    results = service.subjects.execute_query(endpoint="currentSubject", output=output)
     return results.get("currentSubject", {})

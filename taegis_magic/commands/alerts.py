@@ -40,7 +40,7 @@ CONFIG = get_config()
 if not CONFIG.has_section(QUERIES_SECTION):
     CONFIG.add_section(QUERIES_SECTION)
 
-app = typer.Typer()
+app = typer.Typer(help="Taegis Alerts Commands.")
 
 
 @dataclass_json

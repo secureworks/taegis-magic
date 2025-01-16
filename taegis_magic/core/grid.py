@@ -78,7 +78,7 @@ def data_grid(
     if "share_link" in df.columns:
         if "renderers" not in kwargs:
             log.debug("Renderers not found.  Adding default rendererer...")
-            kwargs['renderers'] = {}
+            kwargs["renderers"] = {}
         if "share_link" not in kwargs["renderers"]:
             log.debug(
                 "share_link renderer not found.  Adding default share_link rendererer..."

@@ -26,7 +26,7 @@ from taegis_sdk_python.services.users.types import (
 )
 from typing_extensions import Annotated
 
-app = typer.Typer()
+app = typer.Typer(help="Taegis User Commands.")
 
 log = logging.getLogger(__name__)
 

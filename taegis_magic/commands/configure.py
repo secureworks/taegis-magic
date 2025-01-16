@@ -15,11 +15,11 @@ from enum import Enum
 
 log = logging.getLogger(__name__)
 
-app = typer.Typer()
+app = typer.Typer(help="Taegis Magic Configuration Commands.")
 
-regions = typer.Typer()
-queries = typer.Typer()
-configure_logging = typer.Typer()
+regions = typer.Typer(help="Configure Addtional Regions Commands.")
+queries = typer.Typer(help="Configure Default Query Commands.")
+configure_logging = typer.Typer(help="Configure Magic Logging Commands.")
 
 app.add_typer(regions, name="regions")
 app.add_typer(queries, name="queries")

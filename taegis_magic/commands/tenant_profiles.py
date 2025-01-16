@@ -1,4 +1,5 @@
 """Taegis Magic tenant-profiles commands."""
+
 import inspect
 import logging
 import warnings
@@ -36,26 +37,23 @@ from typing_extensions import Annotated
 
 log = logging.getLogger(__name__)
 
-app = typer.Typer()
-contacts = typer.Typer()
-network = typer.Typer()
-network_template = typer.Typer()
-note = typer.Typer()
-security_controls = typer.Typer()
-mfa = typer.Typer()
-
-
-network.add_typer(network_template, name="template", help="Network Range templates")
-
-app.add_typer(contacts, name="contacts", help="Manage tenant profile contacts.")
-app.add_typer(network, name="network", help="Manage tenant profile networks.")
-app.add_typer(note, name="note", help="Manage tenant profile note.")
-app.add_typer(
-    security_controls,
-    name="security-controls",
+app = typer.Typer(help="Taegis Tenant Profile Commands.")
+contacts = typer.Typer(help="Manage tenant profile contacts.")
+network = typer.Typer(help="Manage tenant profile network ranges.")
+network_template = typer.Typer(help="Manager tenant network range with template files.")
+note = typer.Typer(help="Manage tenant profile notes.")
+security_controls = typer.Typer(
     help="Manage tenant profile security control device information.",
 )
-app.add_typer(mfa, name="mfa", help="Manage tenant profile multifactor authentication.")
+mfa = typer.Typer(help="Manage tenant profile multifactor authentication information.")
+
+
+network.add_typer(network_template, name="template")
+app.add_typer(contacts, name="contacts")
+app.add_typer(network, name="network")
+app.add_typer(note, name="note")
+app.add_typer(security_controls, name="security-controls")
+app.add_typer(mfa, name="mfa")
 
 
 def excel_normalize(value):

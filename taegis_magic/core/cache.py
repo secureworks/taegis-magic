@@ -1,4 +1,5 @@
 """Cache data within IPython output cells."""
+
 import base64
 import logging
 from io import BytesIO
