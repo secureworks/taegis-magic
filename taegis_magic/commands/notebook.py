@@ -215,8 +215,10 @@ def execute(
         if tenant:
             stem = f"{stem}_{tenant}"
 
+        stem = f"{stem}{input_notebook.suffix}"
+
         if stem != input_notebook.stem:
-            output_notebook = input_notebook.with_stem(stem)
+            output_notebook = input_notebook.with_name(stem)
 
     output_notebook = output_notebook or "-"
 
