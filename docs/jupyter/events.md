@@ -99,3 +99,63 @@ from taegis_magic.pandas.events import convert_event_timestamps
 inflate_original_data_df = events.pipe(inflate_original_data)
 inflate_original_data_df[column for column in inflate_original_data_df.columns if column.startswith("original_data.")]
 ```
+
+## Inflate Schema Keys
+
+Taegis Event Schema Keys can be queried with `taegis events schema`.  These keys are in the format of `scwx.schema.key`.  The schema and key can be cleaned and separated with the `inflate_schema_keys` pipe function prepended with `taegis_magic.`.
+
+```python
+from taegis_magic.pandas.events import inflate_schema_keys
+```
+
+```python
+%taegis events schema --type auth --assign auth_schema
+```
+
+```
+inflated_schema = auth_schema.pipe(inflate_schema_keys)
+inflated_schema
+```
+
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>key</th>
+      <th>taegis_magic.schema</th>
+      <th>taegis_magic.key</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>scwx.auth.home_directory</td>
+      <td>auth</td>
+      <td>home_directory</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>scwx.auth.subject_domain_user_id</td>
+      <td>auth</td>
+      <td>subject_domain_user_id</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>scwx.auth.process_create_time_usec</td>
+      <td>auth</td>
+      <td>process_create_time_usec</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>scwx.auth.process_file_hash.sha256</td>
+      <td>auth</td>
+      <td>process_file_hash.sha256</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>scwx.auth.target_domain_name</td>
+      <td>auth</td>
+      <td>target_domain_name</td>
+    </tr>
+  </tbody>
+</table>

@@ -14,7 +14,7 @@ python -m pip install taegis-magic
 taegis users current-user
 ```
 
-Running the above command displays the user information for the logged-in user.  Logging in is the same as the `Taegis SDK for Python`; OAuth2 with a `CLIENT_ID` and `CLIENT_SECRET`, username/password/mfa, or single-sign on.
+Running the above command displays the user information for the logged-in user.
 
 ```json
 [{"id": "xxxxx", "id_uuid": null, "user_id": "auth0|xxxxx", "user_id_v1": "auth0|xxxxx", "created_at": "0000-00-00T00:00:00.000Z", "updated_at": "0000-00-00T00:00:00.000Z","...": "..."}]
@@ -24,32 +24,27 @@ Running the above command displays the user information for the logged-in user. 
 
 ### Signing In
 
-#### OAuth 2
+Taegis authentication is handled by the Taegis SDK for Python.  Automations may be configured by setting the CLIENT_ID and CLIENT_SECRET environment variables.  Environment variable references may be customized by the Taegis SDK for Python.  If the CLIENT_ID and CLIENT_SECRET are not present, users will be requested to submit their Taegis User Email and a Device Code Authentication link back into the Taegis Portal.
+
+Authentication is handled at command runtime.  Access tokens are cached in `~/.taegis_sdk_python/config`.  Explicit authentication before a command is not required.  `taegis auth login` is available to authenticate as it's own command.  Access tokens may be explicitly removed from the cache with `taegis auth logout`.
+
+#### OAuth2
 
 ```bash
 $ export CLIENT_ID='<client_id>'
 $ export CLIENT_SECRET='<client_secret>'
-$ taegis subjects current-subject --assign me --display me
+$ taegis subjects current-subject
 ```
 
-#### Username/Password
+#### User
 
-```bash
-$ taegis users current-user
-Username: user@secureworks.com
-Password: 
-MFA Token: 12345
-```
-
-#### Single Sign-On
+All user sign-ins are through Device Code Authentication.  A URL will be presented to the user where the Taegis Portal will determine if their organization is setup for Single Sign On or Taegis Password and MFA grants.  Sign-ins will timeout after 5 minutes.
 
 ```bash
 $ taegis users current-user
 Username: user@secureworks.com
 Copy URL into a browser: https://api.ctpx.secureworks.com/auth/device/code/activate?user_code=XXXX-XXXX
 ```
-
-This link will bring you to the SSO provider page setup by your organization.
 
 ### Help
 
@@ -88,7 +83,7 @@ $ taegis --help
 ╰─────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
-The options section **must** be used after `taegis`, but before any commands.
+The options section **must** be used after `taegis`, but before any subcommands.
 
 Example (turn off SDK level warnings):
 
@@ -157,7 +152,7 @@ $ taegis configure logging defaults [option] --status [true/false]
 
 ### Formatting
 
-For CLI formatting, the output is designed for use with JSON parsing tools like `jq`.  The magic do not provide any built in methods for configuring or handling output.
+For CLI formatting, the output is designed for use with JSON parsing tools like `jq`.  The magic does not provide any built in methods for configuring or handling output.
 
 Be sure to be authenticated to Taegis before using a formatting tool, as the login prompts may not display.
 
