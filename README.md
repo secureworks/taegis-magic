@@ -55,7 +55,7 @@ For more in depth examples see [docs](https://github.com/secureworks/taegis-magi
 taegis alerts search --limit 2 --cell "FROM alert EARLIEST=-1d" --graphql-output "alerts { list { id metadata { title } } }"
 ```
 
-### Magic
+### IPython Magic
 
 ```python
 %load_ext taegis_magic

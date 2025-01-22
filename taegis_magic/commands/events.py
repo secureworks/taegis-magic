@@ -10,8 +10,7 @@ from dataclasses_json import dataclass_json
 from taegis_magic.commands.configure import QUERIES_SECTION
 from taegis_magic.commands.utils.investigations import insert_search_query
 from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
-
+from taegis_magic.core.normalizer import TaegisResults, TaegisResultsNormalizer
 from taegis_magic.core.service import get_service
 from taegis_sdk_python.config import get_config
 from taegis_sdk_python.services.events.types import (
@@ -19,6 +18,7 @@ from taegis_sdk_python.services.events.types import (
     EventQueryOptions,
     EventQueryResults,
 )
+from taegis_sdk_python.services.rules.types import RuleEventType
 from taegis_sdk_python.services.sharelinks.types import (
     ExtraParamCreateInput,
     ShareLinkCreateInput,
@@ -80,11 +80,18 @@ class TaegisEventQueryNormalizer(TaegisResultsNormalizer):
         List[Dict[str, Any]]
             List of Taegis event objects from query results.
         """
-        return (
-            [event for result in self.raw_results for event in result.result.rows]
-            if self.raw_results
-            else []
-        )
+
+        rows = []
+        for result in self.raw_results or []:
+            if result.result:
+                if result.result.rows:
+                    rows.extend(result.result.rows)
+                else:
+                    log.info(f"No rows found in result: {result.result}")
+            else:
+                log.info(f"Non valid result set found: {result}")
+
+        return rows
 
     @property
     def status(self) -> str:
@@ -120,11 +127,7 @@ class TaegisEventQueryNormalizer(TaegisResultsNormalizer):
         str
             Returns number of results.
         """
-        return (
-            sum(len(result.result.rows) for result in self.raw_results)
-            if self.raw_results
-            else -1
-        )
+        return len(self.results)
 
     @property
     def query_identifier(self) -> str:
@@ -145,8 +148,9 @@ class TaegisEventQueryNormalizer(TaegisResultsNormalizer):
         if not self.raw_results:
             return None
 
-        if self.raw_results[0].query_id:
-            return self.raw_results[0].query_id
+        for result in self.raw_results:
+            if result.query_id:
+                return result.query_id
 
         return None
 
@@ -222,7 +226,6 @@ def search(
         timestamp_ascending=True,
         page_size=1000,
         max_rows=100000,
-        skip_cache=True,
         aggregation_off=False,
     )
     results = []
@@ -288,3 +291,32 @@ def events(
     )
 
     return normalized_results
+
+
+@app.command()
+@tracing
+def schema(
+    type_: Annotated[RuleEventType, typer.Option("--type", help="Event Schema Type")],
+    tenant: Annotated[Optional[str], typer.Option(help="Tenant ID")] = None,
+    region: Annotated[Optional[str], typer.Option(help="Taegis Region")] = None,
+):
+    """Query Event Schema fields."""
+
+    service = get_service(environment=region, tenant_id=tenant)
+
+    schema_fields = service.rules.query.filter_keys(RuleEventType(type_))
+
+    @dataclass_json
+    @dataclass
+    class SchemaField:
+        key: str
+
+    schema_fields = [SchemaField(f) for f in schema_fields]
+
+    return TaegisResults(
+        raw_results=schema_fields,
+        service="events",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments={"type": type_, "tenant": tenant, "region": region},
+    )
