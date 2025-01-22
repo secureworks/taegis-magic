@@ -6,8 +6,7 @@ import json
 from typing import Dict, List, Optional
 
 import pandas as pd
-from taegis_magic.core.service import get_service
-from taegis_magic.pandas.utils import chunk_list, coalesce_columns
+from taegis_magic.pandas.utils import coalesce_columns
 
 log = logging.getLogger(__name__)
 
@@ -114,5 +113,47 @@ def inflate_original_data(
             ],
             axis=1,
         )
+
+    return df
+
+
+def inflate_schema_keys(df: pd.DataFrame) -> pd.DataFrame:
+    """Parse and format event schema keys.
+
+    Expected Format: 'scwx.schema.key'
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Schema Keys
+
+    Returns
+    -------
+    pd.DataFrame
+        Schema Keys with formatted keys
+    """
+    if df.empty:
+        return df
+
+    if "key" not in df.columns:
+        raise ValueError("DataFrame does not contain a 'key' column")
+
+    df = df.copy()
+
+    def split_key(key: str, index: int) -> str:
+        if not isinstance(key, str):
+            return "Error"
+
+        parts = key.split(".", maxsplit=2)
+
+        try:
+            part = parts[index]
+        except IndexError:
+            return "Error"
+
+        return part
+
+    df["taegis_magic.schema"] = df["key"].apply(split_key, index=1)
+    df["taegis_magic.key"] = df["key"].apply(split_key, index=2)
 
     return df
