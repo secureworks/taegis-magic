@@ -9,7 +9,7 @@ import typer
 from dataclasses_json import config, dataclass_json
 from taegis_magic.commands.configure import QUERIES_SECTION
 from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_magic.core.normalizer import TaegisResultsNormalizer, TaegisResults
 
 from taegis_magic.core.service import get_service
 from taegis_sdk_python import (
@@ -33,6 +33,7 @@ from taegis_sdk_python.services.sharelinks.types import (
 )
 from taegis_magic.commands.utils.investigations import insert_search_query
 from typing_extensions import Annotated
+
 
 log = logging.getLogger(__name__)
 
@@ -345,6 +346,26 @@ def search(
         insert_search_query(database, results)
 
     return results
+
+
+@app.command()
+@tracing
+def history(
+    id_: Annotated[str, typer.Option("--id", help="Alert ID")],
+    tenant: Annotated[Optional[str], typer.Option(help="Taegis Tenant ID")] = None,
+    region: Annotated[Optional[str], typer.Option(help="Taegis Region")] = None,
+) -> TaegisResults:
+    """Retrieve Alert history by ID."""
+    service = get_service(tenant_id=tenant, environment=region)
+
+    results = service.alerts_history.query.alert_history_by_id(id_=id_)
+
+    return TaegisResults(
+        raw_results=results,
+        service="alerts_history",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+    )
 
 
 if __name__ == "__main__":

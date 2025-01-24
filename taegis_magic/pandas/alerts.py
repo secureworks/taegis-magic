@@ -52,7 +52,7 @@ def convert_alert_timestamps(
     for column in [
         column
         for column in df.columns
-        if column.endswith("_at.seconds") and not column.startswith("taegis_magic.")
+        if column.endswith(".seconds") and not column.startswith("taegis_magic.")
     ]:
         try:
             df[f"taegis_magic.{column}"] = pd.to_datetime(
