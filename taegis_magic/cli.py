@@ -18,6 +18,7 @@ from taegis_magic.commands import (
     notebook,
     preferences,
     rules,
+    search,
     subjects,
     tenant_profiles,
     tenants,
@@ -54,6 +55,7 @@ app.add_typer(investigations.app, name="investigations")
 app.add_typer(notebook.app, name="notebook")
 app.add_typer(preferences.app, name="preferences")
 app.add_typer(rules.app, name="rules")
+app.add_typer(search.app, name="search")
 app.add_typer(subjects.app, name="subjects")
 app.add_typer(tenant_profiles.app, name="tenant-profiles")
 app.add_typer(tenants.app, name="tenants")
