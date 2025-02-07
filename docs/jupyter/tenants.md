@@ -21,3 +21,19 @@ from taegis_magic.pandas.tenants import inflate_environments
 ```python
 inflated_environments_df = tenants.pipe(inflate_environments)
 ```
+
+### Lookup Tenants
+
+Data can be correlated to Tenant data with `lookup_tenants`.  This pipe function takes a `region` parameter and an optional `tenant_id_column`.  `tenant_id_column` will set to `tenant_id` or `tenant.id` if not provided.  This pipe function will work on any dataset that contains a tenant reference.  Any original data that cannot be correlated to a tenant will have the new columns contain Numpy NaN values.
+
+Correlated tenant columns will be prepended with `tenant.`.  If the original dataset has shared column names, the new tenant column will be suffixed with `.lookup_tenants`.
+
+```python
+from taegis_magic.pandas.tenants import lookup_tenants
+```
+
+Example:
+
+```python
+correlated_alerts = alerts.pipe(lookup_tenants, region="US1")
+```
