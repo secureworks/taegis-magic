@@ -12,8 +12,6 @@ import pandas as pd
 from IPython.core.magic import Magics, line_cell_magic, line_magic, magics_class
 from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 from IPython.display import display, display_markdown
-
-from gql.transport.exceptions import TransportQueryError
 from taegis_magic.cli import app
 from taegis_magic.core.cache import (
     decode_base64_obj_as_pickle,
@@ -25,6 +23,8 @@ from taegis_magic.core.notebook import (
     generate_report,
     save_notebook,
 )
+
+from gql.transport.exceptions import TransportQueryError
 
 log = logging.getLogger(__name__)
 
@@ -84,6 +84,7 @@ class TaegisMagics(Magics):
                 notebook_name = None
 
         if notebook_name:
+            log.debug(f"Notebook name found: {notebook_name}")
             self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"] = notebook_name
             if not self.shell.user_ns.get("REPORT_TITLE"):
                 self.shell.user_ns["REPORT_TITLE"] = Path(notebook_name).stem.title()
