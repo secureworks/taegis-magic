@@ -1,37 +1,62 @@
 import logging
+import os
+import re
+from importlib.metadata import version as module_version
 from pathlib import Path
 from time import sleep
 from typing import Optional, Union
-import re
 
-import ipynbname
 import jinja2
 import nbconvert
 from ipylab import JupyterFrontEnd
 from IPython import get_ipython
 from IPython.display import HTML, Javascript, display
 from nbconvert.preprocessors.tagremove import TagRemovePreprocessor
+from packaging.version import Version
+from packaging.version import parse as parse_version
 from traitlets.config import Config
 
 log = logging.getLogger(__name__)
+
+VERSION_6 = parse_version("6")
+VERSION_7 = parse_version("7")
+VERSION_8 = parse_version("8")
+
+
+def get_notebook_version() -> Version:
+    return parse_version(module_version("notebook"))
 
 
 def find_notebook_name() -> Optional[str]:
     """Find the name of the current notebook."""
     notebook_name = None
 
-    try:
-        notebook_name = ipynbname.name()
-    except Exception as e:
-        log.debug(f"Error finding notebook name using ipynbname: {e}")
-
     if not notebook_name:
         ip = get_ipython()
-        if "__vsc_ipynb_file__" in ip.user_ns:
-            path = Path(ip.user_ns["__vsc_ipynb_file__"])
-            notebook_name = path.name
+        if notebook_name := ip.user_ns.get("__vsc_ipynb_file__"):
+            notebook_name = Path(notebook_name).name
+            log.debug(f"Notebook found via vscode: {notebook_name}")
         else:
             log.debug("Could not find notebook name using __vsc_ipynb_file__")
+
+    if not notebook_name:
+        if notebook_name := os.environ.get("JPY_SESSION_NAME"):
+            notebook_name = Path(notebook_name).name
+            log.debug(f"Notebook found via JPY_SESSION_NAME: {notebook_name}")
+        else:
+            log.debug("Could not find notebook name using JPY_SESSION_NAME")
+
+    if not notebook_name:
+        try:
+            # not best practice, but there are some load time issues
+            # with ipynbname that we need to work through
+            # if we don't need to load it, we shouldn't
+            import ipynbname
+
+            notebook_name = ipynbname.path().name
+            log.debug(f"Notebook found via ipynbname: {notebook_name}")
+        except Exception as e:
+            log.debug(f"Error finding notebook name using ipynbname: {e}")
 
     return notebook_name
 
@@ -45,36 +70,47 @@ def save_notebook(delay: int = 0):
         )
         return
 
-    display('<-- #region tags=["remove_cell"] -->')
+    notebook_version = get_notebook_version()
+    log.debug(f"Notebook version: {notebook_version}")
 
-    try:
-        script = """
-        this.nextElementSibling.focus();
-        this.dispatchEvent(new KeyboardEvent('keydown', {key:'s', keyCode: 83, ctrlKey: true}));
-        """
-        display(
-            HTML(
-                (
-                    '<img src onerror="{}" style="display:none">'
-                    '<input style="width:0;height:0;border:0">'
-                ).format(script)
+    if notebook_version >= VERSION_6 and notebook_version < VERSION_7:
+        display('<-- #region tags=["remove_cell"] -->')
+
+        try:
+            script = """
+            this.nextElementSibling.focus();
+            this.dispatchEvent(new KeyboardEvent('keydown', {key:'s', keyCode: 83, ctrlKey: true}));
+            """
+            display(
+                HTML(
+                    (
+                        '<img src onerror="{}" style="display:none">'
+                        '<input style="width:0;height:0;border:0">'
+                    ).format(script)
+                )
             )
+        except Exception:
+            pass
+
+        try:
+            display(Javascript("IPython.notebook.save_checkpoint();"))
+        except Exception:
+            pass
+
+        display("<-- #endregion -->")
+
+    elif notebook_version >= VERSION_7 and notebook_version < VERSION_8:
+        try:
+            app = JupyterFrontEnd()
+            app.commands.execute("docmanager:save")
+        except Exception:
+            pass
+
+    else:
+        log.error(
+            "Cannot save notebook, unsupported notebook version.  Please save manually before proceeding."
         )
-    except:
-        pass
-
-    try:
-        app = JupyterFrontEnd()
-        app.commands.execute("docmanager:save")
-    except Exception:
-        pass
-
-    try:
-        display(Javascript("IPython.notebook.save_checkpoint();"))
-    except Exception:
-        pass
-
-    display("<-- #endregion -->")
+        return
 
     sleep(delay)
 
@@ -82,7 +118,7 @@ def save_notebook(delay: int = 0):
 def remove_region_tags(body: str) -> str:
     """Remove region tags from a report that may not be related to cells."""
     region_pattern = (
-        r'<--\s*#region\s*tags=\["remove_cell"\]\s*-->(.*?)<--\s*#endregion\s*-->'
+        r'\'<--\s*#region\s*tags=\["remove_cell"\]\s*-->(.*?)<--\s*#endregion\s*-->\''
     )
     body = re.sub(region_pattern, "", body, flags=re.DOTALL)
     return body
@@ -142,7 +178,7 @@ def generate_report(filename: Union[str, Path]) -> Path:
         jinja2.PackageLoader("taegis_magic", "templates")
     )
 
-    log.debug(exporter.environment.loader.list_templates())
+    # log.debug(exporter.environment.loader.list_templates())
 
     # Not sure how this interops with `report_mode` in `papermill`
     exporter.exclude_input_prompt = True
