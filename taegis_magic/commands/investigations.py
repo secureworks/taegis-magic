@@ -544,11 +544,6 @@ def create(
         created_investigation = federated_investigation_create(
             service=service, input_=create_investigation_input
         )
-        # created_investigation = (
-        #     service.investigations2.mutation.create_investigation_v2(
-        #         input_=create_investigation_input
-        #     )
-        # )
 
     results = InvestigationsCreatedResultsNormalizer(
         raw_results=create_investigation_input if dry_run else created_investigation,
@@ -618,14 +613,6 @@ def search(
                 cql=cell,
             ),
         )
-        # investigations_results = service.investigations2.query.investigations_v2(
-        #     InvestigationsV2Arguments(
-        #         page=page,
-        #         per_page=per_page,
-        #         cql=cell,
-        #         # search_children_tenants=search_children_tenants,
-        #     )
-        # )
 
     results.append(investigations_results)
 
