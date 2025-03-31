@@ -10,13 +10,10 @@ from enum import Enum
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Union
-from typing_extensions import Annotated
 
 import requests
 import typer
-from dataclasses_json import dataclass_json
-from typing_extensions import Annotated
-
+from dataclasses_json import config, dataclass_json
 from taegis_magic.commands.utils.investigations import (
     InvestigationEvidenceNormalizer,
     InvestigationEvidenceType,
@@ -42,7 +39,14 @@ from taegis_magic.core.normalizer import (
 )
 from taegis_magic.core.service import get_service
 from taegis_magic.core.utils import remove_output_node
-from taegis_sdk_python import build_output_string
+from typing_extensions import Annotated
+
+from taegis_sdk_python import (
+    GraphQLNoRowsInResultSetError,
+    GraphQLService,
+    build_output_string,
+    prepare_input,
+)
 from taegis_sdk_python.services.investigations2.types import (
     CreateInvestigationInput,
     DeleteInvestigationFileInput,
@@ -57,6 +61,7 @@ from taegis_sdk_python.services.investigations2.types import (
 )
 from taegis_sdk_python.services.queries.types import QLQueriesInput
 from taegis_sdk_python.services.sharelinks.types import ShareLinkCreateInput
+from taegis_sdk_python.services.subjects.types import Subject as FederatedSubject
 
 log = logging.getLogger(__name__)
 
@@ -311,6 +316,67 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
         return self._shareable_url
 
 
+@dataclass_json
+@dataclass(order=True, eq=True, frozen=True)
+class TaegisMagicInvestigationV2(InvestigationV2):
+    contributor_subjects: Optional[List[FederatedSubject]] = field(
+        default=None, metadata=config(field_name="contributorSubjects")
+    )
+    assignee_subject: Optional[FederatedSubject] = field(
+        default=None, metadata=config(field_name="assigneeSubject")
+    )
+    created_by_subject: Optional[FederatedSubject] = field(
+        default=None, metadata=config(field_name="createdBySubject")
+    )
+    updated_by_subject: Optional[FederatedSubject] = field(
+        default=None, metadata=config(field_name="updatedBySubject")
+    )
+
+
+@dataclass_json
+@dataclass(order=True, eq=True, frozen=True)
+class TaegisMagicInvestigationsV2(InvestigationsV2):
+    investigations: List[TaegisMagicInvestigationV2] = field(
+        default_factory=list, metadata=config(field_name="investigations")
+    )
+
+
+def federated_investigation_create(
+    service: GraphQLService, input_: CreateInvestigationInput
+) -> TaegisMagicInvestigationV2:
+    """createInvestigationV2 creates new investigation with the provided arguments.."""
+    endpoint = "createInvestigationV2"
+
+    result = service.investigations2.execute_mutation(
+        endpoint=endpoint,
+        variables={
+            "input": prepare_input(input_),
+        },
+        output=build_output_string(TaegisMagicInvestigationV2),
+    )
+    if result.get(endpoint) is not None:
+        return TaegisMagicInvestigationV2.from_dict(result.get(endpoint))
+    raise GraphQLNoRowsInResultSetError("for mutation createInvestigationV2")
+
+
+def federated_investigations_search(
+    service, arguments: InvestigationsV2Arguments
+) -> TaegisMagicInvestigationsV2:
+    """investigationsV2 returns a list of investigations matching the provided arguments."""
+    endpoint = "investigationsV2"
+
+    result = service.investigations2.execute_query(
+        endpoint=endpoint,
+        variables={
+            "arguments": prepare_input(arguments),
+        },
+        output=build_output_string(TaegisMagicInvestigationsV2),
+    )
+    if result.get(endpoint) is not None:
+        return TaegisMagicInvestigationsV2.from_dict(result.get(endpoint))
+    raise GraphQLNoRowsInResultSetError("for query investigationsV2")
+
+
 @investigations_evidence.command(name="stage")
 @tracing
 def evidence_stage(
@@ -475,11 +541,14 @@ def create(
     if dry_run:
         created_investigation = None
     else:
-        created_investigation = (
-            service.investigations2.mutation.create_investigation_v2(
-                input_=create_investigation_input
-            )
+        created_investigation = federated_investigation_create(
+            service=service, input_=create_investigation_input
         )
+        # created_investigation = (
+        #     service.investigations2.mutation.create_investigation_v2(
+        #         input_=create_investigation_input
+        #     )
+        # )
 
     results = InvestigationsCreatedResultsNormalizer(
         raw_results=create_investigation_input if dry_run else created_investigation,
@@ -534,21 +603,29 @@ def search(
     # endfix
 
     # fix for CX-103490
-    output = build_output_string(InvestigationsV2)
+    output = build_output_string(TaegisMagicInvestigationsV2)
 
     output = remove_output_node(output, "metric")
     output = remove_output_node(output, "metrics")
     # endfix
 
     with service(output=output):
-        investigations_results = service.investigations2.query.investigations_v2(
-            InvestigationsV2Arguments(
+        investigations_results = federated_investigations_search(
+            service=service,
+            arguments=InvestigationsV2Arguments(
                 page=page,
                 per_page=per_page,
                 cql=cell,
-                # search_children_tenants=search_children_tenants,
-            )
+            ),
         )
+        # investigations_results = service.investigations2.query.investigations_v2(
+        #     InvestigationsV2Arguments(
+        #         page=page,
+        #         per_page=per_page,
+        #         cql=cell,
+        #         # search_children_tenants=search_children_tenants,
+        #     )
+        # )
 
     results.append(investigations_results)
 
@@ -568,13 +645,13 @@ def search(
         # endfix
 
         with service(output=output):
-            investigations_results = service.investigations2.query.investigations_v2(
-                InvestigationsV2Arguments(
+            investigations_results = federated_investigations_search(
+                service=service,
+                arguments=InvestigationsV2Arguments(
                     page=page,
                     per_page=per_page,
                     cql=cell,
-                    # search_children_tenants=search_children_tenants,
-                )
+                ),
             )
         results.append(investigations_results)
 
