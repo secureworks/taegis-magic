@@ -19,12 +19,10 @@ app = typer.Typer(help="Taegis Search Commands.")
 @tracing
 def generate(
     cell: Annotated[
-        str, typer.Option(
-            help="Natural language query to convert to Taegis QL")
+        str, typer.Option(help="Natural language query to convert to Taegis QL")
     ],
     limit: Annotated[int, typer.Option(help="Limit number of results")] = 5,
-    region: Annotated[Optional[str], typer.Option(
-        help="Taegis Region")] = None,
+    region: Annotated[Optional[str], typer.Option(help="Taegis Region")] = None,
 ):
     """Generate Taegis QL from natural language query."""
     service = get_service(environment=region)

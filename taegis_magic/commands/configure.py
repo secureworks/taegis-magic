@@ -2,33 +2,42 @@
 
 import logging
 from dataclasses import dataclass
+from enum import Enum
 from typing import List
-from typing_extensions import Annotated
 
 import typer
 from dataclasses_json import dataclass_json
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
-
 from taegis_magic.core.log import tracing
+from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from typing_extensions import Annotated
+
 from taegis_sdk_python.config import get_config, write_config, write_to_config
-from enum import Enum
 
 log = logging.getLogger(__name__)
 
 app = typer.Typer(help="Taegis Magic Configuration Commands.")
 
+auth = typer.Typer(help="Configure Authentication options.")
 regions = typer.Typer(help="Configure Addtional Regions Commands.")
 queries = typer.Typer(help="Configure Default Query Commands.")
 configure_logging = typer.Typer(help="Configure Magic Logging Commands.")
 
+app.add_typer(auth, name="auth")
 app.add_typer(regions, name="regions")
 app.add_typer(queries, name="queries")
 app.add_typer(configure_logging, name="logging")
 
-
+AUTH_SECTION = "magics.auth"
 REGIONS_SECTION = "magics.regions"
 QUERIES_SECTION = "magics.queries"
 LOGGING_SECTION = "magics.logging"
+
+
+class UseUniversalAuthOptions(str, Enum):
+    """Configure default logging options."""
+
+    true = "true"
+    false = "false"
 
 
 class LoggingOptions(str, Enum):
@@ -71,6 +80,9 @@ def set_defaults():  # pragma: no cover
     ###
     # Add Sections
     ###
+    if not config.has_section(AUTH_SECTION):
+        config.add_section(AUTH_SECTION)
+
     if not config.has_section(REGIONS_SECTION):
         config.add_section(REGIONS_SECTION)
 
@@ -79,6 +91,12 @@ def set_defaults():  # pragma: no cover
 
     if not config.has_section(LOGGING_SECTION):
         config.add_section(LOGGING_SECTION)
+
+    ###
+    # Auth Defaults
+    ###
+    if not config.has_option(AUTH_SECTION, "use_universal_auth"):
+        config[AUTH_SECTION]["use_universal_auth"] = "false"
 
     ###
     # Queries Defaults
@@ -107,6 +125,50 @@ def set_defaults():  # pragma: no cover
     write_config(config)
 
     return config
+
+
+@auth.command("list")
+@tracing
+def auth_list():
+    """Configure use of Universal Authentication."""
+    config = get_config()
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[
+            {
+                name: value,
+            }
+            for name, value in config[AUTH_SECTION].items()
+        ],
+    )
+    return results
+
+
+@auth.command("use-universal-auth")
+@tracing
+def use_universal_auth(
+    value: Annotated[
+        UseUniversalAuthOptions,
+        typer.Argument(help="Use Universal Authentication for Taegis Magic."),
+    ] = UseUniversalAuthOptions.false
+):
+    """Configure use of Universal Authentication."""
+    config = get_config()
+
+    config[AUTH_SECTION]["use_universal_authentication"] = value.value
+
+    write_config(config)
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[dict(use_universal_authentication=value.value)],
+    )
+    return results
 
 
 @regions.command(name="add")
