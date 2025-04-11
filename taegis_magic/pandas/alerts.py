@@ -6,19 +6,20 @@ import time
 from typing import Dict, List, Optional
 
 import pandas as pd
+from numpy import add
+from taegis_magic.commands.alerts import (
+    AlertsResultsNormalizer,
+    alerts_service_search_with_events,
+)
+from taegis_magic.core.normalizer import TaegisResultsNormalizer
 from taegis_magic.core.service import get_service
 from taegis_magic.pandas.utils import chunk_list, coalesce_columns
+
 from taegis_sdk_python.services.alerts.types import (
     ResolutionStatus,
     SearchRequestInput,
     TimestampInput,
     UpdateResolutionRequestInput,
-)
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
-from taegis_magic.commands.alerts import (
-    alerts_service_search_with_events,
-    alerts_service_poll_with_events,
-    AlertsResultsNormalizer,
 )
 
 log = logging.getLogger(__name__)
@@ -123,11 +124,12 @@ def get_alerts_from_aggregation(
     earliest: str = "-7d",
     latest: Optional[str] = None,
     limit: int = 100,
+    additional_operators: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """This function takes a DataFrame of aggregate alerts and retrieves
     corresponding non-aggregate data for the same alerts. The main use-case
     is reviewing the aggregate alert data in an interactive table widget
-    (such as QgridWidget), then use this function to pull down the
+    (such as IPyDataGrid), then use this function to pull down the
     non-aggregate alerts to look more closely at their contents.
 
     Parameters
@@ -144,6 +146,8 @@ def get_alerts_from_aggregation(
         Latest timeframe in the alert query, defaults to None.
     limit : int, optional
         Alert results limit, defaults to 100.
+    additional_operators : Optional[List[str]], optional
+        Additional operators to add to the query, by default None.
 
     Returns
     -------
@@ -191,9 +195,24 @@ def get_alerts_from_aggregation(
 
     sub_query_string = " OR \n".join(x for x in unique_sub_queries)
 
+    additional_operators_string = ""
+    if additional_operators:
+        additional_operators_string = " AND \n ".join(
+            [f"({operator})" for operator in additional_operators]
+        )
+        additional_operators_string = f"AND \n{additional_operators_string}"
+
+        for op in additional_operators:
+            for col in cols:
+                if col in op:
+                    log.warning(
+                        f"Column {col} is already in the sub-query. Please check your additional operators."
+                    )
+
     query = f"""
     FROM alert
     WHERE ({sub_query_string})
+    {additional_operators_string}
     {f"EARLIEST={earliest}" if earliest else ""}
     {f"LATEST={latest}" if latest else ""}
     """

@@ -126,6 +126,7 @@ Function option:
 * `earliest` [See Taegis Time Ranges]
 * `latest` [See Taegis Time Ranges]
 * `limit` [Maximum number of alerts to return]
+* `additional_operators` [Additional search operators]
 
 ```python
 alerts = aggregate_alerts.pipe(
@@ -135,6 +136,7 @@ alerts = aggregate_alerts.pipe(
     earliest="-2d",
     latest="-1d",
     limit=50,
+    additional_operators=['investigation_ids IS NULL'],
 )
 ```
 
