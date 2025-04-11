@@ -95,6 +95,14 @@ $ taegis --no-sdk-warning alerts search ...
 
 The Taegis Magic provide a number of configurable options under the `taegis configure` command.
 
+#### Authentication
+
+Taegis Magic supports a unified endpoint for authentication.  The subject (User or Client) will need to be enabled in multiple regions as well.  The default behavior is to authenticate per region.  Setting to true will enable a single `access_token` from a `universal` region.
+
+```bash
+taegis configure auth use-universal-auth true
+```
+
 #### Regions
 
 If you need a custom region added to `taegis`, use the `taegis configure regions` commands.

@@ -12,7 +12,9 @@ from taegis_sdk_python.services.tenants.types import TenantsQuery
 log = logging.getLogger(__name__)
 
 
-def inflate_environments(df: pd.DataFrame, columns: Optional[List[str]] = None) -> pd.DataFrame:
+def inflate_environments(
+    df: pd.DataFrame, columns: Optional[List[str]] = None
+) -> pd.DataFrame:
     """Inflate environments to columns.
 
     Parameters
@@ -77,7 +79,9 @@ def inflate_environments(df: pd.DataFrame, columns: Optional[List[str]] = None) 
     return df
 
 
-def lookup_tenants(df: pd.DataFrame, region: str, tenant_id_column: Optional[str] = None) -> pd.DataFrame:
+def lookup_tenants(
+    df: pd.DataFrame, region: str, tenant_id_column: Optional[str] = None
+) -> pd.DataFrame:
     """Look up tenants and correlate to the input dataframe.
 
     Parameters
@@ -111,8 +115,7 @@ def lookup_tenants(df: pd.DataFrame, region: str, tenant_id_column: Optional[str
     if [
         column
         for column in df.columns
-        if column.startswith("tenant.")
-        and column != 'tenant.id'
+        if column.startswith("tenant.") and column != "tenant.id"
     ]:
         log.debug("Tenant columns already exist in DataFrame.")
         return df
@@ -149,9 +152,15 @@ def lookup_tenants(df: pd.DataFrame, region: str, tenant_id_column: Optional[str
 
         results.append(result)
 
-    tenants_df = to_dataframe([
-        asdict(tenant) for result in results for tenant in result.results or []
-    ]).add_prefix("tenant.")
+    tenants_df = to_dataframe(
+        [asdict(tenant) for result in results for tenant in result.results or []]
+    ).add_prefix("tenant.")
 
-    return pd.merge(df, tenants_df, left_on=tenant_id_column,
-                    right_on="tenant.id", how="left", suffixes=(None, ".lookup_tenants"))
+    return pd.merge(
+        df,
+        tenants_df,
+        left_on=tenant_id_column,
+        right_on="tenant.id",
+        how="left",
+        suffixes=(None, ".lookup_tenants"),
+    )
