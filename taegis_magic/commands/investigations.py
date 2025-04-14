@@ -72,9 +72,11 @@ log = logging.getLogger(__name__)
 
 
 app = typer.Typer(help="Taegis Investigation Commands.")
-investigations_attachment = typer.Typer(help="Investigation File Attachment commands.")
+investigations_attachment = typer.Typer(
+    help="Investigation File Attachment commands.")
 investigations_evidence = typer.Typer(help="Investigation Evidence commands.")
-investigations_search_queries = typer.Typer(help="Investigation Search Query commands.")
+investigations_search_queries = typer.Typer(
+    help="Investigation Search Query commands.")
 
 app.add_typer(
     investigations_attachment,
@@ -196,7 +198,8 @@ class InvestigationsSearchResultsNormalizer(TaegisResultsNormalizer):
         if self._shareable_url[index]:
             return self._shareable_url[index]
 
-        service = get_service(environment=self.region, tenant_id=self.tenant_id)
+        service = get_service(environment=self.region,
+                              tenant_id=self.tenant_id)
 
         result = service.sharelinks.mutation.create_share_link(
             ShareLinkCreateInput(
@@ -207,7 +210,8 @@ class InvestigationsSearchResultsNormalizer(TaegisResultsNormalizer):
         )
 
         self._shareable_url[index] = (
-            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+            service.investigations.sync_url.replace(
+                "api.", "") + f"/share/{result.id}"
         )
         return self._shareable_url[index]
 
@@ -304,7 +308,8 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
 
         investigation = self.raw_results
 
-        service = get_service(environment=self.region, tenant_id=self.tenant_id)
+        service = get_service(environment=self.region,
+                              tenant_id=self.tenant_id)
 
         result = service.sharelinks.mutation.create_share_link(
             ShareLinkCreateInput(
@@ -315,7 +320,8 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
         )
 
         self._shareable_url = (
-            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+            service.investigations.sync_url.replace(
+                "api.", "") + f"/share/{result.id}"
         )
 
         return self._shareable_url
@@ -395,7 +401,8 @@ def evidence_stage(
     """
     df = find_dataframe(dataframe)
     db = find_database(database)
-    changes = stage_investigation_evidence(df, db, evidence_type, investigation_id)
+    changes = stage_investigation_evidence(
+        df, db, evidence_type, investigation_id)
 
     return InvestigationEvidenceNormalizer(
         raw_results=changes,
@@ -410,12 +417,14 @@ def evidence_stage(
 @tracing
 def evidence_unstage(
     evidence_type: Annotated[
-        InvestigationEvidenceType, typer.Option(help="Investigation Evidence Type.")
+        InvestigationEvidenceType, typer.Option(
+            help="Investigation Evidence Type.")
     ],
     dataframe: Annotated[str, typer.Option(help="Data Reference.")],
     database: Annotated[
         str,
-        typer.Option(help="Local database file.  Use :memory: for in-memory database."),
+        typer.Option(
+            help="Local database file.  Use :memory: for in-memory database."),
     ],
     investigation_id: Annotated[
         str, typer.Option(help="Investigation Identifier.")
@@ -427,7 +436,8 @@ def evidence_unstage(
 
     df = find_dataframe(dataframe)
     db = find_database(database)
-    changes = unstage_investigation_evidence(df, db, evidence_type, investigation_id)
+    changes = unstage_investigation_evidence(
+        df, db, evidence_type, investigation_id)
 
     return InvestigationEvidenceNormalizer(
         raw_results=changes,
@@ -500,8 +510,10 @@ def create(
             help="Setting to true only prints parameters.  API call is not submitted."
         ),
     ] = False,
-    region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
-    tenant: Annotated[Optional[str], typer.Option(help="Tenant Context ID.")] = None,
+    region: Annotated[Optional[str], typer.Option(
+        help="Region Identifier.")] = None,
+    tenant: Annotated[Optional[str], typer.Option(
+        help="Tenant Context ID.")] = None,
 ):
     """
     Create a new Investigation.
@@ -513,7 +525,8 @@ def create(
     search_queries = None
 
     if database:
-        evidence = get_investigation_evidence(database, service.tenant_id, "NEW")
+        evidence = get_investigation_evidence(
+            database, service.tenant_id, "NEW")
         alerts = evidence.alerts
         events = evidence.events
         search_queries = evidence.search_queries
@@ -669,8 +682,10 @@ def investigations_merge(
             help="Investigation Status to set for the source investigation.",
         ),
     ] = InvestigationStatus.CLOSED_INFORMATIONAL,
-    tenant: Annotated[Optional[str], typer.Option(help="Taegis Tenant ID.")] = None,
-    region: Annotated[Optional[str], typer.Option(help="Taegis Region ID.")] = None,
+    tenant: Annotated[Optional[str], typer.Option(
+        help="Taegis Tenant ID.")] = None,
+    region: Annotated[Optional[str], typer.Option(
+        help="Taegis Region ID.")] = None,
 ):
     """Merge investigations evidence and close the source investigation."""
     service = get_service(environment=region, tenant_id=tenant)
@@ -688,7 +703,8 @@ def investigations_merge(
         InvestigationStatus.OPEN,
         InvestigationStatus.DRAFT,
     ):
-        raise ValueError("Source Investigation status must be OPEN or DRAFT to merge.")
+        raise ValueError(
+            "Source Investigation status must be OPEN or DRAFT to merge.")
 
     if source_investigation.archived_at is not None:
         raise ValueError("Source Investigation must not be archived to merge.")
@@ -709,7 +725,8 @@ def investigations_merge(
         InvestigationStatus.OPEN,
         InvestigationStatus.DRAFT,
     ):
-        raise ValueError("Target Investigation status must be OPEN or DRAFT to merge.")
+        raise ValueError(
+            "Target Investigation status must be OPEN or DRAFT to merge.")
 
     if target_investigation.archived_at is not None:
         raise ValueError("Target Investigation must not be archived to merge.")
@@ -723,7 +740,8 @@ def investigations_merge(
     )
 
     source_shareable_url = (
-        service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+        service.investigations.sync_url.replace(
+            "api.", "") + f"/share/{result.id}"
     )
 
     result = service.sharelinks.mutation.create_share_link(
@@ -735,7 +753,8 @@ def investigations_merge(
     )
 
     target_shareable_url = (
-        service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+        service.investigations.sync_url.replace(
+            "api.", "") + f"/share/{result.id}"
     )
 
     results = service.investigations2.mutation.add_comment_to_investigation(
@@ -1139,8 +1158,4 @@ def investigations_attachment_download(
         arguments=inspect.currentframe().f_locals,
     )
 
-    return normalized_results
-    return normalized_results
-    return normalized_results
-    return normalized_results
     return normalized_results
