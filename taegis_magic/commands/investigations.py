@@ -48,6 +48,9 @@ from taegis_sdk_python import (
     prepare_input,
 )
 from taegis_sdk_python.services.investigations2.types import (
+    AddCommentToInvestigationInput,
+    AddEvidenceToInvestigationInput,
+    ArchiveInvestigationInput,
     CreateInvestigationInput,
     DeleteInvestigationFileInput,
     InitInvestigationFileUploadInput,
@@ -58,6 +61,8 @@ from taegis_sdk_python.services.investigations2.types import (
     InvestigationsV2Arguments,
     InvestigationType,
     InvestigationV2,
+    InvestigationV2Arguments,
+    UpdateInvestigationV2Input,
 )
 from taegis_sdk_python.services.queries.types import QLQueriesInput
 from taegis_sdk_python.services.sharelinks.types import ShareLinkCreateInput
@@ -67,9 +72,11 @@ log = logging.getLogger(__name__)
 
 
 app = typer.Typer(help="Taegis Investigation Commands.")
-investigations_attachment = typer.Typer(help="Investigation File Attachment commands.")
+investigations_attachment = typer.Typer(
+    help="Investigation File Attachment commands.")
 investigations_evidence = typer.Typer(help="Investigation Evidence commands.")
-investigations_search_queries = typer.Typer(help="Investigation Search Query commands.")
+investigations_search_queries = typer.Typer(
+    help="Investigation Search Query commands.")
 
 app.add_typer(
     investigations_attachment,
@@ -191,7 +198,8 @@ class InvestigationsSearchResultsNormalizer(TaegisResultsNormalizer):
         if self._shareable_url[index]:
             return self._shareable_url[index]
 
-        service = get_service(environment=self.region, tenant_id=self.tenant_id)
+        service = get_service(environment=self.region,
+                              tenant_id=self.tenant_id)
 
         result = service.sharelinks.mutation.create_share_link(
             ShareLinkCreateInput(
@@ -202,7 +210,8 @@ class InvestigationsSearchResultsNormalizer(TaegisResultsNormalizer):
         )
 
         self._shareable_url[index] = (
-            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+            service.investigations.sync_url.replace(
+                "api.", "") + f"/share/{result.id}"
         )
         return self._shareable_url[index]
 
@@ -299,7 +308,8 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
 
         investigation = self.raw_results
 
-        service = get_service(environment=self.region, tenant_id=self.tenant_id)
+        service = get_service(environment=self.region,
+                              tenant_id=self.tenant_id)
 
         result = service.sharelinks.mutation.create_share_link(
             ShareLinkCreateInput(
@@ -310,7 +320,8 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
         )
 
         self._shareable_url = (
-            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+            service.investigations.sync_url.replace(
+                "api.", "") + f"/share/{result.id}"
         )
 
         return self._shareable_url
@@ -390,7 +401,8 @@ def evidence_stage(
     """
     df = find_dataframe(dataframe)
     db = find_database(database)
-    changes = stage_investigation_evidence(df, db, evidence_type, investigation_id)
+    changes = stage_investigation_evidence(
+        df, db, evidence_type, investigation_id)
 
     return InvestigationEvidenceNormalizer(
         raw_results=changes,
@@ -405,12 +417,14 @@ def evidence_stage(
 @tracing
 def evidence_unstage(
     evidence_type: Annotated[
-        InvestigationEvidenceType, typer.Option(help="Investigation Evidence Type.")
+        InvestigationEvidenceType, typer.Option(
+            help="Investigation Evidence Type.")
     ],
     dataframe: Annotated[str, typer.Option(help="Data Reference.")],
     database: Annotated[
         str,
-        typer.Option(help="Local database file.  Use :memory: for in-memory database."),
+        typer.Option(
+            help="Local database file.  Use :memory: for in-memory database."),
     ],
     investigation_id: Annotated[
         str, typer.Option(help="Investigation Identifier.")
@@ -422,7 +436,8 @@ def evidence_unstage(
 
     df = find_dataframe(dataframe)
     db = find_database(database)
-    changes = unstage_investigation_evidence(df, db, evidence_type, investigation_id)
+    changes = unstage_investigation_evidence(
+        df, db, evidence_type, investigation_id)
 
     return InvestigationEvidenceNormalizer(
         raw_results=changes,
@@ -495,8 +510,10 @@ def create(
             help="Setting to true only prints parameters.  API call is not submitted."
         ),
     ] = False,
-    region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
-    tenant: Annotated[Optional[str], typer.Option(help="Tenant Context ID.")] = None,
+    region: Annotated[Optional[str], typer.Option(
+        help="Region Identifier.")] = None,
+    tenant: Annotated[Optional[str], typer.Option(
+        help="Tenant Context ID.")] = None,
 ):
     """
     Create a new Investigation.
@@ -508,7 +525,8 @@ def create(
     search_queries = None
 
     if database:
-        evidence = get_investigation_evidence(database, service.tenant_id, "NEW")
+        evidence = get_investigation_evidence(
+            database, service.tenant_id, "NEW")
         alerts = evidence.alerts
         events = evidence.events
         search_queries = evidence.search_queries
@@ -644,6 +662,156 @@ def search(
 
     normalized_results = InvestigationsSearchResultsNormalizer(
         raw_results=results,
+        service="investigations",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@app.command(name="merge")
+@tracing
+def investigations_merge(
+    source: Annotated[str, typer.Option(help="Source Investigation ID.")],
+    target: Annotated[str, typer.Option(help="Target Investigation ID.")],
+    close_status: Annotated[
+        InvestigationStatus,
+        typer.Option(
+            help="Investigation Status to set for the source investigation.",
+        ),
+    ] = InvestigationStatus.CLOSED_INFORMATIONAL,
+    tenant: Annotated[Optional[str], typer.Option(
+        help="Taegis Tenant ID.")] = None,
+    region: Annotated[Optional[str], typer.Option(
+        help="Taegis Region ID.")] = None,
+):
+    """Merge investigations evidence and close the source investigation."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    source_investigation = service.investigations2.query.investigation_v2(
+        InvestigationV2Arguments(
+            id=source,
+        )
+    )
+
+    if not source_investigation:
+        raise ValueError("Source Investigation not found.")
+
+    if source_investigation.status not in (
+        InvestigationStatus.OPEN,
+        InvestigationStatus.DRAFT,
+    ):
+        raise ValueError(
+            "Source Investigation status must be OPEN or DRAFT to merge.")
+
+    if source_investigation.archived_at is not None:
+        raise ValueError("Source Investigation must not be archived to merge.")
+
+    if "Merged Investigation" in source_investigation.title:
+        raise ValueError("Source Investigation has already been merged.")
+
+    target_investigation = service.investigations2.query.investigation_v2(
+        InvestigationV2Arguments(
+            id=target,
+        )
+    )
+
+    if not target_investigation:
+        raise ValueError("Target Investigation not found.")
+
+    if target_investigation.status not in (
+        InvestigationStatus.OPEN,
+        InvestigationStatus.DRAFT,
+    ):
+        raise ValueError(
+            "Target Investigation status must be OPEN or DRAFT to merge.")
+
+    if target_investigation.archived_at is not None:
+        raise ValueError("Target Investigation must not be archived to merge.")
+
+    result = service.sharelinks.mutation.create_share_link(
+        ShareLinkCreateInput(
+            link_ref=source_investigation.id,
+            link_type="investigationId",
+            tenant_id=tenant,
+        )
+    )
+
+    source_shareable_url = (
+        service.investigations.sync_url.replace(
+            "api.", "") + f"/share/{result.id}"
+    )
+
+    result = service.sharelinks.mutation.create_share_link(
+        ShareLinkCreateInput(
+            link_ref=target_investigation.id,
+            link_type="investigationId",
+            tenant_id=tenant,
+        )
+    )
+
+    target_shareable_url = (
+        service.investigations.sync_url.replace(
+            "api.", "") + f"/share/{result.id}"
+    )
+
+    results = service.investigations2.mutation.add_comment_to_investigation(
+        AddCommentToInvestigationInput(
+            investigation_id=source_investigation.id,
+            comment=f"Investigation evidence moved into {target_investigation.id} ({target_shareable_url}).",
+        )
+    )
+    log.debug("Add comment to investigation:", results)
+
+    results = service.investigations2.mutation.add_comment_to_investigation(
+        AddCommentToInvestigationInput(
+            investigation_id=target_investigation.id,
+            comment=f"Investigation evidence moved from {source_investigation.id} ({source_shareable_url}).",
+        )
+    )
+    log.debug("Add comment to investigation:", results)
+
+    results = service.investigations2.mutation.update_investigation_v2(
+        UpdateInvestigationV2Input(
+            id=source_investigation.id,
+            status=close_status,
+            title=f"Merged Investigation: {source_investigation.title}",
+        )
+    )
+    log.debug("Close source investigation:", results)
+    results = service.investigations2.mutation.archive_investigation_v2(
+        ArchiveInvestigationInput(id=source_investigation.id)
+    )
+    log.debug("Archive source investigation:", results)
+
+    results = service.investigations2.mutation.add_evidence_to_investigation(
+        AddEvidenceToInvestigationInput(
+            investigation_id=target_investigation.id,
+            alerts=[
+                evidence.alert_id for evidence in source_investigation.alerts_evidence
+            ],
+            events=[
+                evidence.event_id for evidence in source_investigation.events_evidence
+            ],
+            search_queries=[
+                evidence.search_query
+                for evidence in source_investigation.search_queries_evidence
+            ],
+        )
+    )
+    log.debug("Add evidence to target investigation:", results)
+
+    time.sleep(3)  # allow background workers to process
+    target_investigation = service.investigations2.query.investigation_v2(
+        InvestigationV2Arguments(
+            id=target,
+        )
+    )
+
+    normalized_results = InvestigationsCreatedResultsNormalizer(
+        raw_results=target_investigation,
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
