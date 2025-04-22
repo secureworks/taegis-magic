@@ -1,4 +1,5 @@
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
+
 import pandas as pd
 
 
@@ -8,6 +9,8 @@ def get_tenant_id_column(df: pd.DataFrame) -> str:
         tenant_column = "tenant_id"
     elif "tenant.id" in df.columns:
         tenant_column = "tenant.id"
+    elif "event_data.tenant_id" in df.columns:
+        tenant_column = "event_data.tenant_id"
 
     if tenant_column is None:
         raise ValueError("Tenant ID column not found in DataFrame")
