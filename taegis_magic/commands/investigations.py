@@ -10,6 +10,7 @@ from enum import Enum
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Union
+from itertools import product
 
 import requests
 import typer
@@ -17,6 +18,7 @@ from dataclasses_json import config, dataclass_json
 from taegis_magic.commands.utils.investigations import (
     InvestigationEvidenceNormalizer,
     InvestigationEvidenceType,
+    InvestigationEvidenceChanges,
     clear_search_queries,
     delete_search_query,
     find_database,
@@ -50,6 +52,7 @@ from taegis_sdk_python import (
 from taegis_sdk_python.services.investigations2.types import (
     AddCommentToInvestigationInput,
     AddEvidenceToInvestigationInput,
+    RemoveEvidenceFromInvestigationInput,
     ArchiveInvestigationInput,
     CreateInvestigationInput,
     DeleteInvestigationFileInput,
@@ -385,17 +388,59 @@ def federated_investigations_search(
 @investigations_evidence.command(name="stage")
 @tracing
 def evidence_stage(
-    evidence_type: InvestigationEvidenceType,
-    dataframe: str,
-    database: str = ":memory:",
-    investigation_id: str = "NEW",
+    evidence_type: Annotated[
+        Optional[InvestigationEvidenceType],
+        typer.Argument(
+            help="InvestigationType; will gather type from DataFrame if not provided."
+        ),
+    ],
+    dataframe: Annotated[str, typer.Argument(help="Data Reference.")],
+    database: Annotated[
+        str, typer.Option(help="Database reference.  Provide a file path or :memory:")
+    ] = ":memory:",
+    investigation_id: Annotated[
+        str, typer.Option(help="Taegis Investigation Identifier.")
+    ] = "NEW",
 ):
     """
     Stage evidence prior to linking to an investigation.
     """
     df = find_dataframe(dataframe)
     db = find_database(database)
-    changes = stage_investigation_evidence(df, db, evidence_type, investigation_id)
+
+    if evidence_type == evidence_type.All:
+        if "taegis_magic.evidence_type" not in df.columns:
+            raise ValueError(
+                "DataFrame must contain 'taegis_magic.evidence_type' column to stage all evidence types."
+            )
+
+        changes = InvestigationEvidenceChanges(
+            action="stage", evidence_type="All", investigation_id=investigation_id
+        )
+
+        for evidence_type, investigation_id in product(
+            df["taegis_magic.evidence_type"].unique(), df["investigation_id"].unique()
+        ):
+            stage_df = df[
+                (
+                    (df["taegis_magic.evidence_type"] == evidence_type)
+                    & (df["investigation_id"] == investigation_id)
+                )
+            ]
+
+            type_changes = stage_investigation_evidence(
+                stage_df,
+                db,
+                evidence_type,
+                investigation_id,
+            )
+
+            changes.before += type_changes.before
+            changes.after += type_changes.after
+            changes.difference += type_changes.difference
+            log.debug(f"Staged evidence type ({evidence_type}): {changes.to_json()}")
+    else:
+        changes = stage_investigation_evidence(df, db, evidence_type, investigation_id)
 
     return InvestigationEvidenceNormalizer(
         raw_results=changes,
@@ -410,9 +455,9 @@ def evidence_stage(
 @tracing
 def evidence_unstage(
     evidence_type: Annotated[
-        InvestigationEvidenceType, typer.Option(help="Investigation Evidence Type.")
+        InvestigationEvidenceType, typer.Argument(help="Investigation Evidence Type.")
     ],
-    dataframe: Annotated[str, typer.Option(help="Data Reference.")],
+    dataframe: Annotated[str, typer.Argument(help="Data Reference.")],
     database: Annotated[
         str,
         typer.Option(help="Local database file.  Use :memory: for in-memory database."),
@@ -427,7 +472,44 @@ def evidence_unstage(
 
     df = find_dataframe(dataframe)
     db = find_database(database)
-    changes = unstage_investigation_evidence(df, db, evidence_type, investigation_id)
+
+    df["investigation_id"].fillna(investigation_id, inplace=True)
+
+    if evidence_type == evidence_type.All:
+        if "taegis_magic.evidence_type" not in df.columns:
+            raise ValueError(
+                "DataFrame must contain 'taegis_magic.evidence_type' column to unstage all evidence types."
+            )
+
+        changes = InvestigationEvidenceChanges(
+            action="unstage", evidence_type="All", investigation_id=investigation_id
+        )
+
+        for evidence_type, investigation_id in product(
+            df["taegis_magic.evidence_type"].unique(), df["investigation_id"].unique()
+        ):
+            stage_df = df[
+                (
+                    (df["taegis_magic.evidence_type"] == evidence_type)
+                    & (df["investigation_id"] == investigation_id)
+                )
+            ]
+
+            type_changes = unstage_investigation_evidence(
+                stage_df,
+                db,
+                evidence_type,
+                investigation_id,
+            )
+
+            changes.before += type_changes.before
+            changes.after += type_changes.after
+            changes.difference += type_changes.difference
+            log.debug(f"Staged evidence type ({evidence_type}): {changes.to_json()}")
+    else:
+        changes = unstage_investigation_evidence(
+            df, db, evidence_type, investigation_id
+        )
 
     return InvestigationEvidenceNormalizer(
         raw_results=changes,
@@ -608,6 +690,119 @@ def create(
     )
 
     return results
+
+
+@investigations_evidence.command(name="append")
+@tracing
+def evidence_append(
+    investigation_id: Annotated[str, typer.Option(help="Investigation Identifier.")],
+    database: Annotated[
+        str,
+        typer.Option(
+            help="Investigation Evidence database location.  Can be a file path or ':memory:'."
+        ),
+    ] = ":memory:",
+    use_new: Annotated[bool, typer.Option(help="Use NEW investigation id for evidence.")] = False,
+    region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
+    tenant: Annotated[Optional[str], typer.Option(help="Tenant Context ID.")] = None,
+):
+    """
+    Append evidence an existing investigation.
+    """
+    if not database:
+        raise ValueError("Database must be provided to append evidence.")
+
+    service = get_service(environment=region, tenant_id=tenant)
+
+    alerts = None
+    events = None
+    search_queries = None
+
+    evidence = get_investigation_evidence(database, service.tenant_id, "NEW" if use_new else investigation_id)
+    alerts = evidence.alerts
+    events = evidence.events
+    search_queries = evidence.search_queries
+
+    results = service.investigations2.mutation.add_evidence_to_investigation(
+        AddEvidenceToInvestigationInput(
+            investigation_id=investigation_id,
+            alerts=alerts,
+            events=events,
+            search_queries=search_queries,
+        )
+    )
+    log.debug("Add evidence API results:", results)
+
+    results = service.investigations2.query.investigation_v2(
+        InvestigationV2Arguments(
+            id=investigation_id,
+        )
+    )
+
+    return InvestigationsCreatedResultsNormalizer(
+        raw_results=results,
+        service="investigations",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+
+@investigations_evidence.command(name="remove")
+@tracing
+def evidence_remove(
+    investigation_id: Annotated[str, typer.Option(help="Investigation Identifier.")],
+    database: Annotated[
+        str,
+        typer.Option(
+            help="Investigation Evidence database location.  Can be a file path or ':memory:'."
+        ),
+    ] = ":memory:",
+    use_new: Annotated[bool, typer.Option(help="Use NEW investigation id for evidence.")] = False,
+    region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
+    tenant: Annotated[Optional[str], typer.Option(help="Tenant Context ID.")] = None,
+):
+    """
+    Remove evidence an existing investigation.
+    """
+    if not database:
+        raise ValueError("Database must be provided to remove evidence.")
+
+    service = get_service(environment=region, tenant_id=tenant)
+
+    alerts = None
+    events = None
+    search_queries = None
+
+    evidence = get_investigation_evidence(database, service.tenant_id, "NEW" if use_new else investigation_id)
+    log.debug("Retrieved evidence for investigation:", evidence)
+    alerts = evidence.alerts
+    events = evidence.events
+    search_queries = evidence.search_queries
+
+    results = service.investigations2.mutation.remove_evidence_from_investigation(
+        RemoveEvidenceFromInvestigationInput(
+            investigation_id=investigation_id,
+            alerts=alerts,
+            events=events,
+            search_queries=search_queries,
+        )
+    )
+    log.debug("Remove evidence API results:", results)
+
+    results = service.investigations2.query.investigation_v2(
+        InvestigationV2Arguments(
+            id=investigation_id,
+        )
+    )
+
+    return InvestigationsCreatedResultsNormalizer(
+        raw_results=results,
+        service="investigations",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
 
 
 @app.command()

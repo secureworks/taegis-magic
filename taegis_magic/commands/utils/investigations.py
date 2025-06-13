@@ -27,6 +27,7 @@ class InvestigationEvidenceType(str, Enum):
     Alert = "alerts"
     Event = "events"
     Query = "search_queries"
+    All = "all"
 
 
 @dataclass_json
@@ -152,6 +153,33 @@ def get_or_create_database(
     return db
 
 
+def get_evidence_id_column(df: pd.DataFrame) -> str:
+    """Returns the column name for the evidence ID based on the DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing Taegis resource names
+
+    Returns
+    -------
+    str
+        Column name for the evidence ID
+    """
+    if "taegis_magic.evidence_id" in df.columns:
+        id_column = "taegis_magic.evidence_id"
+    elif "resource_id" in df.columns:
+        id_column = "resource_id"
+    elif "id" in df.columns:
+        id_column = "id"
+    else:
+        raise ValueError(
+            "DataFrame must contain 'taegis_magic.evidence_id', 'resource_id', or 'id' column."
+        )
+
+    return id_column
+
+
 def stage_investigation_evidence(
     df: pd.DataFrame,
     db: sqlite3.Connection,
@@ -183,12 +211,9 @@ def stage_investigation_evidence(
     )
 
     tenant_column = get_tenant_id_column(df)
+    evidence_id_column = get_evidence_id_column(df)
 
-    if (
-        evidence_type == InvestigationEvidenceType.Event
-        or evidence_type == InvestigationEvidenceType.Event.value
-    ):
-        df = df.assign(id=df["resource_id"])
+    df = df.assign(id=df[evidence_id_column])
 
     df[["id", tenant_column]].assign(
         investigation_id=investigation_id,
@@ -245,6 +270,9 @@ def unstage_investigation_evidence(
         Taegis investigation ID, by default "NEW"
     """
     tenant_column = get_tenant_id_column(df)
+    evidence_id_column = get_evidence_id_column(df)
+
+    df = df.assign(id=df[evidence_id_column])
 
     before_changes = read_database(
         db, evidence_type=evidence_type, investigation_id=investigation_id
