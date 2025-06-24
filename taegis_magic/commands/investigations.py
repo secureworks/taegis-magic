@@ -702,7 +702,9 @@ def evidence_append(
             help="Investigation Evidence database location.  Can be a file path or ':memory:'."
         ),
     ] = ":memory:",
-    use_new: Annotated[bool, typer.Option(help="Use NEW investigation id for evidence.")] = False,
+    use_new: Annotated[
+        bool, typer.Option(help="Use NEW investigation id for evidence.")
+    ] = False,
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
     tenant: Annotated[Optional[str], typer.Option(help="Tenant Context ID.")] = None,
 ):
@@ -718,7 +720,9 @@ def evidence_append(
     events = None
     search_queries = None
 
-    evidence = get_investigation_evidence(database, service.tenant_id, "NEW" if use_new else investigation_id)
+    evidence = get_investigation_evidence(
+        database, service.tenant_id, "NEW" if use_new else investigation_id
+    )
     alerts = evidence.alerts
     events = evidence.events
     search_queries = evidence.search_queries
@@ -758,7 +762,9 @@ def evidence_remove(
             help="Investigation Evidence database location.  Can be a file path or ':memory:'."
         ),
     ] = ":memory:",
-    use_new: Annotated[bool, typer.Option(help="Use NEW investigation id for evidence.")] = False,
+    use_new: Annotated[
+        bool, typer.Option(help="Use NEW investigation id for evidence.")
+    ] = False,
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
     tenant: Annotated[Optional[str], typer.Option(help="Tenant Context ID.")] = None,
 ):
@@ -774,7 +780,9 @@ def evidence_remove(
     events = None
     search_queries = None
 
-    evidence = get_investigation_evidence(database, service.tenant_id, "NEW" if use_new else investigation_id)
+    evidence = get_investigation_evidence(
+        database, service.tenant_id, "NEW" if use_new else investigation_id
+    )
     log.debug("Retrieved evidence for investigation:", evidence)
     alerts = evidence.alerts
     events = evidence.events
