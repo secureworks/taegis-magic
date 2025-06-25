@@ -11,7 +11,7 @@ from taegis_magic.core.service import get_service
 from typing_extensions import Annotated
 
 from taegis_sdk_python._consts import TAEGIS_ENVIRONMENT_URLS
-from taegis_sdk_python.config import get_config
+from taegis_sdk_python.config import get_config, write_config
 
 log = logging.getLogger(__name__)
 
@@ -44,6 +44,15 @@ def login(
     config = get_config()
     if not config.has_section(REGIONS_SECTION):
         config.add_section(REGIONS_SECTION)
+
+    if not config.has_section(AUTH_SECTION):
+        config.add_section(AUTH_SECTION)
+
+    config[AUTH_SECTION]["use_universal_authentication"] = str(
+        use_universal_authentication
+    ).lower()
+
+    write_config(config)
 
     regions = config[REGIONS_SECTION]
     additional_regions = {k: v for k, v in regions.items() if k and v}
@@ -97,6 +106,15 @@ def logout(
     config = get_config()
     if not config.has_section(REGIONS_SECTION):
         config.add_section(REGIONS_SECTION)
+
+    if not config.has_section(AUTH_SECTION):
+        config.add_section(AUTH_SECTION)
+
+    config[AUTH_SECTION]["use_universal_authentication"] = str(
+        use_universal_authentication
+    ).lower()
+
+    write_config(config)
 
     regions = config[REGIONS_SECTION]
     additional_regions = {k: v for k, v in regions.items() if k and v}
