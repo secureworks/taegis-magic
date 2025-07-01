@@ -66,6 +66,10 @@ from taegis_sdk_python.services.investigations2.types import (
     InvestigationV2,
     InvestigationV2Arguments,
     UpdateInvestigationV2Input,
+    CommentsV2Arguments,
+    AddCommentToInvestigationInput,
+    UpdateInvestigationCommentInput,
+    DeleteInvestigationCommentInput,
 )
 from taegis_sdk_python.services.queries.types import QLQueriesInput
 from taegis_sdk_python.services.sharelinks.types import ShareLinkCreateInput
@@ -76,12 +80,17 @@ log = logging.getLogger(__name__)
 
 app = typer.Typer(help="Taegis Investigation Commands.")
 investigations_attachment = typer.Typer(help="Investigation File Attachment commands.")
+investigations_comment = typer.Typer(help="Investigation Comment commands.")
 investigations_evidence = typer.Typer(help="Investigation Evidence commands.")
 investigations_search_queries = typer.Typer(help="Investigation Search Query commands.")
 
 app.add_typer(
     investigations_attachment,
     name="attachment",
+)
+app.add_typer(
+    investigations_comment,
+    name="comment",
 )
 app.add_typer(
     investigations_evidence,
@@ -1381,6 +1390,155 @@ def investigations_attachment_download(
         with file_path.open("wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
                 f.write(chunk)
+
+    normalized_results = TaegisResult(
+        raw_results=results,
+        service="investigations",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@investigations_comment.command(name="list")
+@tracing
+def investigations_comments_list(
+    investigation_id: Annotated[str, typer.Option(help="Investigation Identifier.")],
+    tenant: Annotated[Optional[str], typer.Option(help="Tenant Identifier.")] = None,
+    region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
+):
+    """List comments for an investigation."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    page = 1
+
+    results = service.investigations2.query.comments_v2(
+        CommentsV2Arguments(
+            investigation_id=investigation_id,
+            page=page,
+            per_page=100,
+        )
+    )
+
+    comments = results.comments
+    total_count = results.total_count
+
+    while len(comments) < total_count:
+        page += 1
+        results = service.investigations2.query.comments_v2(
+            CommentsV2Arguments(
+                investigation_id=investigation_id,
+                page=page,
+                per_page=100,
+            )
+        )
+
+        comments.extend(results.comments)
+
+    normalized_results = TaegisResults(
+        raw_results=comments,
+        service="investigations",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+
+@investigations_comment.command(name="add")
+@tracing
+def investigations_comments_add(
+    investigation_id: Annotated[str, typer.Option(help="Investigation Identifier.")],
+    cell: Annotated[str, typer.Option(help="Comment text.")],
+    is_internal: Annotated[
+        bool, typer.Option(help="Mark comment as internal. For partner use only.")
+    ] = False,
+    mention: Annotated[Optional[List[str]], typer.Option(help="Mention a user, may use @me, @partner or @tenant for quick reference.  May be used multiple times.")] = None,
+    tenant: Annotated[Optional[str], typer.Option(help="Tenant Identifier.")] = None,
+    region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
+):
+    """Add a comment to an investigation."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    for m in mention or []:
+        if m.startswith("@"):
+            m = lookup_assignee_id(service, m)
+        cell += f"\n\n@{m}"
+
+    results = service.investigations2.mutation.add_comment_to_investigation(
+        AddCommentToInvestigationInput(
+            investigation_id=investigation_id,
+            comment=cell,
+            is_internal=is_internal,
+        )
+    )
+
+    normalized_results = TaegisResult(
+        raw_results=results,
+        service="investigations",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+@investigations_comment.command(name="update")
+@tracing
+def investigations_comments_update(
+    comment_id: Annotated[str, typer.Option(help="Comment Identifier.")],
+    cell: Annotated[str, typer.Option(help="Comment text.")],
+    mark_as_read: Annotated[
+        bool, typer.Option(help="Mark comment as read. For partner use only.")
+    ] = False,
+    mention: Annotated[Optional[List[str]], typer.Option(help="Mention a user, may use @me, @partner or @tenant for quick reference.  May be used multiple times.")] = None,
+    tenant: Annotated[Optional[str], typer.Option(help="Tenant Identifier.")] = None,
+    region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
+):
+    """Update a comment to an investigation."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    for m in mention or []:
+        if m.startswith("@"):
+            m = lookup_assignee_id(service, m)
+        cell += f"\n{m}"
+
+    results = service.investigations2.mutation.update_investigation_comment(
+        UpdateInvestigationCommentInput(
+            comment_id=comment_id,
+            comment=cell,
+            mark_as_read=mark_as_read,
+        )
+    )
+
+    normalized_results = TaegisResult(
+        raw_results=results,
+        service="investigations",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+    return normalized_results
+
+@investigations_comment.command(name="remove")
+@tracing
+def investigations_comments_remove(
+    comment_id: Annotated[str, typer.Option(help="Comment Identifier.")],
+    tenant: Annotated[Optional[str], typer.Option(help="Tenant Identifier.")] = None,
+    region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
+):
+    """Remove a comment to an investigation."""
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.investigations2.mutation.delete_investigation_comment(
+        DeleteInvestigationCommentInput(
+            comment_id=comment_id,
+        )
+    )
 
     normalized_results = TaegisResult(
         raw_results=results,
