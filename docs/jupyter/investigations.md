@@ -112,7 +112,7 @@ FROM alert EARLIEST=-1d | head 5
 Appending events example:
 
 ```
-%%taegis events search --tenant 50530 --track --assign events_df
+%%taegis events search --track --assign events_df
 FROM cloudaudit EARLIEST=-1d | head 5
 ```
 
@@ -214,4 +214,40 @@ WHERE id = '<uuid>'
 
 ```python
 evidence = investigations.pipe(inflate_evidence).pipe(lookup_evidence, region="charlie")
+```
+
+### Comments
+
+Comments may be listed, created, updated, or removed from an intestigation.  Comments may have mentions added that will create notifications to the partner, tenant or user.
+
+#### Mentions
+
+* `@me`: sets mention to the calling user or client id
+* `@partner`: sets mention to the calling user's partner organization
+* `@tenant`: sets mention to the investigation's tenant organization
+
+#### List
+
+```
+%taegis investigations comment list --investigation-id "<uuid>" --assign comments
+```
+
+#### Add
+
+```
+%%taegis investigations comment add --investigation-id "<uuid>" --mention @partner --assign comment
+Test Add Comment
+```
+
+#### Update
+
+```
+%%taegis investigations comment update --comment-id "<uuid>" --mention @partner --assign comment
+Test Update Comment
+```
+
+#### Remove
+
+```
+%taegis investigations comment remove --comment-id "<uuid>" --assign comment
 ```
