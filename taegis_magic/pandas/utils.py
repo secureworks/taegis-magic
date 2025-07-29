@@ -105,3 +105,25 @@ def drop_duplicates_by_hashables(df: pd.DataFrame) -> pd.DataFrame:
         hashable_columns.append(column)
 
     return df.copy().drop_duplicates(hashable_columns)
+
+
+def groupby(df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
+    """Validate column list against DataFrame and return a standardized Pandas DataFrame goupby operation.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to group by.
+    columns : List[str]
+        List of columns to group by.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with grouped counts.
+    """
+    for column in columns.copy():
+        if not column in df.columns:
+            logger.error(f"Column {column} not found in dataframe")
+            columns.remove(column)
+    return df.groupby(columns, dropna=False).size().reset_index(name="count")
