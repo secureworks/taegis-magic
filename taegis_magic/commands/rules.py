@@ -104,11 +104,17 @@ class TaegisRulesNormalizer(TaegisResultsNormalizer):
 class TaegisRulesSearchNormalizer(TaegisResultsNormalizer):
     """Taegis Search Rule normalizer."""
 
-    raw_results: SearchRulesOutput = field(default_factory=lambda: SearchRulesOutput())
+    raw_results: List[SearchRulesOutput] = field(
+        default_factory=lambda: [SearchRulesOutput()]
+    )
 
     @property
     def results(self):
-        return [asdict(rule) for rule in self.raw_results.rules]
+        return [
+            asdict(rule)
+            for result in self.raw_results or []
+            for rule in result.rules or []
+        ]
 
 
 @app.command(name="type")
@@ -435,7 +441,11 @@ def rules_search(
 
     log.info(f"Getting page: {page}")
     try:
-        with service(output=multiple_rules_output()):
+        with service(
+            output=remove_output_node(
+                build_output_string(SearchRulesOutput), "generativeAIRuleExplain"
+            )
+        ):
             results = service.rules.query.search_rules(
                 SearchRulesInput(query=cell),
                 page=page,
@@ -443,14 +453,18 @@ def rules_search(
             )
     except GraphQLNoRowsInResultSetError:  # pragma: no cover
         results = []
-    log.debug(f"Results returned: {len(results)}")
-    rules.extend(results)
+    log.debug(f"Results returned: {len(results.rules)}")
+    rules.append(results)
 
-    while len(results) == per_page:
+    while len(results.rules) == per_page:
         page += 1
         log.info(f"Getting page: {page}")
         try:
-            with service(output=multiple_rules_output()):
+            with service(
+                output=remove_output_node(
+                    build_output_string(SearchRulesOutput), "generativeAIRuleExplain"
+                )
+            ):
                 results = service.rules.query.search_rules(
                     SearchRulesInput(query=cell),
                     page=page,
@@ -458,8 +472,8 @@ def rules_search(
                 )
         except GraphQLNoRowsInResultSetError:  # pragma: no cover
             results = []
-        log.debug(f"Results returned: {len(results)}")
-        rules.extend(results)
+        log.debug(f"Results returned: {len(results.rules)}")
+        rules.append(results)
 
     normalized_results = TaegisRulesSearchNormalizer(
         raw_results=rules,
