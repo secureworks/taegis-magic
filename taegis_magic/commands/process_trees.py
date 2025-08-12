@@ -8,10 +8,7 @@ from typing_extensions import Annotated
 from dataclasses import asdict, dataclass, field
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResult
-from taegis_magic.core.service import get_service
-from taegis_magic.commands.events import search
-
-from taegis_magic.core.utils import to_dataframe
+from taegis_magic.core.service import get_service                                               
 
 app = typer.Typer(help="Taegis Subjects Commands.")
 
@@ -75,9 +72,9 @@ def process_lineage(
 def process_children(
         region: Annotated[Optional[str], typer.Option(help="Taegis region")] = None,
         tenant_id: Annotated[Optional[str], typer.Option(help="Taegis tenant id")] = None,
-        host_id: Annotated[Optional[str], typer.Option(help="Taegis host id")] = None,
-        process_correlation_id: Annotated[Optional[str], typer.Option(help="Taegis Event process correlation id")] = None,
-        resource_id: Annotated[Optional[str], typer.Option(help="Taegis Event resource ID")] = None,
+        host_id: Annotated[str, typer.Argument(help="Taegis host id")] = None,
+        process_correlation_id: Annotated[str, typer.Argument(help="Taegis Event process correlation id")] = None,
+        resource_id: Annotated[str, typer.Argument(help="Taegis Event resource ID")] = None,
 ):
     """Get process children for a given region & tenant, based on the resource_id, host_id, and process_correlation_id."""
     service = get_service(environment=region, tenant_id=tenant_id)
@@ -99,9 +96,9 @@ def process_children(
 def process_parent(
         region: Annotated[Optional[str], typer.Option(help="Taegis region")] = None,
         tenant_id: Annotated[Optional[str], typer.Option(help="Taegis tenant id")] = None,
-        host_id: Annotated[Optional[str], typer.Option(help="Taegis host id")] = None,
-        parent_pcid: Annotated[Optional[str], typer.Option(help="Taegis Event process correlation id")] = None,
-        resource_id: Annotated[Optional[str], typer.Option(help="Taegis Event resource ID")] = None,
+        host_id: Annotated[str, typer.Argument(help="Taegis host id")] = None,
+        parent_pcid: Annotated[str, typer.Argument(help="Taegis Event process correlation id")] = None,
+        resource_id: Annotated[str, typer.Argument(help="Taegis Event resource ID")] = None,
 ):
     """Gets the processes' parent based on the parent_correlation_id for a given region & tenant, based on the resource_id, host_id, and parent_process_correlation_id."""
     service = get_service(environment=region, tenant_id=tenant_id)
