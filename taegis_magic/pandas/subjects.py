@@ -56,7 +56,7 @@ def lookup_users(
         user_id_columns = ["created_by", "updated_by"]
 
     if not merge_ons:
-        right_ons = ["user.id", "user.idp_user_id", "user.user_id"]
+        merge_ons = ["user.id", "user.idp_user_id", "user.user_id"]
 
     for column in user_id_columns.copy():
         if not column in df.columns:
@@ -155,6 +155,7 @@ def lookup_users(
                         filtered_dataframe[f"{column}.{merge_on}"]
                     )
                 ]
+
         if not column_dataframe.empty:
             log.debug(f"Adding column dataframe: {column_dataframe['id']}")
             dfs.append(column_dataframe)
