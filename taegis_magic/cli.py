@@ -24,6 +24,7 @@ from taegis_magic.commands import (
     tenants,
     threat,
     users,
+    process_trees
 )
 from taegis_magic.core.normalizer import TaegisResult
 from dataclasses_json import dataclass_json
@@ -61,7 +62,7 @@ app.add_typer(tenant_profiles.app, name="tenant-profiles")
 app.add_typer(tenants.app, name="tenants")
 app.add_typer(threat.app, name="threat")
 app.add_typer(users.app, name="users")
-
+app.add_typer(process_trees.app, name="process-trees")
 
 CONFIG = configure.set_defaults()
 
