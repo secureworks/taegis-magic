@@ -56,12 +56,12 @@ def inflate_environments(
             env_dict[environment.get("name", "error")] = environment.get(
                 "enabled", False
             )
-            env_dict[f"{environment.get('name', 'error')}.created_at"] = (
-                environment.get("created_at", False)
-            )
-            env_dict[f"{environment.get('name', 'error')}.updated_at"] = (
-                environment.get("updated_at", False)
-            )
+            env_dict[
+                f"{environment.get('name', 'error')}.created_at"
+            ] = environment.get("created_at", False)
+            env_dict[
+                f"{environment.get('name', 'error')}.updated_at"
+            ] = environment.get("updated_at", False)
         return env_dict
 
     df = pd.concat(
