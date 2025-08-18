@@ -10,17 +10,17 @@ from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResults, TaegisResult
 from taegis_magic.core.service import get_service                                               
 
-app = typer.Typer(help="Taegis Subjects Commands.")
+app = typer.Typer(help="Taegis Process Trees Commands.")
 
 log = logging.getLogger(__name__)
 
 from dataclasses import asdict, dataclass
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
-from taegis_sdk_python.services.process_trees.types import ProcessLineage, Children
+from taegis_sdk_python.services.process_trees.types import ProcessLineage
 
 @dataclass
 class ProcessLineageNormalizer(TaegisResultsNormalizer):
-    """Normalizer for ProcessLineage results, as it is always a single dataclass result."""
+    """ Normalizer for ProcessLineage results, always returns a single dataclass with lineage entries flattened into rows. """
 
     raw_results: ProcessLineage = field(default_factory=lambda: ProcessLineage())
 
@@ -37,6 +37,7 @@ class ProcessLineageNormalizer(TaegisResultsNormalizer):
                 lineage = []
             for idx, entry in enumerate(lineage):
                 row = {"lineage_index": idx}
+                # if entry is not a dict, convert to dict and append to row.
                 if hasattr(entry, "__dataclass_fields__"):
                     row.update(asdict(entry))
                 elif isinstance(entry, dict):
@@ -80,7 +81,7 @@ def process_children(
         process_correlation_id: Annotated[str, typer.Option(help="Taegis Event process correlation id")] = None,
         resource_id: Annotated[str, typer.Option(help="Taegis Event resource ID")] = None,
 ):
-    """Get process children for a given region & tenant, based on the resource_id, host_id, and process_correlation_id."""
+    """ Get process children for a given region & tenant, based on the resource_id, host_id, and process_correlation_id. """
     service = get_service(environment=region, tenant_id=tenant_id)
     all_results = []
     next_token = None
@@ -95,10 +96,8 @@ def process_children(
             next_token=next_token,
         )
         
-        if hasattr(results, "process_list") and results.process_list:
-            all_results.extend(results.process_list)
-        
-        next_token = getattr(results, "next_token", None)
+        all_results.extend(results.process_list)
+        next_token = results.next_token
         if not next_token:
             break
 
@@ -126,6 +125,7 @@ def process_parent(
     service = get_service(environment=region, tenant_id=tenant_id)
     results = service.process_trees.query.process_parent(host_id=host_id, parent_process_correlation_id=parent_pcid, tenant_id=tenant_id, resource_id=resource_id)
 
+    # There is always only one parent process returned, so we can normalize it directly with TaegisResult.
     normalized_results = TaegisResult(
         raw_results=results,
         service="process_parent",
