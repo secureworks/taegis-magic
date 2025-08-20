@@ -34,9 +34,9 @@ def inflate_evidence(df: pd.DataFrame) -> pd.DataFrame:
 
     search_query_evidence = pd.json_normalize(df["search_queries_evidence"].explode())
     if not search_query_evidence.empty:
-        search_query_evidence["taegis_magic.evidence_type"] = (
-            InvestigationEvidenceType.Query
-        )
+        search_query_evidence[
+            "taegis_magic.evidence_type"
+        ] = InvestigationEvidenceType.Query
         search_query_evidence["taegis_magic.evidence_id"] = search_query_evidence[
             "search_query"
         ]
@@ -72,9 +72,7 @@ def lookup_evidence(df: pd.DataFrame, region: str) -> pd.DataFrame:
     queries_df = df[df["taegis_magic.evidence_type"] == InvestigationEvidenceType.Query]
 
     if not alerts_df.empty:
-
         for tenant_id in alerts_df["tenant_id"].unique():
-
             alerts_list = alerts_df[alerts_df["tenant_id"] == tenant_id][
                 "taegis_magic.evidence_id"
             ].tolist()
@@ -115,9 +113,7 @@ def lookup_evidence(df: pd.DataFrame, region: str) -> pd.DataFrame:
         )
 
     if not events_df.empty:
-
         for tenant_id in events_df["tenant_id"].unique():
-
             events_list = events_df[events_df["tenant_id"] == tenant_id][
                 "taegis_magic.evidence_id"
             ].tolist()
@@ -149,9 +145,7 @@ def lookup_evidence(df: pd.DataFrame, region: str) -> pd.DataFrame:
         )
 
     if not queries_df.empty:
-
         for tenant_id in queries_df["tenant_id"].unique():
-
             queries_list = queries_df[queries_df["tenant_id"] == tenant_id][
                 "taegis_magic.evidence_id"
             ].tolist()

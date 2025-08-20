@@ -1456,7 +1456,12 @@ def investigations_comments_add(
     is_internal: Annotated[
         bool, typer.Option(help="Mark comment as internal. For partner use only.")
     ] = False,
-    mention: Annotated[Optional[List[str]], typer.Option(help="Mention a user, may use @me, @partner or @tenant for quick reference.  May be used multiple times.")] = None,
+    mention: Annotated[
+        Optional[List[str]],
+        typer.Option(
+            help="Mention a user, may use @me, @partner or @tenant for quick reference.  May be used multiple times."
+        ),
+    ] = None,
     tenant: Annotated[Optional[str], typer.Option(help="Tenant Identifier.")] = None,
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
 ):
@@ -1486,6 +1491,7 @@ def investigations_comments_add(
 
     return normalized_results
 
+
 @investigations_comment.command(name="update")
 @tracing
 def investigations_comments_update(
@@ -1494,7 +1500,12 @@ def investigations_comments_update(
     mark_as_read: Annotated[
         bool, typer.Option(help="Mark comment as read. For partner use only.")
     ] = False,
-    mention: Annotated[Optional[List[str]], typer.Option(help="Mention a user, may use @me, @partner or @tenant for quick reference.  May be used multiple times.")] = None,
+    mention: Annotated[
+        Optional[List[str]],
+        typer.Option(
+            help="Mention a user, may use @me, @partner or @tenant for quick reference.  May be used multiple times."
+        ),
+    ] = None,
     tenant: Annotated[Optional[str], typer.Option(help="Tenant Identifier.")] = None,
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
 ):
@@ -1523,6 +1534,7 @@ def investigations_comments_update(
     )
 
     return normalized_results
+
 
 @investigations_comment.command(name="remove")
 @tracing
