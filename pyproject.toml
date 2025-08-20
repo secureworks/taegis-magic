@@ -8,17 +8,17 @@ dynamic = ["version"]
 description = "Taegis IPython Magics"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 authors = [{ name = "Micah Pegman", email = "sdks@secureworks.com" }]
 classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
     "taegis-sdk-python>=1.4.0",
@@ -34,7 +34,7 @@ dependencies = [
     "pandas[excel]",
     "Jinja2",
     "compress_pickle>=2.1.0",
-    "gql",
+    "gql<4",
     "dataclasses_json",
     "click",
     "requests",
