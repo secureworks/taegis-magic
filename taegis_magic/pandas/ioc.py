@@ -25,6 +25,16 @@ log = logging.getLogger(__name__)
 
 @tracing
 def normalize_event_count_results(input_: List[EventCountResult]) -> pd.DataFrame:
+    """Normalize event count results into a DataFrame.
+
+    Parameters
+    ----------
+    input_ : List[EventCountResult]
+
+    Returns
+    -------
+    pd.DataFrame
+    """
     df = pd.json_normalize(
         [
             asdict(result)
@@ -146,6 +156,22 @@ def search_ioc_domains(
     days: int = 30,
     tenant_ids: Optional[List[str]] = None,
 ) -> Optional[List[EventCountResult]]:
+    """Search for domain IOCs.
+
+    Parameters
+    ----------
+    service : GraphQLService
+    iocs : List[str]
+        List of IOCs.
+    days : int, optional
+        Days back to search, by default 30
+    tenant_ids : Optional[List[str]], optional
+        Taegis Tenants IDs, by default None
+
+    Returns
+    -------
+    Optional[List[EventCountResult]]
+    """
     days += 1  # add 1 to days due to search failure on current day
 
     if not tenant_ids:
@@ -181,6 +207,22 @@ def search_ioc_file_hashes(
     days: int = 30,
     tenant_ids: Optional[List[str]] = None,
 ) -> Optional[EventCountResult]:
+    """Search for File Hash IOCs.
+
+    Parameters
+    ----------
+    service : GraphQLService
+    iocs : List[str]
+        List of IOCs.
+    days : int, optional
+        Days back to search, by default 30
+    tenant_ids : Optional[List[str]], optional
+        Taegis Tenants IDs, by default None
+
+    Returns
+    -------
+    Optional[List[EventCountResult]]
+    """
     days += 1  # add 1 to days due to search failure on current day
 
     if not tenant_ids:
@@ -216,6 +258,22 @@ def search_ioc_ip_addresses(
     days: int = 30,
     tenant_ids: Optional[List[str]] = None,
 ) -> Optional[EventCountResult]:
+    """Search for IP Address IOCs.
+
+    Parameters
+    ----------
+    service : GraphQLService
+    iocs : List[str]
+        List of IOCs.
+    days : int, optional
+        Days back to search, by default 30
+    tenant_ids : Optional[List[str]], optional
+        Taegis Tenants IDs, by default None
+
+    Returns
+    -------
+    Optional[List[EventCountResult]]
+    """
     days += 1  # add 1 to days due to search failure on current day
 
     if not tenant_ids:
@@ -333,7 +391,7 @@ def regioned_multi_tenant_ioc_search(
     Optional[List[EventCountResult]]
         List of event count results or None if no valid IOCs are found.
     """
-    if not 'first_environment' in tenants.columns:
+    if not "first_environment" in tenants.columns:
         log.error(
             "Tenants DataFrame must contain 'first_environment' column to filter by region."
         )
@@ -441,6 +499,6 @@ def threaded_multi_tenant_ioc_search(
     stiched_results = pd.concat(
         normalized_results,
         axis=1,
-    )
+    ).reset_index(drop=True)
 
     return stiched_results
