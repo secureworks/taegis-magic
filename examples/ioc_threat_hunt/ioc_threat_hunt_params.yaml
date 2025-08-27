@@ -1,0 +1,7 @@
+region: charlie
+organization_id: "your_org_id"
+tenant_ids:
+  - "tenant1"
+  - "tenant2"
+ioc_file: iocs.txt
+days: 3

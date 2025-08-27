@@ -24,7 +24,7 @@ from taegis_magic.commands import (
     tenants,
     threat,
     users,
-    process_trees
+    process_trees,
 )
 from taegis_magic.core.normalizer import TaegisResult
 from dataclasses_json import dataclass_json

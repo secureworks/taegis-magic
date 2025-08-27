@@ -86,6 +86,7 @@ def search(
         typer.Option(help="YYYY-MM-DDTHH:MM:SSZ"),
     ] = None,
     filter_by_tenant_hierarchy: Annotated[Optional[List[str]], typer.Option()] = None,
+    filter_by_enabled: Annotated[Optional[bool], typer.Option()] = None,
     sort_by_field: Annotated[TenantOrderField, typer.Option()] = TenantOrderField.ID,
     sort_order: Annotated[OrderDir, typer.Option()] = OrderDir.ASC,
     tenant: Annotated[Optional[str], typer.Option()] = None,
@@ -144,6 +145,7 @@ def search(
             with_services=filter_by_service,
             order_by=sort_by_field,
             order_dir=sort_order,
+            enabled_in_production=filter_by_enabled,
         )
     )
 
@@ -194,6 +196,7 @@ def search(
                 with_services=filter_by_service,
                 order_by=sort_by_field,
                 order_dir=sort_order,
+                enabled_in_production=filter_by_enabled,
             )
         )
 

@@ -10,6 +10,191 @@ logger = logging.getLogger(__name__)
 MAGIC_COLUMN = "taegis_magic.{}"
 
 
+DEFAULT_COLUMNS = {
+    "agentdetection": [
+        'host_id',
+        'hostname',
+        'detection_category',
+        'detection_type',
+        'image_path',
+        'summary',
+    ],
+    "antivirus": [
+        'host_id',
+        'action_taken',
+        'threat_category',
+        'threat_name',
+        'user_name',
+        'file_path',
+    ],
+    "apicall": [
+        'host_id',
+        'hostname',
+        'function_called',
+        'was_modification_allowed',
+        'was_operation_successful',
+        'action',
+        'commandline',
+    ],
+    "auth": [
+        "source_address",
+        "target_user_name",
+        "action",
+        "auth_system",
+        "user_agent",
+        "application_name",
+    ],
+    "cloudaudit": [
+        "source_address",
+        "user_name",
+        "event_type",
+        "event_name",
+        "mfa_used",
+        "user_agent",
+    ],
+    "detectionfinding": [],
+    "dhcp": [
+        'host_id',
+        'hostname',
+        'server_address',
+        'client_address',
+        'action',
+    ],
+    "dnsquery": [
+        "hostname",
+        "os.os",
+        "os.arch",
+        "processcorrelationid.pid",
+        "query_name",
+        "query_type",
+    ],
+    "email": [
+        'host_id',
+        'direction',
+        'status',
+        'event_type',
+        'from_email_address',
+        'subject',
+    ],
+    "encrypt": [
+        'host_id',
+        'hostname',
+        'source_address',
+        'destination_address',
+        'tls_version',
+    ],
+    "filemod": [
+        'host_id',
+        'hostname',
+        'parent_path',
+        'process_image_path',
+        'action',
+        'file_name',
+        'process_username',
+    ],
+    "generic": [
+        'host_id',
+        'hostname',
+        'summary',
+    ],
+    "http": [
+        "source_username",
+        "source_address",
+        "destination_address",
+        "destination_port",
+        "user_agent",
+        "http_method",
+        "response_code",
+        "uri_host",
+        "uri_path",
+        "tx_byte_count",
+        "rx_byte_count",
+    ],
+    "managementevent": [
+        'host_id',
+        'hostname',
+        'type',
+        'channel',
+        'operation',
+        'username',
+    ],
+    "netflow": [
+        "hostname",
+        "sensor_type",
+        "protocol",
+        "source_address",
+        "destination_address",
+        "destination_port",
+        "dns_name",
+    ],
+    "nids": [
+        "source_address",
+        "destination_address",
+        "action",
+        "blocked",
+        "enrichSummary",
+    ],
+    "persistence": [
+        'host_id',
+        'hostname',
+        'category',
+        'command.program.path',
+        'command.args'
+    ],
+    "process": [
+        "hostname",
+        "os.os",
+        "os.arch",
+        "sensor_type",
+        "username",
+        "user_is_admin",
+        "process_is_admin",
+        "image_path",
+        "commandline",
+        "was_blocked",
+    ],
+    "processmodule": [
+        'host_id',
+        'hostname',
+        'sensor_action',
+        'file.path',
+        'module_action',
+    ],
+    "registry": [
+        "host_id",
+        "hostname",
+        "event_type",
+        "path",
+        "process_image_path",
+        "process_username",
+        "value.name",
+        "value.data32",
+        "value.data64",
+    ],
+    "scriptblock": [
+        "os.os",
+        "os.arch",
+        "interpreter_name",
+        "interpreter_path",
+        "script_name",
+        "decoded_block_text",
+    ],
+    "thirdparty": [
+        "source_address",
+        "user_principal_name",
+        "title",
+        "ontology",
+    ],
+    'threadinjection': [
+        'host_id',
+        'hostname',
+        'source_process_name',
+        'target_process_name',
+        'thread_id',
+    ],
+}
+
+
 def get_tenant_id(tenant_id):
     """Coerce tenant ids into common format."""
     if isinstance(tenant_id, int):
@@ -126,4 +311,20 @@ def groupby(df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
         if not column in df.columns:
             logger.error(f"Column {column} not found in dataframe")
             columns.remove(column)
-    return df.groupby(columns, dropna=False).size().reset_index(name="count")
+    return df[columns].astype(str).groupby(columns, dropna=False).size().reset_index(name="count")
+
+
+def default_schema_columns(schema: str) -> List[str]:
+    """Return default Magic columns for a given schema.
+
+    Parameters
+    ----------
+    schema : str
+        Schema name.
+
+    Returns
+    -------
+    List[str]
+        List of default columns.
+    """
+    return DEFAULT_COLUMNS.get(schema.lower(), [])

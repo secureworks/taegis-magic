@@ -9,13 +9,14 @@ from taegis_magic.commands.process_trees import process_lineage, process_childre
 
 log = logging.getLogger(__name__)
 
+
 def lookup_lineage(
     df: pd.DataFrame, region: Optional[str] = None, tenant_id: Optional[str] = None
 ) -> pd.DataFrame:
     """
     For each row in the DataFrame, fetch process lineage using process_correlation_id, host_id, tenant_id, and resource_id.
     Adds a new column 'process_lineage' with the results.
-    
+
     Parameters
     ----------
     df : pd.DataFrame
@@ -40,17 +41,22 @@ def lookup_lineage(
     df = df.copy()
     if df.empty:
         return df
-    
 
     required_cols = ["host_id", "process_correlation_id", "resource_id"]
     if not all(x in df.columns for x in required_cols):
-        raise ValueError("DataFrame must contain host_id, process_correlation_id, and resource_id columns for lineage lookup.")
+        raise ValueError(
+            "DataFrame must contain host_id, process_correlation_id, and resource_id columns for lineage lookup."
+        )
 
     def get_lineage(row):
-        if pd.isna(row.get("host_id")) or pd.isna(row.get("process_correlation_id")) or pd.isna(row.get("resource_id")):
+        if (
+            pd.isna(row.get("host_id"))
+            or pd.isna(row.get("process_correlation_id"))
+            or pd.isna(row.get("resource_id"))
+        ):
             return []
-        
-        else: 
+
+        else:
             result = process_lineage(
                 region=region,
                 tenant_id=tenant_id,
@@ -67,9 +73,16 @@ def lookup_lineage(
 
     df["process_info.process_lineage"] = df.apply(get_lineage, axis=1)
     df = df.explode("process_info.process_lineage").reset_index(drop=True)
-    df["process_info.process_lineage"] = df["process_info.process_lineage"].apply(lambda x: {} if pd.isnull(x) else x)
-    df["process_info.process_lineage.index"] = df["process_info.process_lineage"].apply(lambda x: int(x.get("lineage_index", None)) if x.get("lineage_index", None) is not None else None)
+    df["process_info.process_lineage"] = df["process_info.process_lineage"].apply(
+        lambda x: {} if pd.isnull(x) else x
+    )
+    df["process_info.process_lineage.index"] = df["process_info.process_lineage"].apply(
+        lambda x: int(x.get("lineage_index", None))
+        if x.get("lineage_index", None) is not None
+        else None
+    )
     return df
+
 
 def lookup_children(
     df: pd.DataFrame, region: Optional[str] = None, tenant_id: Optional[str] = None
@@ -77,7 +90,7 @@ def lookup_children(
     """
     For each row in the DataFrame, fetch their children processes using process_correlation_id, host_id, tenant_id, and resource_id.
     Adds a new column 'process_children' with the results.
-    
+
     Parameters
     ----------
     df : pd.DataFrame
@@ -104,14 +117,19 @@ def lookup_children(
 
     required_cols = ["host_id", "process_correlation_id", "resource_id"]
     if not all(x in df.columns for x in required_cols):
-        raise ValueError("DataFrame must contain host_id, process_correlation_id, and resource_id columns for lineage lookup.")
-    
+        raise ValueError(
+            "DataFrame must contain host_id, process_correlation_id, and resource_id columns for lineage lookup."
+        )
 
     def get_children(row):
-        if pd.isna(row.get("host_id")) or pd.isna(row.get("process_correlation_id")) or pd.isna(row.get("resource_id")):
+        if (
+            pd.isna(row.get("host_id"))
+            or pd.isna(row.get("process_correlation_id"))
+            or pd.isna(row.get("resource_id"))
+        ):
             return []
-        
-        else: 
+
+        else:
             result = process_children(
                 region=region,
                 tenant_id=tenant_id,
@@ -125,8 +143,10 @@ def lookup_children(
             return result.results
         else:
             return []
-        
+
     df["process_info.process_children"] = df.apply(get_children, axis=1)
     df = df.explode("process_info.process_children").reset_index(drop=True)
-    df["process_info.process_children"] = df["process_info.process_children"].apply(lambda x: {} if pd.isnull(x) else x)
+    df["process_info.process_children"] = df["process_info.process_children"].apply(
+        lambda x: {} if pd.isnull(x) else x
+    )
     return df
