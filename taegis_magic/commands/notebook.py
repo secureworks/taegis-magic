@@ -8,16 +8,16 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 
-import jupyter_client
 import nbclient
 import papermill
 import typer
-from typing_extensions import Annotated
-
+import yaml
+from papermill.iorw import NoDatesSafeLoader, read_yaml_file
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResult
 from taegis_magic.core.notebook import generate_report
 from taegis_magic.core.service import get_service
+from typing_extensions import Annotated
 
 log = logging.getLogger(__name__)
 
@@ -71,6 +71,28 @@ def execute(
             "--parameter",
             "-p",
             help="Parameters to pass to the parameters cell. Use the format PARAMETER_NAME=VALUE.",
+        ),
+    ] = None,
+    parameters_file: Annotated[
+        Optional[List[Path]],
+        typer.Option(
+            "--parameters-file",
+            "-f",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            writable=False,
+            readable=True,
+            resolve_path=True,
+            help="YAML files to read parameters from. Can be used multiple times.",
+        ),
+    ] = None,
+    parameters_yaml: Annotated[
+        Optional[List[str]],
+        typer.Option(
+            "--parameters-yaml",
+            "-y",
+            help="YAML strings to read parameters from. Can be used multiple times.",
         ),
     ] = None,
     inject_input_path: Annotated[
@@ -246,6 +268,10 @@ def execute(
             continue
 
         parameters[name] = value
+    for files in parameters_file or []:
+        parameters.update(read_yaml_file(str(files)) or {})
+    for params in parameters_yaml or []:
+        parameters.update(yaml.load(params, Loader=NoDatesSafeLoader) or {})
 
     if title:
         parameters["INVESTIGATION_TITLE"] = title

@@ -2,6 +2,8 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
+from taegis_sdk_python import GraphQLService
+
 
 def get_tenant_id_column(df: pd.DataFrame) -> str:
     tenant_column = None
@@ -16,6 +18,31 @@ def get_tenant_id_column(df: pd.DataFrame) -> str:
         raise ValueError("Tenant ID column not found in DataFrame")
 
     return tenant_column
+
+
+def get_first_tenant_id(service: GraphQLService) -> str:
+    """Get the first tenant ID from the service's current subject.
+
+    Parameters
+    ----------
+    service : GraphQLService
+        The GraphQL service instance.
+
+    Returns
+    -------
+    str
+        The first tenant ID.
+    """
+    subject = service.subjects.query.current_subject()
+
+    if not subject.role_assignment_data.assigned_tenant_ids:
+        raise ValueError(
+            "No tenant ID found in the current subject's role assignment data."
+        )
+
+    first_tenant_id = subject.role_assignment_data.assigned_tenant_ids[0]
+
+    return first_tenant_id
 
 
 def remove_output_node(

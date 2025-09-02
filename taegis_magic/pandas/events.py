@@ -103,7 +103,6 @@ def inflate_original_data(
         )
 
     if any(df.columns.str.startswith("original_data.")) is False:
-
         return pd.concat(
             [
                 df,

@@ -1,13 +1,17 @@
 import logging
 import os
 import re
+import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from dataclasses import dataclass
 from importlib.metadata import version as module_version
 from pathlib import Path
 from time import sleep
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import jinja2
 import nbconvert
+import papermill
 from ipylab import JupyterFrontEnd
 from IPython import get_ipython
 from IPython.display import HTML, Javascript, display
@@ -21,6 +25,34 @@ log = logging.getLogger(__name__)
 VERSION_6 = parse_version("6")
 VERSION_7 = parse_version("7")
 VERSION_8 = parse_version("8")
+
+
+def pool_initializer():
+    """Default ProcessPoolExecutor initializer.
+
+    https://github.com/ipython/ipython/issues/11049
+    """
+    
+    sys.stdout.write(' ')
+    sys.stdout.flush()
+
+@dataclass
+class NotebookContext:
+    """Metadata for a Jupyter notebook."""
+
+    tenant: str
+    region: str
+    parameters: Optional[dict] = None
+
+
+@dataclass
+class NotebookScope:
+    """Scope for a Jupyter notebook execution."""
+
+    tenant: str
+    region: str
+    notebook_title: Optional[str] = None
+    notebook_path: Optional[Union[str, Path]] = None
 
 
 def get_notebook_version() -> Version:
@@ -197,3 +229,114 @@ def generate_report(filename: Union[str, Path]) -> Path:
     Path(output_file).write_text(body, encoding="utf-8", errors="replace")
 
     return output_file
+
+
+def execute_notebook_pool(
+    notebook_context: List[NotebookContext],
+    notebook_path: Union[str, Path],
+    notebook_title: str,
+    process_pool_kwargs: Optional[dict] = None,
+    papermill_kwargs: Optional[dict] = None,
+):
+    """Execute a notebook in parallel using papermill and ProcessPoolExecutor.
+
+    Parameters
+    ----------
+    notebook_context : List[NotebookContext]
+        List of notebook contexts to execute.
+    notebook_path : Union[str, Path]
+        File path to notebook to execute.
+    notebook_title : str
+        Case Title for the notebook.
+    process_pool_kwargs : Optional[dict], optional
+        ProcessPoolExecutor keyword arguments, by default None
+    papermill_kwargs : Optional[dict], optional
+        Papermill keyword arguments, by default None
+
+    Raises
+    ------
+    FileNotFoundError
+    """
+    if process_pool_kwargs is None:
+        process_pool_kwargs = {}
+    if papermill_kwargs is None:
+        papermill_kwargs = {}
+
+    if process_pool_kwargs.get("initializer") is None:
+        process_pool_kwargs["initializer"] = pool_initializer
+
+    if isinstance(notebook_path, str):
+        notebook_path = Path(notebook_path)
+    if not notebook_path.exists():
+        raise FileNotFoundError(f"Notebook {notebook_path} does not exist")
+
+    executed_procedures = {}
+    with ProcessPoolExecutor(**process_pool_kwargs) as executor:
+        for context in notebook_context:
+            if papermill_kwargs.get("output_notebook") is None:
+                stem = notebook_path.stem
+                if context.region:
+                    stem = f"{stem}_{context.region}"
+                if context.tenant:
+                    stem = f"{stem}_{context.tenant}"
+
+                stem = f"{stem}{notebook_path.suffix}"
+
+                if stem != notebook_path.stem:
+                    output_notebook = notebook_path.with_name(stem)
+
+            parameters = context.parameters or {}
+
+            if (
+                papermill_kwargs.get("inject_input_path")
+                or papermill_kwargs.get("inject_paths")
+            ):
+                parameters["PAPERMILL_INPUT_PATH"] = str(notebook_path)
+            if (
+                papermill_kwargs.get("inject_output_path")
+                or papermill_kwargs.get("inject_paths")
+            ):
+                parameters["PAPERMILL_OUTPUT_PATH"] = str(output_notebook)
+
+            if notebook_title:
+                parameters["INVESTIGATION_TITLE"] = notebook_title
+            if context.tenant:
+                parameters["TENANT_ID"] = context.tenant
+            if context.region:
+                parameters["REGION"] = context.region
+
+            if "TAEGIS_MAGIC_NOTEBOOK_FILENAME" not in parameters:
+                if output_notebook and output_notebook != "-":
+                    parameters["TAEGIS_MAGIC_NOTEBOOK_FILENAME"] = str(
+                        output_notebook.resolve()
+                    )
+                else:
+                    parameters["TAEGIS_MAGIC_NOTEBOOK_FILENAME"] = str(
+                        notebook_path.resolve()
+                    )
+
+            executed_procedures[
+                executor.submit(
+                    papermill.execute_notebook,
+                    input_path=notebook_path,
+                    output_path=output_notebook,
+                    parameters=parameters,
+                    **papermill_kwargs,
+                )
+            ] = NotebookScope(
+                tenant=context.tenant,
+                region=context.region,
+                notebook_title=notebook_title,
+                notebook_path=notebook_path,
+            )
+
+    # Wait for the notebooks to finish running
+    # and log exceptions as they occur.
+    for i, executed_procedure in enumerate(as_completed(executed_procedures)):
+        procedure_scope = executed_procedures[executed_procedure]
+        log.debug(
+            f"{i+1}/{len(executed_procedures.keys())} {procedure_scope} Finished!"
+        )
+        exc = executed_procedure.exception()
+        if exc:
+            log.error(procedure_scope, exc)

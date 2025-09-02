@@ -1,0 +1,6 @@
+automatinghrservices.workers.dev
+quiet.msftlivecloudsrv.workers.dev
+live.airemoteplant.workers.dev
+d302836c7df9ce8ac68a06b53263e2c685971781a48ce56b3b5a579c5bba10cc
+f5203c7ac07087fd5029d83141982f0a5e78f169cdc4ab9fc097cc0e2981d926
+369acb06aac9492df4d174dbd31ebfb1e6e0c5f3

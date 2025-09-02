@@ -56,12 +56,12 @@ def inflate_environments(
             env_dict[environment.get("name", "error")] = environment.get(
                 "enabled", False
             )
-            env_dict[f"{environment.get('name', 'error')}.created_at"] = (
-                environment.get("created_at", False)
-            )
-            env_dict[f"{environment.get('name', 'error')}.updated_at"] = (
-                environment.get("updated_at", False)
-            )
+            env_dict[
+                f"{environment.get('name', 'error')}.created_at"
+            ] = environment.get("created_at", False)
+            env_dict[
+                f"{environment.get('name', 'error')}.updated_at"
+            ] = environment.get("updated_at", False)
         return env_dict
 
     df = pd.concat(
@@ -77,6 +77,69 @@ def inflate_environments(
     )
 
     return df
+
+
+def lookup_first_environment(
+    df: pd.DataFrame, columns: Optional[List[str]] = None
+) -> pd.Series:
+    """Look up the first enabled environment in the DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with 'tenant.environments' or 'environments' column.
+
+    Returns
+    -------
+    pd.Series
+        Series with the first enabled environment name.
+    """
+    if df.empty:
+        return df
+
+    df = df.copy()
+
+    if not columns:
+        columns = ["tenant.environments", "environments"]
+
+    environment_column = None
+    for column in columns:
+        if column in df.columns:
+            environment_column = column
+            break
+
+    if not environment_column:
+        raise ValueError(f"{columns} columns not found in DataFrame")
+
+    def first_environment(environments: List[Dict[str, Any]]) -> Optional[str]:
+        """Retun the first enabled environment name.
+
+        Parameters
+        ----------
+        environments : List[Dict[str, Any]]
+            Tenants API environments dictionary list.
+
+        Returns
+        -------
+        Optional[str]
+            Environment name, as found in the Tenants API.
+        """
+        if not environments:
+            log.error("Environments data is empty or None.")
+            return None
+
+        try:
+            for environment in environments:
+                if environment["enabled"]:
+                    return environment["name"]
+        except KeyError as exc:
+            log.error("KeyError in environment data: %s", exc)
+            return None
+
+        log.info("No enabled environment found.")
+        return None
+
+    return df[environment_column].apply(first_environment)
 
 
 def lookup_tenants(
