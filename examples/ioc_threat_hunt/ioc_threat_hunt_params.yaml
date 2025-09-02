@@ -3,5 +3,10 @@ organization_id: "your_org_id"
 tenant_ids:
   - "tenant1"
   - "tenant2"
+description: |
+  GOLD BLADE remote DLL sideloading attack deploys RedLoader
+
+  References:
+  https://news.sophos.com/en-us/2025/07/29/gold-blade-remote-dll-sideloading-attack-deploys-redloader/
 ioc_file: iocs.txt
 days: 3
