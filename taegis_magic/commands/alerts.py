@@ -148,6 +148,9 @@ class AlertsResultsNormalizer(TaegisResultsNormalizer):
     def shareable_url(self) -> str:
         """Alerts Service Sharelinks URL."""
         log.debug("Calling AlertsResultsNormalizer.shareable_url...")
+        if self._shareable_url:
+            return self._shareable_url
+
         if not self.raw_results:
             return "Unable to create shareable link"
 
@@ -156,9 +159,6 @@ class AlertsResultsNormalizer(TaegisResultsNormalizer):
 
         if not self.query_identifier:
             return "Unable to create shareable link"
-
-        if self._shareable_url:
-            return self._shareable_url
 
         service = get_service(environment=self.region, tenant_id=self.tenant_id)
 
