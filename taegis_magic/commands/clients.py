@@ -1,22 +1,22 @@
 """Taegis Magic clients commands."""
 
+import inspect
 import logging
-from dataclasses import field, asdict
+from dataclasses import asdict, field
 from enum import Enum
 from pprint import pprint
 from typing import List, Optional, Union
-import inspect
-from typing_extensions import Annotated
 
 import typer
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
-
 from taegis_magic.core.service import get_service
+from typing_extensions import Annotated
+
 from taegis_sdk_python.services.clients.types import (
     Client,
-    NewClient,
     ClientRoleAssignmentInput,
+    NewClient,
 )
 
 log = logging.getLogger(__name__)

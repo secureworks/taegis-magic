@@ -32,9 +32,10 @@ def pool_initializer():
 
     https://github.com/ipython/ipython/issues/11049
     """
-    
-    sys.stdout.write(' ')
+
+    sys.stdout.write(" ")
     sys.stdout.flush()
+
 
 @dataclass
 class NotebookContext:
@@ -287,14 +288,12 @@ def execute_notebook_pool(
 
             parameters = context.parameters or {}
 
-            if (
-                papermill_kwargs.get("inject_input_path")
-                or papermill_kwargs.get("inject_paths")
+            if papermill_kwargs.get("inject_input_path") or papermill_kwargs.get(
+                "inject_paths"
             ):
                 parameters["PAPERMILL_INPUT_PATH"] = str(notebook_path)
-            if (
-                papermill_kwargs.get("inject_output_path")
-                or papermill_kwargs.get("inject_paths")
+            if papermill_kwargs.get("inject_output_path") or papermill_kwargs.get(
+                "inject_paths"
             ):
                 parameters["PAPERMILL_OUTPUT_PATH"] = str(output_notebook)
 

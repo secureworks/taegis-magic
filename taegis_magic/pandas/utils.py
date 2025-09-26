@@ -12,29 +12,29 @@ MAGIC_COLUMN = "taegis_magic.{}"
 
 DEFAULT_COLUMNS = {
     "agentdetection": [
-        'host_id',
-        'hostname',
-        'detection_category',
-        'detection_type',
-        'image_path',
-        'summary',
+        "host_id",
+        "hostname",
+        "detection_category",
+        "detection_type",
+        "image_path",
+        "summary",
     ],
     "antivirus": [
-        'host_id',
-        'action_taken',
-        'threat_category',
-        'threat_name',
-        'user_name',
-        'file_path',
+        "host_id",
+        "action_taken",
+        "threat_category",
+        "threat_name",
+        "user_name",
+        "file_path",
     ],
     "apicall": [
-        'host_id',
-        'hostname',
-        'function_called',
-        'was_modification_allowed',
-        'was_operation_successful',
-        'action',
-        'commandline',
+        "host_id",
+        "hostname",
+        "function_called",
+        "was_modification_allowed",
+        "was_operation_successful",
+        "action",
+        "commandline",
     ],
     "auth": [
         "source_address",
@@ -54,11 +54,11 @@ DEFAULT_COLUMNS = {
     ],
     "detectionfinding": [],
     "dhcp": [
-        'host_id',
-        'hostname',
-        'server_address',
-        'client_address',
-        'action',
+        "host_id",
+        "hostname",
+        "server_address",
+        "client_address",
+        "action",
     ],
     "dnsquery": [
         "hostname",
@@ -69,33 +69,33 @@ DEFAULT_COLUMNS = {
         "query_type",
     ],
     "email": [
-        'host_id',
-        'direction',
-        'status',
-        'event_type',
-        'from_email_address',
-        'subject',
+        "host_id",
+        "direction",
+        "status",
+        "event_type",
+        "from_email_address",
+        "subject",
     ],
     "encrypt": [
-        'host_id',
-        'hostname',
-        'source_address',
-        'destination_address',
-        'tls_version',
+        "host_id",
+        "hostname",
+        "source_address",
+        "destination_address",
+        "tls_version",
     ],
     "filemod": [
-        'host_id',
-        'hostname',
-        'parent_path',
-        'process_image_path',
-        'action',
-        'file_name',
-        'process_username',
+        "host_id",
+        "hostname",
+        "parent_path",
+        "process_image_path",
+        "action",
+        "file_name",
+        "process_username",
     ],
     "generic": [
-        'host_id',
-        'hostname',
-        'summary',
+        "host_id",
+        "hostname",
+        "summary",
     ],
     "http": [
         "source_username",
@@ -111,12 +111,12 @@ DEFAULT_COLUMNS = {
         "rx_byte_count",
     ],
     "managementevent": [
-        'host_id',
-        'hostname',
-        'type',
-        'channel',
-        'operation',
-        'username',
+        "host_id",
+        "hostname",
+        "type",
+        "channel",
+        "operation",
+        "username",
     ],
     "netflow": [
         "hostname",
@@ -135,11 +135,11 @@ DEFAULT_COLUMNS = {
         "enrichSummary",
     ],
     "persistence": [
-        'host_id',
-        'hostname',
-        'category',
-        'command.program.path',
-        'command.args'
+        "host_id",
+        "hostname",
+        "category",
+        "command.program.path",
+        "command.args",
     ],
     "process": [
         "hostname",
@@ -154,11 +154,11 @@ DEFAULT_COLUMNS = {
         "was_blocked",
     ],
     "processmodule": [
-        'host_id',
-        'hostname',
-        'sensor_action',
-        'file.path',
-        'module_action',
+        "host_id",
+        "hostname",
+        "sensor_action",
+        "file.path",
+        "module_action",
     ],
     "registry": [
         "host_id",
@@ -185,12 +185,12 @@ DEFAULT_COLUMNS = {
         "title",
         "ontology",
     ],
-    'threadinjection': [
-        'host_id',
-        'hostname',
-        'source_process_name',
-        'target_process_name',
-        'thread_id',
+    "threadinjection": [
+        "host_id",
+        "hostname",
+        "source_process_name",
+        "target_process_name",
+        "thread_id",
     ],
 }
 
@@ -311,7 +311,13 @@ def groupby(df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
         if not column in df.columns:
             logger.error(f"Column {column} not found in dataframe")
             columns.remove(column)
-    return df[columns].astype(str).groupby(columns, dropna=False).size().reset_index(name="count")
+    return (
+        df[columns]
+        .astype(str)
+        .groupby(columns, dropna=False)
+        .size()
+        .reset_index(name="count")
+    )
 
 
 def default_schema_columns(schema: str) -> List[str]:

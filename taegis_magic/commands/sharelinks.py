@@ -8,12 +8,16 @@ import typer
 from taegis_magic.commands.alerts import AlertsResultsNormalizer
 from taegis_magic.commands.events import TaegisEventNormalizer
 from taegis_magic.commands.investigations import InvestigationsCreatedResultsNormalizer
+from taegis_magic.commands.rules import TaegisRuleNormalizer
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
 from taegis_magic.core.service import get_service
+from typing_extensions import Annotated
+
+from taegis_sdk_python import GraphQLNoRowsInResultSetError
 from taegis_sdk_python.services.alerts.types import GetByIDRequestInput
 from taegis_sdk_python.services.investigations2.types import InvestigationV2Arguments
-from typing_extensions import Annotated
+from taegis_sdk_python.services.rules.types import Rule
 
 app = typer.Typer(help="Taegis Sharelinks Commands.")
 
@@ -36,7 +40,7 @@ def unfurl(
 
     results = service.sharelinks.query.share_link_by_id(id_=id_)
 
-    if results.link_type == "alertId":
+    if results.link_type == "alertId" or results.link_type == "alertV2Id":
         with service(tenant_id=results.tenant_id):
             unfurl_results = service.alerts.query.alerts_service_retrieve_alerts_by_id(
                 GetByIDRequestInput(i_ds=[results.link_ref])
@@ -78,6 +82,24 @@ def unfurl(
             normalized_results = InvestigationsCreatedResultsNormalizer(
                 raw_results=unfurl_results,
                 service="cases",
+                tenant_id=service.tenant_id,
+                region=service.environment,
+                arguments={
+                    "id": id_,
+                    "region": service.environment,
+                    "tenant": service.tenant_id,
+                },
+            )
+    elif results.link_type == "rules":
+        with service(tenant_id=results.tenant_id):
+            try:
+                unfurl_results = service.rules.query.rule(id_=results.link_ref)
+            except GraphQLNoRowsInResultSetError:  # pragma: no cover
+                unfurl_results = Rule()
+
+            normalized_results = TaegisRuleNormalizer(
+                raw_results=unfurl_results,
+                service="rules",
                 tenant_id=service.tenant_id,
                 region=service.environment,
                 arguments={

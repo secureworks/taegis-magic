@@ -12,10 +12,10 @@ from typing import Any, Dict, Hashable, List, Optional, Union
 
 import pandas as pd
 from dataclasses_json import dataclass_json
-
+from taegis_magic.core.graphql.subjects import lookup_federated_subject
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
 from taegis_magic.core.utils import get_tenant_id_column
-from taegis_magic.core.graphql.subjects import lookup_federated_subject
+
 from taegis_sdk_python import GraphQLService
 
 log = logging.getLogger(__name__)

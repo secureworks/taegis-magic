@@ -9,9 +9,11 @@ from textwrap import dedent
 from typing import Optional
 
 import pandas as pd
+from gql.transport.exceptions import TransportQueryError
 from IPython.core.magic import Magics, line_cell_magic, line_magic, magics_class
 from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 from IPython.display import display, display_markdown
+from jinja2 import TemplateSyntaxError
 from taegis_magic.cli import app
 from taegis_magic.core.cache import (
     decode_base64_obj_as_pickle,
@@ -24,14 +26,14 @@ from taegis_magic.core.notebook import (
     save_notebook,
 )
 
-from gql.transport.exceptions import TransportQueryError
+from taegis_sdk_python.templates import load_jinja2_template_environment
 
 log = logging.getLogger(__name__)
 
 
 def taegis_magics_command_parser() -> ArgumentParser:
     """Magics support flags."""
-    parser = ArgumentParser("taegis_magic_parser")
+    parser = ArgumentParser("taegis_magic_parser", allow_abbrev=False)
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--assign",
@@ -49,6 +51,19 @@ def taegis_magics_command_parser() -> ArgumentParser:
         "--display",
         metavar="NAME",
         help="Display NAME as markdown table",
+    )
+    parser.add_argument("--cell", help="Cell contents")
+    parser.add_argument(
+        "-t",
+        "--cell-template",
+        action="store_true",
+        help="Use a Jinja2 Template for input, uses Shell Namespace as variables",
+    )
+    parser.add_argument(
+        "-f",
+        "--cell-template-file",
+        type=str,
+        help="Use a template file instead of providing cell input",
     )
     parser.add_argument(
         "--cache",
@@ -117,6 +132,26 @@ class TaegisMagics(Magics):
         log.debug(f"Magic Args: {magic_args}")
         log.debug(f"Command Args: {command_args}")
 
+        if magic_args.cell:
+            cell = magic_args.cell
+
+        if magic_args and magic_args.cell_template:
+            template_environment = load_jinja2_template_environment()
+            try:
+                if magic_args.cell_template_file:
+                    template = template_environment.get_template(
+                        magic_args.cell_template_file
+                    )
+                elif cell:
+                    template = template_environment.from_string(cell)
+                else:
+                    raise ValueError("Cell contents or template file not provided")
+            except TemplateSyntaxError as exc:
+                log.error(f"Invalid template: {exc}")
+                return
+
+            cell = template.render(**self.shell.user_ns)
+
         if magic_args and magic_args.cache:
             if not magic_args.assign:
                 raise ValueError("--assign must be set with cache...")
@@ -179,6 +214,7 @@ class TaegisMagics(Magics):
             return
 
         self.shell.user_ns["_taegis_magic_result"] = result
+        self.shell.user_ns["_taegis_magic_cell_contents"] = cell
 
         if magic_args:
             if magic_args.assign:

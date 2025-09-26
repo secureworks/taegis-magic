@@ -1,7 +1,8 @@
 """Custom Subjects API calls."""
 
+from typing import Any, Dict
+
 from taegis_sdk_python import GraphQLService
-from typing import Dict, Any
 
 
 def lookup_federated_subject(service: GraphQLService) -> Dict[str, Any]:

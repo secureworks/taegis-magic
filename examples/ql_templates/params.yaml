@@ -1,0 +1,19 @@
+region: charlie
+tenant_id: "your_tenant_id"
+alert_query_template: |
+  FROM alert 
+  WHERE
+      ( 
+          {{ ips | in('@ip') }} OR
+          {{ domains | regex('@domain') }} 
+      ) AND
+      severity >= {{ severity }}
+  EARLIEST={{ earliest }
+ips:
+  - 1.1.1.1
+  - 8.8.8.8
+domains:
+  - secureworks.com
+  - sophos.com
+severity: 0.6
+earliest: '-7d'

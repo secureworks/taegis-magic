@@ -1,0 +1,4 @@
+FROM alert
+WHERE
+{% block criteria %}{% endblock %}
+{% if earliest %}EARLIEST={{ earliest }}{% endif %} {% if latest %}LATEST={{ latest }}{% endif %}

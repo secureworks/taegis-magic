@@ -1,11 +1,11 @@
 """Pandas functions for Proccess Lineage Event Dataframes (process only)"""
 
 import logging
-import pandas as pd
-from typing import List, Optional
 from dataclasses import asdict
-from taegis_magic.commands.process_trees import process_lineage, process_children
+from typing import List, Optional
 
+import pandas as pd
+from taegis_magic.commands.process_trees import process_children, process_lineage
 
 log = logging.getLogger(__name__)
 
@@ -77,9 +77,11 @@ def lookup_lineage(
         lambda x: {} if pd.isnull(x) else x
     )
     df["process_info.process_lineage.index"] = df["process_info.process_lineage"].apply(
-        lambda x: int(x.get("lineage_index", None))
-        if x.get("lineage_index", None) is not None
-        else None
+        lambda x: (
+            int(x.get("lineage_index", None))
+            if x.get("lineage_index", None) is not None
+            else None
+        )
     )
     return df
 
