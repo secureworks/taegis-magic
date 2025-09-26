@@ -3,6 +3,7 @@
 import logging
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import List
 
 import typer
@@ -22,8 +23,11 @@ regions = typer.Typer(help="Configure Addtional Regions Commands.")
 queries = typer.Typer(help="Configure Default Query Commands.")
 configure_logging = typer.Typer(help="Configure Magic Logging Commands.")
 
+template = typer.Typer(help="Configure Template options.")
+
 app.add_typer(auth, name="auth")
 app.add_typer(regions, name="regions")
+app.add_typer(template, name="template")
 app.add_typer(queries, name="queries")
 app.add_typer(configure_logging, name="logging")
 
@@ -153,7 +157,7 @@ def use_universal_auth(
     value: Annotated[
         UseUniversalAuthOptions,
         typer.Argument(help="Use Universal Authentication for Taegis Magic."),
-    ] = UseUniversalAuthOptions.false
+    ] = UseUniversalAuthOptions.false,
 ):
     """Configure use of Universal Authentication."""
     config = get_config()
@@ -281,7 +285,7 @@ def callername(
         typer.Argument(
             help="Caller Name to use for Alert/Event queries; used for searching/filtering results from the Queries API."
         ),
-    ]
+    ],
 ):
     """Configure Alert/Event query callername by default."""
     write_to_config(
@@ -316,5 +320,33 @@ def logging_defaults(
         tenant_id="None",
         region="None",
         raw_results=[dict(option=option.value, status=status.value)],
+    )
+    return results
+
+
+@template.command(name="path")
+@tracing
+def template_path(
+    path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            writable=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+):
+    """Configure the templates path for cell templates."""
+
+    write_to_config("templates", "jinja2", str(path))
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[dict(path=str(path))],
     )
     return results
