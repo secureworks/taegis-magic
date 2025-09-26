@@ -3,9 +3,10 @@
 import json
 import logging
 import sys
+from dataclasses import dataclass
 
 import typer
-
+from dataclasses_json import dataclass_json
 from gql.transport.exceptions import TransportQueryError
 from taegis_magic.commands import (
     alerts,
@@ -17,6 +18,7 @@ from taegis_magic.commands import (
     investigations,
     notebook,
     preferences,
+    process_trees,
     rules,
     search,
     sharelinks,
@@ -25,13 +27,9 @@ from taegis_magic.commands import (
     tenants,
     threat,
     users,
-    process_trees,
 )
-from taegis_magic.core.normalizer import TaegisResult
-from dataclasses_json import dataclass_json
-from dataclasses import dataclass
-
 from taegis_magic.core.log import TRACE_LOG_LEVEL, get_module_logger
+from taegis_magic.core.normalizer import TaegisResult
 
 log = logging.getLogger(__name__)
 
@@ -118,8 +116,10 @@ def main(
 def version():
     """Taegis Magic version information."""
     import sys
-    from taegis_sdk_python._version import __version__ as sdk_version
+
     from taegis_magic._version import __version__ as magic_version
+
+    from taegis_sdk_python._version import __version__ as sdk_version
 
     return TaegisResult(
         raw_results=MagicVersion(

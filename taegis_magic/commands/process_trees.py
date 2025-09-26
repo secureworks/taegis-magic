@@ -1,21 +1,22 @@
 import inspect
 import logging
-from typing import Optional, List
+from dataclasses import asdict, dataclass, field
+from typing import List, Optional
 
 import typer
-from typing_extensions import Annotated
-
-from dataclasses import asdict, dataclass, field
 from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResults, TaegisResult
+from taegis_magic.core.normalizer import TaegisResult, TaegisResults
 from taegis_magic.core.service import get_service
+from typing_extensions import Annotated
 
 app = typer.Typer(help="Taegis Process Trees Commands.")
 
 log = logging.getLogger(__name__)
 
 from dataclasses import asdict, dataclass
+
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
+
 from taegis_sdk_python.services.process_trees.types import ProcessLineage
 
 

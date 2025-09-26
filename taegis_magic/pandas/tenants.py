@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from taegis_magic.core.service import get_service
 from taegis_magic.core.utils import get_tenant_id_column, to_dataframe
+
 from taegis_sdk_python.services.tenants.types import TenantsQuery
 
 log = logging.getLogger(__name__)
@@ -56,12 +57,12 @@ def inflate_environments(
             env_dict[environment.get("name", "error")] = environment.get(
                 "enabled", False
             )
-            env_dict[
-                f"{environment.get('name', 'error')}.created_at"
-            ] = environment.get("created_at", False)
-            env_dict[
-                f"{environment.get('name', 'error')}.updated_at"
-            ] = environment.get("updated_at", False)
+            env_dict[f"{environment.get('name', 'error')}.created_at"] = (
+                environment.get("created_at", False)
+            )
+            env_dict[f"{environment.get('name', 'error')}.updated_at"] = (
+                environment.get("updated_at", False)
+            )
         return env_dict
 
     df = pd.concat(

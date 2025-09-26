@@ -1,18 +1,18 @@
 """Taegis Magic threat commands."""
 
-import logging
 import inspect
+import logging
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
 import typer
 from dataclasses_json import dataclass_json
+from taegis_magic.core.log import tracing
+from taegis_magic.core.normalizer import TaegisResults, TaegisResultsNormalizer
+from taegis_magic.core.service import get_service
 from typing_extensions import Annotated
 
-from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResultsNormalizer, TaegisResults
-from taegis_magic.core.service import get_service
 from taegis_sdk_python.services.threat.types import ThreatParentType, ThreatPublication
 
 log = logging.getLogger(__name__)

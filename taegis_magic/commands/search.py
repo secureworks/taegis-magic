@@ -7,8 +7,9 @@ import typer
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResults
 from taegis_magic.core.service import get_service
-from taegis_sdk_python.services.nl_search.types import NLSearchInputs
 from typing_extensions import Annotated
+
+from taegis_sdk_python.services.nl_search.types import NLSearchInputs
 
 log = logging.getLogger(__name__)
 

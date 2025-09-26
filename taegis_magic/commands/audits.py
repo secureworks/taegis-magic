@@ -11,17 +11,18 @@ from dataclasses_json import config, dataclass_json
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
 from taegis_magic.core.service import get_service
+from typing_extensions import Annotated
+
 from taegis_sdk_python.services.audits.types import (
     AllAuditsInput,
     Audit,
     AuditEventEnum,
+    AuditEventResult,
+    AuditResult,
     AuditSearchInput,
     SortBy,
     SortOrder,
-    AuditResult,
-    AuditEventResult,
 )
-from typing_extensions import Annotated
 
 log = logging.getLogger(__name__)
 

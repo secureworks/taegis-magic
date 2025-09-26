@@ -1,8 +1,8 @@
 """Pandas functions for Alerts DataFrames."""
 
-import logging
 import contextlib
 import json
+import logging
 from typing import Dict, List, Optional
 
 import pandas as pd

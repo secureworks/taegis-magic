@@ -8,6 +8,7 @@ from taegis_magic.commands.utils.investigations import InvestigationEvidenceType
 from taegis_magic.core.service import get_service
 from taegis_magic.core.utils import to_dataframe
 from taegis_magic.pandas.utils import chunk_list
+
 from taegis_sdk_python.services.alerts.types import GetByIDRequestInput
 from taegis_sdk_python.services.queries.types import QLQueriesInput
 
@@ -34,9 +35,9 @@ def inflate_evidence(df: pd.DataFrame) -> pd.DataFrame:
 
     search_query_evidence = pd.json_normalize(df["search_queries_evidence"].explode())
     if not search_query_evidence.empty:
-        search_query_evidence[
-            "taegis_magic.evidence_type"
-        ] = InvestigationEvidenceType.Query
+        search_query_evidence["taegis_magic.evidence_type"] = (
+            InvestigationEvidenceType.Query
+        )
         search_query_evidence["taegis_magic.evidence_id"] = search_query_evidence[
             "search_query"
         ]
