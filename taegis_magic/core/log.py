@@ -4,6 +4,10 @@ import functools
 import logging
 from typing import Callable
 
+from aiohttp import ClientHandlerType, ClientRequest, ClientResponse
+
+from taegis_sdk_python.middlewares.utils import scrub_dict
+
 TRACE_LOG_LEVEL = 5
 logging.addLevelName(TRACE_LOG_LEVEL, "TRACE")
 
@@ -16,7 +20,7 @@ def trace(self: logging.Logger, message: str, *args, **kwargs):
     ----------
     self : logging.Logger
         Logger
-    message : _type_
+    message : str
         Message to log
     """
     if self.isEnabledFor(TRACE_LOG_LEVEL):
@@ -76,3 +80,27 @@ def tracing(func: Callable):
         return result
 
     return wrapper
+
+
+async def magics_headers_logging_middleware(
+    req: ClientRequest, handler: ClientHandlerType
+) -> ClientResponse:
+    """Debug Log AIOHTTP Request and Response Headers.  Remove access tokens from headers and values.
+
+    Parameters
+    ----------
+    req : ClientRequest
+    handler : ClientHandlerType
+
+    Returns
+    -------
+    ClientResponse
+    """
+    log = get_module_logger()
+
+    headers = scrub_dict(req.headers)
+    log.info(f"Request Headers: {headers}")
+    resp = await handler(req)
+    headers = scrub_dict(resp.headers)
+    log.info(f"Response Headers: {headers}")
+    return resp

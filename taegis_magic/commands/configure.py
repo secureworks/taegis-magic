@@ -13,6 +13,7 @@ from taegis_magic.core.normalizer import TaegisResultsNormalizer
 from typing_extensions import Annotated
 
 from taegis_sdk_python.config import get_config, write_config, write_to_config
+from taegis_sdk_python.middlewares.retry._default import SECTION as RETRY_SECTION
 
 log = logging.getLogger(__name__)
 
@@ -22,19 +23,26 @@ auth = typer.Typer(help="Configure Authentication options.")
 regions = typer.Typer(help="Configure Addtional Regions Commands.")
 queries = typer.Typer(help="Configure Default Query Commands.")
 configure_logging = typer.Typer(help="Configure Magic Logging Commands.")
+middlewares = typer.Typer(help="Configure HTTP Middleware modules.")
+middlewares_retry = typer.Typer(help="Configure HTTP Retry middleware.")
 
 template = typer.Typer(help="Configure Template options.")
 
+middlewares.add_typer(middlewares_retry, name="retry")
+
 app.add_typer(auth, name="auth")
+app.add_typer(middlewares, name="middlewares")
 app.add_typer(regions, name="regions")
 app.add_typer(template, name="template")
 app.add_typer(queries, name="queries")
 app.add_typer(configure_logging, name="logging")
 
+
 AUTH_SECTION = "magics.auth"
 REGIONS_SECTION = "magics.regions"
 QUERIES_SECTION = "magics.queries"
 LOGGING_SECTION = "magics.logging"
+MIDDLEWARES_SECTION = "magics.middlewares"
 
 
 class UseUniversalAuthOptions(str, Enum):
@@ -70,6 +78,13 @@ class QueriesTrack(str, Enum):
     no = "no"
 
 
+class MiddleswareAvailable(str, Enum):
+    """AIOHTTP Middlewares available."""
+
+    retry = "retry"
+    logging = "logging"
+
+
 @dataclass_json
 @dataclass
 class ConfigurationNormalizer(TaegisResultsNormalizer):
@@ -95,6 +110,12 @@ def set_defaults():  # pragma: no cover
 
     if not config.has_section(LOGGING_SECTION):
         config.add_section(LOGGING_SECTION)
+
+    if not config.has_section(MIDDLEWARES_SECTION):
+        config.add_section(MIDDLEWARES_SECTION)
+
+    if not config.has_section(RETRY_SECTION):
+        config.add_section(RETRY_SECTION)
 
     ###
     # Auth Defaults
@@ -125,6 +146,19 @@ def set_defaults():  # pragma: no cover
         config[LOGGING_SECTION][LoggingOptions.sdk_verbose.value] = "false"
     if not config.has_option(LOGGING_SECTION, LoggingOptions.sdk_debug):
         config[LOGGING_SECTION][LoggingOptions.sdk_debug.value] = "false"
+
+    ###
+    # Middleware Defaults
+    ###
+    if not config.has_option(MIDDLEWARES_SECTION, MiddleswareAvailable.retry):
+        config[MIDDLEWARES_SECTION][MiddleswareAvailable.retry.value] = "false"
+    if not config.has_option(MIDDLEWARES_SECTION, MiddleswareAvailable.logging):
+        config[MIDDLEWARES_SECTION][MiddleswareAvailable.logging.value] = "false"
+
+    if not config.has_option(RETRY_SECTION, "max_time"):
+        config[RETRY_SECTION]["max_time"] = "10"
+    if not config.has_option(RETRY_SECTION, "max_tries"):
+        config[RETRY_SECTION]["max_tries"] = "0"
 
     write_config(config)
 
@@ -348,5 +382,122 @@ def template_path(
         tenant_id="None",
         region="None",
         raw_results=[dict(path=str(path))],
+    )
+    return results
+
+
+@middlewares.command("toggle")
+@tracing
+def middlewares_toggle(
+    middleware: Annotated[
+        MiddleswareAvailable, typer.Argument(help="Middleware to toggle.")
+    ],
+    on: Annotated[
+        bool, typer.Option("--on/--off", help="Toggle middleware on/off.")
+    ] = False,
+):
+    """Configure toggle for middlewares."""
+    write_to_config(
+        MIDDLEWARES_SECTION,
+        middleware.value,
+        str(on),
+    )
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[{middleware: on}],
+    )
+    return results
+
+
+@middlewares.command("list")
+@tracing
+def middlewares_list():
+    """List middleware toggles."""
+    config = get_config()
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[
+            dict(
+                name=name,
+                value=value,
+            )
+            for name, value in config[MIDDLEWARES_SECTION].items()
+        ],
+    )
+    return results
+
+
+@middlewares_retry.command("max_tries")
+@tracing
+def middlewares_retry_max_tries(
+    max_tries: Annotated[
+        int, typer.Argument(help="Max calls to retry.  0 for unlimited.", min=0)
+    ] = 0,
+):
+    """Configure retry middleware max_tries."""
+    write_to_config(
+        RETRY_SECTION,
+        "max_tries",
+        str(max_tries),
+    )
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[dict(max_tries=max_tries)],
+    )
+    return results
+
+
+@middlewares_retry.command("max_time")
+@tracing
+def middlewares_retry_max_tries(
+    max_time: Annotated[
+        int,
+        typer.Argument(
+            help="Max time in seconds to retry. 0 for no retry time.", min=0
+        ),
+    ] = 10,
+):
+    """Configure retry middleware time."""
+    write_to_config(
+        RETRY_SECTION,
+        "max_time",
+        str(max_time),
+    )
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[dict(max_time=max_time)],
+    )
+    return results
+
+
+@middlewares_retry.command("list")
+@tracing
+def middlewares_retry_list():
+    """List middleware toggles."""
+    config = get_config()
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[
+            dict(
+                name=name,
+                value=value,
+            )
+            for name, value in config[RETRY_SECTION].items()
+        ],
     )
     return results

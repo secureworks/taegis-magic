@@ -17,7 +17,7 @@ https://docs.taegis.secureworks.com/search/querylanguage/advanced_search/
 
 ## Template Filters
 
-Taegis Magic provides custom Jinja filters for generating Taegis Query Language syntax.  Values are escaped for regular experession and Taegis QL 
+Taegis Magic provides custom Jinja filters for generating Taegis Query Language syntax.  Values are escaped for regular experession and Taegis QL specification.
 
 Generate an OR parameter grouping from a list.  Defaults to '=' operator.
 ```

@@ -132,7 +132,7 @@ class TaegisMagics(Magics):
         log.debug(f"Magic Args: {magic_args}")
         log.debug(f"Command Args: {command_args}")
 
-        if magic_args.cell:
+        if magic_args and magic_args.cell:
             cell = magic_args.cell
 
         if magic_args and magic_args.cell_template:
