@@ -33,7 +33,7 @@ Authentication is handled at command runtime.  Access tokens are cached in `~/.t
 ```bash
 $ export CLIENT_ID='<client_id>'
 $ export CLIENT_SECRET='<client_secret>'
-$ taegis subjects current-subject
+$ taegis auth login
 ```
 
 #### User
@@ -41,8 +41,7 @@ $ taegis subjects current-subject
 All user sign-ins are through Device Code Authentication.  A URL will be presented to the user where the Taegis Portal will determine if their organization is setup for Single Sign On or Taegis Password and MFA grants.  Sign-ins will timeout after 5 minutes.
 
 ```bash
-$ taegis users current-user
-Username: user@secureworks.com
+$ taegis auth login
 Copy URL into a browser: https://api.ctpx.secureworks.com/auth/device/code/activate?user_code=XXXX-XXXX
 ```
 
