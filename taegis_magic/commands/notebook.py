@@ -22,6 +22,9 @@ from typing_extensions import Annotated
 log = logging.getLogger(__name__)
 
 app = typer.Typer(help="Taegis Notebook Commands.")
+remote = typer.Typer(help="Taegis SageMaker Notebook Commands.")
+
+app.add_typer(remote, name="remote")
 
 
 @dataclass
@@ -369,5 +372,23 @@ def create(
         service="notebook",
         tenant_id=None,
         region=None,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+
+@remote.command(name="status")
+@tracing
+def notebook_remote_status(
+    region: Annotated[Optional[str], typer.Option(help="Taegis Region.")] = None,
+):
+    """Get the status of Taegis SageMaker Notebooks."""
+    service = get_service(environment=region)
+    status = service.notebooks.query.notebook()
+
+    return TaegisResult(
+        raw_results=status,
+        service="notebook",
+        tenant_id=service.tenant_id,
+        region=service.environment,
         arguments=inspect.currentframe().f_locals,
     )
