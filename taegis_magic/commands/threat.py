@@ -13,7 +13,11 @@ from taegis_magic.core.normalizer import TaegisResults, TaegisResultsNormalizer
 from taegis_magic.core.service import get_service
 from typing_extensions import Annotated
 
-from taegis_sdk_python.services.threat.types import ThreatParentType, ThreatPublication
+from taegis_sdk_python.services.threat.types import ThreatParentType
+
+from taegis_sdk_python.services.threat_publications.types import (
+    ThreatPublication,
+)
 
 log = logging.getLogger(__name__)
 
@@ -59,7 +63,9 @@ def publications_latest(
     """
     service = get_service(environment=region)
 
-    publications = service.threat.query.threat_latest_publications(from_=0, size=size)
+    publications = service.threat_publications.query.threat_latest_publications(
+        from_=0, size=size
+    )
 
     results = ThreatPublicationsNormalizer(
         service="threat",
@@ -86,7 +92,7 @@ def publications_search(
     """
     service = get_service(environment=region)
 
-    publications = service.threat.query.threat_publications(text=term)
+    publications = service.threat_publications.query.threat_publications(text=term)
 
     results = ThreatPublicationsNormalizer(
         service="threat",

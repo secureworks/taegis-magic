@@ -21,7 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "taegis-sdk-python>=1.6.2",
+    "taegis-sdk-python>=1.6.9",
     "ipython",
     "notebook",
     "nbformat",
