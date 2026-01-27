@@ -149,7 +149,7 @@ The magic output results metadata table cay be configured to be turned off for e
 
 |Region          |Tenant             |Service          |Total Results                       |
 |----------------|-------------------|-----------------|------------------------------------|
-|charlie|None|users|1|
+|US1|None|users|1|
 ```
 
 ```bash
@@ -158,9 +158,9 @@ $ taegis configure queries disable-return-display on_empty
 $ taegis configure queries disable-return-display all
 [{"status": "all"}]
 $ taegis configure queries disable-return-display off
-[{"status": "all"}]
+[{"status": "off"}]
 $ taegis configure queries list
-[{"status": "on_empty"}]
+[{"name": "disable-return-display", "value": "on_empty"}]
 ```
 
 #### Logging
