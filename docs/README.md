@@ -142,6 +142,27 @@ $ taegis alerts search --help
 
 **Note**: output has been truncated for readability.
 
+The magic output results metadata table cay be configured to be turned off for empty results or all results.  Setting to off will display the metadata table when `--display` is not used.
+
+```
+**Taegis Results**
+
+|Region          |Tenant             |Service          |Total Results                       |
+|----------------|-------------------|-----------------|------------------------------------|
+|charlie|None|users|1|
+```
+
+```bash
+$ taegis configure queries disable-return-display on_empty
+[{"status": "on_empty"}]
+$ taegis configure queries disable-return-display all
+[{"status": "all"}]
+$ taegis configure queries disable-return-display off
+[{"status": "all"}]
+$ taegis configure queries list
+[{"status": "on_empty"}]
+```
+
 #### Logging
 
 Taegis Magic is built on top of the Taegis SDK for Python.  There are two logging modules that we can configure to increase or descrease the verbosity of the logs: `taegis_magic` and `taegis_sdk_python`.  The SDK-specific logging options are prepended with `sdk_`, the magic logging options are not.
