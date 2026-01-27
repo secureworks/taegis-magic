@@ -27,12 +27,16 @@ from taegis_magic.core.notebook import (
 )
 
 from taegis_sdk_python.templates import load_jinja2_template_environment
+from taegis_sdk_python.config import get_config
+from taegis_magic.commands.configure import QUERIES_SECTION, DisableReturnDisplay
 
 log = logging.getLogger(__name__)
 
 
 def taegis_magics_command_parser() -> ArgumentParser:
     """Magics support flags."""
+    config = get_config()
+
     parser = ArgumentParser("taegis_magic_parser", allow_abbrev=False)
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
@@ -51,6 +55,14 @@ def taegis_magics_command_parser() -> ArgumentParser:
         "--display",
         metavar="NAME",
         help="Display NAME as markdown table",
+    )
+    parser.add_argument(
+        "--disable-return-display",
+        choices=[e.value for e in DisableReturnDisplay],
+        default=config[QUERIES_SECTION].get(
+            "disable-return-display", DisableReturnDisplay.off.value
+        ),
+        help="Disable automatic display of return metadata table, does not work with --cache",
     )
     parser.add_argument("--cell", help="Cell contents")
     parser.add_argument(
@@ -255,7 +267,15 @@ class TaegisMagics(Magics):
             display_cache(magic_args.assign, cache_digest, result)
             save_notebook()
         else:
-            display(result, exclude=["text/plain"])
+            if magic_args.disable_return_display == "all":
+                pass
+            elif (
+                magic_args.disable_return_display == "on_empty"
+                and result.total_results == 0
+            ):
+                pass
+            else:
+                display(result, exclude=["text/plain"])
 
     @magic_arguments()
     @argument(

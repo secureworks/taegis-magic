@@ -85,6 +85,13 @@ class MiddleswareAvailable(str, Enum):
     logging = "logging"
 
 
+class DisableReturnDisplay(str, Enum):
+
+    off = "off"
+    all = "all"
+    on_empty = "on_empty"
+
+
 @dataclass_json
 @dataclass
 class ConfigurationNormalizer(TaegisResultsNormalizer):
@@ -333,6 +340,29 @@ def callername(
         tenant_id="None",
         region="None",
         raw_results=[dict(callername=name)],
+    )
+    return results
+
+
+@queries.command(name="disable-return-display")
+@tracing
+def queries_disable_return_display(
+    status: Annotated[
+        DisableReturnDisplay, typer.Argument()
+    ] = DisableReturnDisplay.off,
+):
+    """Configure query disable-return-display default."""
+    write_to_config(
+        QUERIES_SECTION,
+        "disable-return-display",
+        status.value,
+    )
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[dict(status=status.value)],
     )
     return results
 
