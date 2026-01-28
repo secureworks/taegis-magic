@@ -271,7 +271,7 @@ class TaegisMagics(Magics):
                 pass
             elif (
                 magic_args.disable_return_display == "on_empty"
-                and result.total_results == 0
+                and result.results_returned == 0
             ):
                 pass
             else:
