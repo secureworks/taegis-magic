@@ -17,11 +17,15 @@ from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResult
 from taegis_magic.core.notebook import generate_report
 from taegis_magic.core.service import get_service
+from taegis_magic.commands.utils.role_checker import has_role
 from typing_extensions import Annotated
 
 log = logging.getLogger(__name__)
 
 app = typer.Typer(help="Taegis Notebook Commands.")
+
+remote = typer.Typer(help="Taegis Remote (AWS SageMaker) Notebook Commands.")
+app.add_typer(remote, name="remote")
 
 
 @dataclass
@@ -369,5 +373,29 @@ def create(
         service="notebook",
         tenant_id=None,
         region=None,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+# Add Notebook status, start, create, shutdown, delete commands
+
+@remote.command(name="status")
+@tracing
+def remote_status(
+    region: Annotated[Optional[str], typer.Option(help="Taegis Region.")] = None
+):
+    """Query status of the current user's remote notebook."""
+    
+    if not has_role("notebook", region):
+        print("Current user does not have the notebook role required to access remote notebooks.")
+        raise typer.Exit()
+        
+    service = get_service(environment=region)
+    status = service.notebooks.query.notebook()
+
+    return TaegisResult(
+        raw_results=status,
+        service="notebook",
+        tenant_id=service.tenant_id,
+        region=service.environment,
         arguments=inspect.currentframe().f_locals,
     )
