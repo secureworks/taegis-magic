@@ -14,10 +14,12 @@ import typer
 import yaml
 from papermill.iorw import NoDatesSafeLoader, read_yaml_file
 from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResult
+from taegis_magic.core.normalizer import TaegisResult, TaegisNoResult
 from taegis_magic.core.notebook import generate_report
 from taegis_magic.core.service import get_service
 from taegis_magic.commands.utils.role_checker import has_role
+from taegis_sdk_python import GraphQLService
+from gql.transport.exceptions import TransportQueryError
 from typing_extensions import Annotated
 
 log = logging.getLogger(__name__)
@@ -32,6 +34,9 @@ app.add_typer(remote, name="remote")
 class NotebookResult:
     action: str
 
+@dataclass
+class NotebookResultMessage:
+    message: str
 
 class LOG_LEVEL(str, Enum):
     NOTSET = "NOTSET"
@@ -41,6 +46,16 @@ class LOG_LEVEL(str, Enum):
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
 
+class NOTEBOOK_STATUS:
+    PENDING = "Pending" 
+    IN_SERVICE = "InService"
+    STOPPING = "Stopping"
+    STOPPED = "Stopped"
+    FAILED = "Failed"
+    DELETING = "Deleting"
+    UPDATING = "Updating"
+    # Unknown is not a real status that can be returned from API call
+    UNKNOWN = "Unknown" 
 
 @app.command()
 @tracing
@@ -376,21 +391,26 @@ def create(
         arguments=inspect.currentframe().f_locals,
     )
 
-# Add Notebook status, start, create, shutdown, delete commands
+# Notebook commands for remote jupyter notebook instances on AWS Sagemaker
 
 @remote.command(name="status")
 @tracing
 def remote_status(
-    region: Annotated[Optional[str], typer.Option(help="Taegis Region.")] = None
+    region: Annotated[Optional[str], typer.Option(help="Taegis Region.")] = None,
+    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="More detailed error information.")] = False
 ):
-    """Query status of the current user's remote notebook."""
+    """Query the status of remote notebook instance."""
     
-    if not has_role("notebook", region):
-        print("Current user does not have the notebook role required to access remote notebooks.")
-        raise typer.Exit()
+    _check_notebook_role(region)
         
     service = get_service(environment=region)
-    status = service.notebooks.query.notebook()
+    status = NotebookResultMessage("")
+    try:
+        status = service.notebooks.query.notebook()          
+    except Exception as e:
+        status.message = "A remote notebook instance was not found for the current user."
+        if verbose:
+            status.message += f" Error: {e}"
 
     return TaegisResult(
         raw_results=status,
@@ -399,3 +419,144 @@ def remote_status(
         region=service.environment,
         arguments=inspect.currentframe().f_locals,
     )
+
+def _get_remote_notebook_status(service: GraphQLService) -> str :
+    try:
+        status = service.notebooks.query.notebook().status
+    except Exception:
+        status = NOTEBOOK_STATUS.UNKNOWN
+    return status
+
+
+@remote.command(name="start")
+@tracing
+def remote_start(
+    region: Annotated[Optional[str], typer.Option(help="Taegis Region.")] = None,
+    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="More detailed error information.")] = False
+):
+    """Start the remote notebook instance."""
+    
+    _check_notebook_role(region)
+        
+    service = get_service(environment=region)
+    result = NotebookResultMessage("")
+    try:
+        result = service.notebooks.mutation.start_notebook()
+    
+    except Exception as e:
+        notebook_status = _get_remote_notebook_status(service)
+        if not notebook_status == NOTEBOOK_STATUS.UNKNOWN:
+            result.message = f"Unable to execute start command. Command can only be executed if status is in ['{NOTEBOOK_STATUS.STOPPED}', '{NOTEBOOK_STATUS.FAILED}']. Current status is '{notebook_status}'."
+        else:
+            result.message = "Unable to execute start command, a remote notebook instance was not found for the current user."
+        if verbose:
+            result.message += f" Error: {e}"
+
+    return TaegisResult(
+        raw_results=result,
+        service="notebook",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+@remote.command(name="create")
+@tracing
+def remote_create(
+    region: Annotated[Optional[str], typer.Option(help="Taegis Region.")] = None
+):
+    """Create a new remote notebook instance."""
+
+    _check_notebook_role(region)
+
+    service = get_service(environment=region)
+
+    result = NotebookResultMessage("")
+    
+    try:
+        result = service.notebooks.mutation.create_notebook()
+    except Exception as e:
+        notebook_status = _get_remote_notebook_status(service)
+        if not notebook_status == NOTEBOOK_STATUS.UNKNOWN:
+            result.message = f"The user already has a remote notebook instance with status '{notebook_status}'"
+        else:    
+            result.message = f"An error occurred while trying to create a remote notebook instance. {e}"
+    
+    return TaegisResult(
+        raw_results=result,
+        service="notebook",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+@remote.command(name="shutdown")
+@tracing
+def remote_shutdown(
+    region: Annotated[Optional[str], typer.Option(help="Taegis Region.")] = None,
+    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="More detailed error information.")] = False
+):
+    """Shutdown remote notebook instance."""
+
+    _check_notebook_role(region)
+
+    service = get_service(environment=region)
+    result = NotebookResultMessage("")
+    try:
+        result = service.notebooks.mutation.shutdown_notebook()
+    except TransportQueryError as e:
+        notebook_status = _get_remote_notebook_status(service)
+        if not notebook_status == NOTEBOOK_STATUS.UNKNOWN:
+            result.message = f"Unable to execute shutdown command, its status must be '{NOTEBOOK_STATUS.IN_SERVICE}' to execute. Current status is: '{notebook_status}'"
+        else:
+            result.message = "Unable to execute shutdown command, a remote notebook instance was not found for the current user."
+        if verbose:
+                result.message += f". Error: {e}"
+     
+    
+    return TaegisResult(
+        raw_results=result,
+        service="notebook",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+@remote.command(name="delete")
+@tracing
+def remote_delete(
+    region: Annotated[Optional[str], typer.Option(help="Taegis Region.")] = None,
+    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="More detailed error information.")] = False
+):
+    """Delete remote notebook instance."""
+
+    _check_notebook_role(region)
+
+    service = get_service(environment=region)
+
+    result = NotebookResultMessage("")
+    try:
+        result = service.notebooks.mutation.delete_notebook()
+    except Exception as e:
+        notebook_status = _get_remote_notebook_status(service)
+        if not notebook_status == NOTEBOOK_STATUS.UNKNOWN:
+            result.message = f"Unable to execute delete command, its status must be in [{NOTEBOOK_STATUS.STOPPED}, {NOTEBOOK_STATUS.FAILED}] to execute. Current status is: '{notebook_status}'"
+        else:
+            result.message = "Unable to execute delete command, a remote notebook instance was not found for the current user."
+        if verbose:
+                result.message += f". Error: {e}"
+    
+    
+
+    return TaegisResult(
+        raw_results=result,
+        service="notebook",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=inspect.currentframe().f_locals,
+    )
+
+def _check_notebook_role(region: str):
+    if not has_role("notebooks", region):
+        print("Current user does not have the notebook role required to access remote notebooks.")
+        raise typer.Exit()

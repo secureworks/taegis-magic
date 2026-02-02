@@ -6,4 +6,7 @@ def has_role(role: str, region: str):
     service = get_service(environment=region)
     user_info = service.users.query.current_tdruser()
 
-    return any(r.role_name == role for r in user_info.role_assignments)
+    role_to_check = role.lower()
+
+    return any(r.role_name.lower() == role_to_check for r in user_info.role_assignments)
+
