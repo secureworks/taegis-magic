@@ -34,6 +34,11 @@ class TaegisResultsNormalizer:
         """Total Results."""
         return len(self.results)
 
+    @property
+    def results_returned(self) -> int:
+        """Results Returned."""
+        return len(self.results)
+
     def _repr_markdown_(self):
         """Represent as markdown."""
         return self._display_template("taegis_results.md.jinja")
