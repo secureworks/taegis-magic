@@ -81,15 +81,6 @@ class TaegisResult(TaegisResultsNormalizer):
     def results(self):
         return [asdict(self.raw_results)]
     
-class TaegisNoResult(TaegisResultsNormalizer):
-    """Generic single result normalizer."""
-
-    raw_results: Any = field(default=None)
-
-    @property
-    def results(self):
-        return
-
 
 class TaegisResults(TaegisResultsNormalizer):
     """Generic multiple results normalizer."""
