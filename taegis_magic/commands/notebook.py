@@ -14,7 +14,7 @@ import typer
 import yaml
 from papermill.iorw import NoDatesSafeLoader, read_yaml_file
 from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResult, TaegisNoResult
+from taegis_magic.core.normalizer import TaegisResult
 from taegis_magic.core.notebook import generate_report
 from taegis_magic.core.service import get_service
 from taegis_magic.commands.utils.role_checker import has_role
@@ -34,10 +34,6 @@ app.add_typer(remote, name="remote")
 class NotebookResult:
     action: str
 
-@dataclass
-class NotebookResultMessage:
-    message: str
-
 class LOG_LEVEL(str, Enum):
     NOTSET = "NOTSET"
     DEBUG = "DEBUG"
@@ -54,7 +50,7 @@ class NOTEBOOK_STATUS:
     FAILED = "Failed"
     DELETING = "Deleting"
     UPDATING = "Updating"
-    # Unknown is not a real status that can be returned from API call
+    # Unknown is not a real status that can be returned from API call, used for helping determine if instance exists. 
     UNKNOWN = "Unknown" 
 
 @app.command()
@@ -404,13 +400,13 @@ def remote_status(
     _check_notebook_role(region)
         
     service = get_service(environment=region)
-    status = NotebookResultMessage("")
+    status = NotebookResult("")
     try:
         status = service.notebooks.query.notebook()          
     except Exception as e:
-        status.message = "A remote notebook instance was not found for the current user."
+        status.action = "A remote notebook instance was not found for the current user."
         if verbose:
-            status.message += f" Error: {e}"
+            status.action += f" Error: {e}"
 
     return TaegisResult(
         raw_results=status,
@@ -439,18 +435,18 @@ def remote_start(
     _check_notebook_role(region)
         
     service = get_service(environment=region)
-    result = NotebookResultMessage("")
+    result = NotebookResult("")
     try:
         result = service.notebooks.mutation.start_notebook()
     
     except Exception as e:
         notebook_status = _get_remote_notebook_status(service)
         if not notebook_status == NOTEBOOK_STATUS.UNKNOWN:
-            result.message = f"Unable to execute start command. Command can only be executed if status is in ['{NOTEBOOK_STATUS.STOPPED}', '{NOTEBOOK_STATUS.FAILED}']. Current status is '{notebook_status}'."
+            result.action = f"Unable to execute start command. Command can only be executed if status is in ['{NOTEBOOK_STATUS.STOPPED}', '{NOTEBOOK_STATUS.FAILED}']. Current status is '{notebook_status}'."
         else:
-            result.message = "Unable to execute start command, a remote notebook instance was not found for the current user."
+            result.action = "Unable to execute start command, a remote notebook instance was not found for the current user."
         if verbose:
-            result.message += f" Error: {e}"
+            result.action += f" Error: {e}"
 
     return TaegisResult(
         raw_results=result,
@@ -471,16 +467,16 @@ def remote_create(
 
     service = get_service(environment=region)
 
-    result = NotebookResultMessage("")
+    result = NotebookResult("")
     
     try:
         result = service.notebooks.mutation.create_notebook()
     except Exception as e:
         notebook_status = _get_remote_notebook_status(service)
         if not notebook_status == NOTEBOOK_STATUS.UNKNOWN:
-            result.message = f"The user already has a remote notebook instance with status '{notebook_status}'"
+            result.action = f"The user already has a remote notebook instance with status '{notebook_status}'"
         else:    
-            result.message = f"An error occurred while trying to create a remote notebook instance. {e}"
+            result.action = f"An error occurred while trying to create a remote notebook instance. {e}"
     
     return TaegisResult(
         raw_results=result,
@@ -501,17 +497,17 @@ def remote_shutdown(
     _check_notebook_role(region)
 
     service = get_service(environment=region)
-    result = NotebookResultMessage("")
+    result = NotebookResult("")
     try:
         result = service.notebooks.mutation.shutdown_notebook()
     except TransportQueryError as e:
         notebook_status = _get_remote_notebook_status(service)
         if not notebook_status == NOTEBOOK_STATUS.UNKNOWN:
-            result.message = f"Unable to execute shutdown command, its status must be '{NOTEBOOK_STATUS.IN_SERVICE}' to execute. Current status is: '{notebook_status}'"
+            result.action = f"Unable to execute shutdown command, its status must be '{NOTEBOOK_STATUS.IN_SERVICE}' to execute. Current status is: '{notebook_status}'"
         else:
-            result.message = "Unable to execute shutdown command, a remote notebook instance was not found for the current user."
+            result.action = "Unable to execute shutdown command, a remote notebook instance was not found for the current user."
         if verbose:
-                result.message += f". Error: {e}"
+                result.action += f". Error: {e}"
      
     
     return TaegisResult(
@@ -534,20 +530,18 @@ def remote_delete(
 
     service = get_service(environment=region)
 
-    result = NotebookResultMessage("")
+    result = NotebookResult("")
     try:
         result = service.notebooks.mutation.delete_notebook()
     except Exception as e:
         notebook_status = _get_remote_notebook_status(service)
         if not notebook_status == NOTEBOOK_STATUS.UNKNOWN:
-            result.message = f"Unable to execute delete command, its status must be in [{NOTEBOOK_STATUS.STOPPED}, {NOTEBOOK_STATUS.FAILED}] to execute. Current status is: '{notebook_status}'"
+            result.action = f"Unable to execute delete command, its status must be in ['{NOTEBOOK_STATUS.STOPPED}', '{NOTEBOOK_STATUS.FAILED}'] to execute. Current status is: '{notebook_status}'"
         else:
-            result.message = "Unable to execute delete command, a remote notebook instance was not found for the current user."
+            result.action = "Unable to execute delete command, a remote notebook instance was not found for the current user."
         if verbose:
-                result.message += f". Error: {e}"
+                result.action += f". Error: {e}"
     
-    
-
     return TaegisResult(
         raw_results=result,
         service="notebook",
