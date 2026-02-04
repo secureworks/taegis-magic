@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 
 app = typer.Typer(help="Taegis Notebook Commands.")
 
-remote = typer.Typer(help="Taegis Remote (AWS SageMaker) Notebook Commands.")
+remote = typer.Typer(help="Taegis Remote Notebook Commands.")
 app.add_typer(remote, name="remote")
 
 
