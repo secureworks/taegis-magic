@@ -80,7 +80,7 @@ class TaegisResult(TaegisResultsNormalizer):
     @property
     def results(self):
         return [asdict(self.raw_results)]
-
+    
 
 class TaegisResults(TaegisResultsNormalizer):
     """Generic multiple results normalizer."""
