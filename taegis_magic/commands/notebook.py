@@ -414,10 +414,7 @@ def remote_status(
     try:
         notebook_info = service.notebooks.query.notebook()   
         status.success = True       
-        if not verbose:
-            status.remote_instance_data = _truncate_notebook_url(notebook_info)
-        else:
-            status.remote_instance_data = notebook_info
+        status.remote_instance_data = notebook_info
             
     except TransportQueryError as e:
         status.message = "A remote notebook instance was not found for the current user."
@@ -454,10 +451,7 @@ def remote_create(
         notebook_info = _get_remote_notebook_status(service)
         if not notebook_info.status == NOTEBOOK_STATUS.UNKNOWN:
             result.message = f"The user already has a remote notebook instance with status '{notebook_info.status}'"
-            if not verbose:
-                result.remote_instance_data = _truncate_notebook_url(notebook_info)
-            else:
-                result.remote_instance_data = notebook_info
+            result.remote_instance_data = notebook_info
         else:    
             result.message = f"An error occurred while trying to create a remote notebook instance. {e}"
 
@@ -496,10 +490,7 @@ def remote_start(
         notebook_info = _get_remote_notebook_status(service)
         if not notebook_info.status == NOTEBOOK_STATUS.UNKNOWN:
             result.message = f"Command can only be executed if status is in ['{NOTEBOOK_STATUS.STOPPED}', '{NOTEBOOK_STATUS.FAILED}']. Current status is '{notebook_info.status}'."
-            if not verbose:
-                result.remote_instance_data = _truncate_notebook_url(notebook_info)
-            else:
-                result.remote_instance_data = notebook_info
+            result.remote_instance_data = notebook_info
         else:
             result.message = "A remote notebook instance was not found for the current user."
         if verbose:
@@ -540,10 +531,7 @@ def remote_stop(
         notebook_info = _get_remote_notebook_status(service)
         if not notebook_info.status == NOTEBOOK_STATUS.UNKNOWN:
             result.message = f"Status must be '{NOTEBOOK_STATUS.IN_SERVICE}' to execute command. Current status is: '{notebook_info.status}'"
-            if not verbose:
-                result.remote_instance_data = _truncate_notebook_url(notebook_info)
-            else:
-                result.remote_instance_data = notebook_info
+            result.remote_instance_data = notebook_info
         else:
             result.message = "A remote notebook instance was not found for the current user."
         if verbose:
@@ -583,11 +571,8 @@ def remote_delete(
     except TransportQueryError as e:
         notebook_info = _get_remote_notebook_status(service)
         if not notebook_info.status == NOTEBOOK_STATUS.UNKNOWN:
-            result.message = f"Status must be in ['{NOTEBOOK_STATUS.STOPPED}', '{NOTEBOOK_STATUS.FAILED}'] to execute command. Current status is: '{notebook_info.status}'"
-            if not verbose:
-                result.remote_instance_data = _truncate_notebook_url(notebook_info)
-            else:
-                result.remote_instance_data = notebook_info
+            result.message = f"Status must be in ['{NOTEBOOK_STATUS.STOPPED}', '{NOTEBOOK_STATUS.FAILED}'] to execute command. Current status is: '{notebook_info.status}'"    
+            result.remote_instance_data = notebook_info
         else:
             result.message = "A remote notebook instance was not found for the current user."
         if verbose:
@@ -605,18 +590,7 @@ def _check_notebook_role(region: str):
     if not has_role("notebooks", region):
         print("Current user does not have the notebook role required to access remote notebooks.")
         raise typer.Exit()
-
-def _truncate_notebook_url(notebook: Notebook) -> Notebook:
-    return Notebook(
-        id=notebook.id if notebook.id else None,
-        status=notebook.status if notebook.status else None,
-        failure_reason=notebook.failure_reason if notebook.failure_reason else None,
-        instance_type=notebook.instance_type if notebook.instance_type else None,
-        url=notebook.url[:15] + "....." if notebook.url else None,
-        created_at=notebook.created_at if notebook.created_at else None,
-        updated_at=notebook.updated_at if notebook.updated_at else None
-    )
-
+    
 def _get_remote_notebook_status(service: GraphQLService) -> Notebook:
     notebook = Notebook(status=NOTEBOOK_STATUS.UNKNOWN)
     try:
