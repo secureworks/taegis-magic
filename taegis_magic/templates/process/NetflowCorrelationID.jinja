@@ -1,0 +1,4 @@
+FROM netflow
+WHERE
+    {{netflow_correlation | join(' or ')}}
+EARLIEST=-30d

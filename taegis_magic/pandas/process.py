@@ -1,8 +1,13 @@
 import pandas as pd
 import logging
 from typing import List, Optional
+from dataclasses import asdict
 from taegis_magic.core.service import get_service
 from taegis_magic.pandas.utils import chunk_df
+from dataclasses import dataclass
+from taegis_magic.core.utils import to_dataframe
+
+from jinja2 import Template, Environment, PackageLoader
 
 from taegis_sdk_python.services.events.types import (
     Event,
@@ -14,6 +19,16 @@ from taegis_magic.commands.configure import QUERIES_SECTION
 from taegis_magic.commands.events import get_next_page
 
 log = logging.getLogger(__name__)
+jinja_env = Environment(loader=PackageLoader("taegis-magic","templates/process"))
+NETFLOW_TEMPLATE = "NetflowCorrelationID.jinja"
+
+@dataclass
+class NetflowCorrelationId:
+    host_id: str
+    pid: str
+
+    def __str__(self):
+        return f"(processcorrelationid.pid = {self.pid} AND timewindow = {self.host_id})"
 
 
 CONFIG = get_config()
@@ -24,7 +39,7 @@ def process_correlate_netflow(
     df: pd.DataFrame,
     region: str,
     tenant_id: Optional[str] = None,
-    process_columns: Optional[List[str]] = None,
+    process_column: Optional[List[str]] = None,
     merge_ons: Optional[List[str]] = None,
 ):
     """Correlate process data with netflow information.
@@ -51,25 +66,25 @@ def process_correlate_netflow(
     if df.empty:
         return df
     
-    if not process_columns:
-        process_columns = ["sensor_id","process_id"]
+    if not process_column:
+        process_column = "process_correlation_id"
     
-    ## Ensure columns in process_columns argument exist in df
-    for pc in process_columns:
+    for pc in process_column:
         if pc not in df.columns:
             log.error(f"Column {pc} not found in dataframe")
-            process_columns.remove(pc)
+            process_column.remove(pc)
     
-    if not process_columns:
-        log.error("No valid user id columns found in dataframe")
+    if not process_column:
+        log.error("No valid process columns found in dataframe")
         return df
     
-    if not merge_ons:
-        merge_ons = ["sensor_id","processcorrelationid.pid"]
+    merge_on = "process_correlation_id"
 
     service = get_service(tenant_id=tenant_id, environment=region)
 
-    process_unique_values = df[process_columns].drop_duplicates()
+    pids = set()
+    pids.update(df[process_column].dropna().unique().tolist())
+    pids = list(pids)
 
     results = []
 
@@ -79,16 +94,17 @@ def process_correlate_netflow(
         max_rows=100000,
         aggregation_off=False,
     )
-    
-    base_query = f"FROM netflow where "
-        
+            
     # Retrieve netflow data that correlates with process data in batches. 
-    for chunk in chunk_df(process_unique_values, 100):
+    template = jinja_env.get_template(NETFLOW_TEMPLATE)
+    for chunk in chunk_df(pids, 100):
+        netflow_correlation_ids = [NetflowCorrelationId(part[0], f"{part[1]}:{part[2]}") for pid in chunk for part in pid.split(':')]
+        
+        query = template.render(netflow_correlation_ids)
 
-        query = base_query + build_where_clause(chunk)
         result = results.append(
             service.events.subscription.event_query(
-            query,
+            query=query,
             options=options,
             metadata={
                 "callerName": CONFIG[QUERIES_SECTION].get(
@@ -105,20 +121,26 @@ def process_correlate_netflow(
             result = service.events.subscription.event_page(next_page)
             results.extend(result)
             next_page = get_next_page(result)
-
-    return None
-
-
-
-def build_where_clause(chunk: pd.DataFrame) -> str:
-    """Build a WHERE clause from DataFrame rows."""
-    conditions = []
     
-    for _, row in chunk.iterrows():
-        # Build AND conditions for each column in the row
-        row_conditions = [f"{col}='{row[col]}'" for col in chunk.columns]
-        # Join with AND and wrap in parentheses
-        conditions.append(f"({' and '.join(row_conditions)})")
-    
-    # Join all row conditions with OR
-    return ' or '.join(conditions)
+    netflow_df = to_dataframe([asdict(p) for p in results])
+
+    if netflow_df.empty:
+        log.warning("No netflow events found for process data.")
+
+    # Create a new column for full process_correlation_id to merge on
+    netflow_df[f'{merge_on}'] = netflow_df['host_id'] + ":" + netflow_df['processcorrelationid.pid']
+
+    df_copy = df.copy()
+    pid_df_copy = netflow_df.copy().add_prefix(f"{column}")
+
+    merge_df = pd.merge(
+        left=df_copy,
+        right=pid_df_copy,        
+        left_on=process_column,
+        right_on=merge_on,
+        how="left",
+        suffixes=(None, ".correlate_netflow")
+    )
+
+    return merge_df
+
