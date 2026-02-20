@@ -28,7 +28,7 @@ class NetflowCorrelationId:
     pid: str
 
     def __str__(self):
-        return f"(processcorrelationid.pid = {self.pid} AND timewindow = {self.host_id})"
+        return f"(processcorrelationid.pid = {self.pid} AND host_id = {self.host_id})"
 
 
 CONFIG = get_config()
@@ -40,7 +40,6 @@ def process_correlate_netflow(
     region: str,
     tenant_id: Optional[str] = None,
     process_column: Optional[List[str]] = None,
-    merge_ons: Optional[List[str]] = None,
 ):
     """Correlate process data with netflow information.
 
@@ -52,10 +51,8 @@ def process_correlate_netflow(
         Taegis Region
     tenant_id : Optional[str], optional
         Tenant ID to use for the correlation, by default None
-    process_columns : Optional[List[str]], optional
-        List of process columns to lookup in input DataFrame, by default None
-    merge_ons : Optional[List[str]], optional
-        List of netflow columns to merge on, by default None
+    process_column : Optional[str], optional
+        Process column to lookup in input DataFrame, by default process_correlation_id
 
     Returns
     -------
@@ -131,7 +128,7 @@ def process_correlate_netflow(
     netflow_df[f'{merge_on}'] = netflow_df['host_id'] + ":" + netflow_df['processcorrelationid.pid']
 
     df_copy = df.copy()
-    pid_df_copy = netflow_df.copy().add_prefix(f"{column}")
+    pid_df_copy = netflow_df.copy().add_prefix(f"{process_column}")
 
     merge_df = pd.merge(
         left=df_copy,
