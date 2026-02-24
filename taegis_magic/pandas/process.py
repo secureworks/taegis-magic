@@ -26,9 +26,11 @@ NETFLOW_TEMPLATE = "NetflowCorrelationID.jinja"
 class NetflowCorrelationId:
     host_id: str
     pid: str
+    time_window: str
 
     def __str__(self):
-        return f"(processcorrelationid.pid = {self.pid} AND host_id = {self.host_id})"
+        return f"(host_id='{self.host_id}' AND ((processcorrelationid.pid='{self.pid}') OR (processcorrelationid.pid='{self.pid}' AND processcorrelationid.timewindow='{self.time_window}'))) "
+
 
 
 CONFIG = get_config()
@@ -95,7 +97,7 @@ def process_correlate_netflow(
     # Retrieve netflow data that correlates with process data in batches. 
     template = jinja_env.get_template(NETFLOW_TEMPLATE)
     for chunk in chunk_df(pids, 100):
-        netflow_correlation_ids = [NetflowCorrelationId(part[0], f"{part[1]}:{part[2]}") for pid in chunk for part in pid.split(':')]
+        netflow_correlation_ids = [NetflowCorrelationId(part[0], part[1], part[2]) for pid in chunk for part in pid.split(':')]
         
         query = template.render(netflow_correlation_ids)
 
@@ -125,7 +127,11 @@ def process_correlate_netflow(
         log.warning("No netflow events found for process data.")
 
     # Create a new column for full process_correlation_id to merge on
+    has_colon = netflow_df['processcorrelationid.pid'].str.contains(':', na=False)
     netflow_df[f'{merge_on}'] = netflow_df['host_id'] + ":" + netflow_df['processcorrelationid.pid']
+    netflow_df.loc[~has_colon, f'{merge_on}'] = (
+        netflow_df['host_id'] + ":" + netflow_df['processcorrelationid.pid'] + ":" + netflow_df['processcorrelationid.timewindow']
+    )
 
     df_copy = df.copy()
     pid_df_copy = netflow_df.copy().add_prefix(f"{process_column}")
