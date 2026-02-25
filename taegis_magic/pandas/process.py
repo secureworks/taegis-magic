@@ -35,6 +35,7 @@ class NetflowCorrelationId:
     time_window: str
 
     def __str__(self):
+        # PID can be in the form of `pid` only OR `pid:timewindow`
         return f"(host_id='{self.host_id}' AND ((processcorrelationid.pid='{self.pid+':'+self.time_window}') OR (processcorrelationid.pid='{self.pid}' AND processcorrelationid.timewindow='{self.time_window}'))) "
 
 
@@ -156,11 +157,6 @@ def process_correlate_netflow(
         netflow_df['host_id'] + ":" + netflow_df['processcorrelationid.pid'] + ":" + netflow_df['processcorrelationid.timewindow']
     )
 
-    # Create a copy of the first row with a modified process_correlation_id
-    first_row = df.iloc[[0]].copy()
-    first_row[process_column] = "asdfman"
-    df = pd.concat([df, first_row], ignore_index=True)
-    
     netflow_df_with_new_col = netflow_df.add_prefix(f"{NETFLOW}.")
         
     merge_df = pd.merge(
@@ -168,7 +164,6 @@ def process_correlate_netflow(
         right=netflow_df_with_new_col,        
         left_on=process_column,
         right_on=f"{NETFLOW}.{merge_on}",
-        # right_on=merge_on,
         how="left",
         suffixes=(None, ".correlate_netflow")
     )
