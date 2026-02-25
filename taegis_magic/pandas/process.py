@@ -47,14 +47,17 @@ def process_correlate_netflow(
 ):
     """Correlate process data with netflow information.
 
+    Input DataFrame is expected to have a column whose row values contain process_correlation_ids
+    that have the format of {host_id}:{process_id}:{time_window}.`
+
     Parameters
     ----------
     df : pd.DataFrame   
-        Dataframe containing process data
+        Dataframe containing process data.
     region : str
-        Taegis Region
+        Taegis Region.
     tenant_id : Optional[str], optional
-        Tenant ID to use for the correlation, by default None
+        Tenant ID to use for the correlation, by default None.
     process_column : Optional[str], optional
         Process column to lookup in input DataFrame, by default process_correlation_id
 
