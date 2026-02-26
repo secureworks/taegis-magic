@@ -57,8 +57,6 @@ def lookup_users(
     if not merge_ons:
         merge_ons = ["user.id", "user.idp_user_id", "user.user_id"]
 
-    # List of user_id_columns to look up, need to make sure they exist in input dataframe
-    # If the columns in user_id_columns did not exist in the input dataframe then there would be no data to correlate
     for column in user_id_columns.copy():
         if not column in df.columns:
             log.error(f"Column {column} not found in dataframe")
@@ -68,7 +66,6 @@ def lookup_users(
         log.error("No valid user id columns found in dataframe")
         return df
 
-    # 
     if [
         column
         for column in df.columns
@@ -86,18 +83,10 @@ def lookup_users(
         ids.update(df[column].dropna().unique().tolist())
     ids = list(ids)
 
-    # ids eventually become a list of unique values from the columns of the user_id_columns in the 
-    # dataframe input? 
     results = []
     for chunk in chunk_list(ids, 100):
         log.debug(f"Correlating users: {chunk}")
         # need to access deprecated user_id field
-
-        # It seems that the reason why a custom output (i.e. graphql query) is being used 
-        # is due to deprecated user_id field in search. Although, it seems that what is 
-        # expected is a list of user ids basically
-
-
         with service(
             output="""
             error
@@ -134,30 +123,25 @@ def lookup_users(
             result = service.users.query.search_tdrusers_by_ids(user_ids=chunk)
         results.extend(result)
 
-
-    # becomes a dataframe of users returned from users API. A list of TDRUsers to be exact
     users_df = to_dataframe([asdict(result) for result in results])
 
     for column in user_id_columns:
         dfs = []
         column_dataframe = df.copy()
-        # for each column in users_df, preefix each column with column name from user_id_columns. 
-        # remember that user_df is a list of TDRUsers
         column_users = users_df.copy().add_prefix(f"{column}.")
 
         for merge_on in merge_ons:
             log.debug(f"Merge users for column: {column} with right_on: {merge_on}")
 
             merge_dataframe = pd.merge(
-                column_dataframe, # LEFT | object to merge with, which is a copy of user input dataframe
-                column_users, # RIGHT | Dataframe of users returned from users api with a prefix of column from user_id_columns
-                left_on=column, # What column to join values on from LEFT
-                right_on=[f"{column}.{merge_on}"], # What column to join values on from right
-                how="left", # LEFT join (like SQL)
-                suffixes=(None, ".lookup_users"), # For any overlapping column names on LEFT leave as is, RIGHT suffix with .lookup_users
+                column_dataframe,
+                column_users,
+                left_on=column,
+                right_on=[f"{column}.{merge_on}"],
+                how="left",
+                suffixes=(None, ".lookup_users"),
             )
 
-            # Remove any columns that have empty data 
             # filter matched rows from merge
             filtered_dataframe = merge_dataframe[
                 ~merge_dataframe[f"{column}.{merge_on}"].isna()
@@ -166,11 +150,7 @@ def lookup_users(
                 dfs.append(filtered_dataframe)
                 # filter out matched rows from df
                 column_dataframe = column_dataframe[
-                    # column_dataframe is copy of user input dataframe...so 
-                    # basicaly this says that for the column of the input dataframe,
-                    # if any of its values are in the filtered_dataframe then remove
                     ~column_dataframe[column].isin(
-                        # This is a column of values
                         filtered_dataframe[f"{column}.{merge_on}"]
                     )
                 ]
