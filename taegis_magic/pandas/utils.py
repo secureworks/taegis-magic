@@ -215,11 +215,6 @@ def chunk_list(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
 
-def chunk_df(df, n):
-    """Yield successive n-sized chunks from df."""
-    for i in range(0, len(df), n):
-        yield df.iloc[i : i + n]
-
 
 def coalesce_columns(df: pd.DataFrame, columns: List[str]) -> pd.Series:
     """Reduce results to the first result in list of columns."""
