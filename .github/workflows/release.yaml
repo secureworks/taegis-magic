@@ -28,7 +28,7 @@ jobs:
       with:
         python-version: '3.9'
     - name: Install dependencies
-      run: python -m pip install --upgrade pip build hatch virtualenv<21
+      run: python -m pip install --upgrade pip build hatch "virtualenv<21"
     - name: Build package
       run: python -m hatch build
     - name: Publish package distributions to PyPI
