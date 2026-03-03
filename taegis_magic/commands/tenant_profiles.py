@@ -19,8 +19,6 @@ from typing_extensions import Annotated
 
 from taegis_sdk_python import GraphQLNoRowsInResultSetError
 from taegis_sdk_python.services.tenant_profiles.types import (
-    CriticalContactMtpInput,
-    CustomerContactPreferenceMtp,
     MfaAccessCreateMtpInput,
     MfaAccessMtp,
     MfaAccessUpdateMtpInput,
@@ -95,113 +93,6 @@ def tenant_profile_list(
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.query.managed_tenant_profile()
-
-    normalized_results = TaegisTenantProfileResultNormalizer(
-        raw_results=results,
-        service="tenant_profiles",
-        tenant_id=service.tenant_id,
-        region=service.environment,
-        arguments=inspect.currentframe().f_locals,
-    )
-
-    return normalized_results
-
-
-@contacts.command(name="list")
-@tracing
-def contacts_list(
-    tenant: Annotated[Optional[str], typer.Option()] = None,
-    region: Annotated[Optional[str], typer.Option()] = None,
-):
-    """List contacts in a tenant profile."""
-    service = get_service(environment=region, tenant_id=tenant)
-
-    results = service.tenant_profiles.query.cse_contacts_mtp()
-
-    normalized_results = TaegisTenantProfileResultNormalizer(
-        raw_results=results,
-        service="tenant_profiles",
-        tenant_id=service.tenant_id,
-        region=service.environment,
-        arguments=inspect.currentframe().f_locals,
-    )
-
-    return normalized_results
-
-
-@contacts.command(name="add")
-@tracing
-def contacts_add(
-    user_id: Annotated[str, typer.Option()],
-    preference: Annotated[CustomerContactPreferenceMtp, typer.Option()],
-    tenant: Annotated[Optional[str], typer.Option()] = None,
-    region: Annotated[Optional[str], typer.Option()] = None,
-):
-    """Add a contact in a tenant profile."""
-    service = get_service(environment=region, tenant_id=tenant)
-
-    results = service.tenant_profiles.mutation.create_critical_contact_mtp(
-        CriticalContactMtpInput(
-            tdr_user_id=user_id,
-            preference=preference,
-        )
-    )
-
-    normalized_results = TaegisTenantProfileResultNormalizer(
-        raw_results=results,
-        service="tenant_profiles",
-        tenant_id=service.tenant_id,
-        region=service.environment,
-        arguments=inspect.currentframe().f_locals,
-    )
-
-    return normalized_results
-
-
-@contacts.command(name="update")
-@tracing
-def contacts_update(
-    id_: Annotated[str, typer.Option("--id")],
-    user_id: Annotated[Optional[str], typer.Option()] = None,
-    preference: Annotated[
-        Optional[CustomerContactPreferenceMtp], typer.Option()
-    ] = None,
-    tenant: Annotated[Optional[str], typer.Option()] = None,
-    region: Annotated[Optional[str], typer.Option()] = None,
-):
-    """Update a contact in a tenant profile."""
-    service = get_service(environment=region, tenant_id=tenant)
-
-    results = service.tenant_profiles.mutation.update_critical_contact_mtp(
-        id_=id_,
-        input_=CriticalContactMtpInput(
-            tdr_user_id=user_id,
-            preference=preference,
-        ),
-    )
-
-    normalized_results = TaegisTenantProfileResultNormalizer(
-        raw_results=results,
-        service="tenant_profiles",
-        tenant_id=service.tenant_id,
-        region=service.environment,
-        arguments=inspect.currentframe().f_locals,
-    )
-
-    return normalized_results
-
-
-@contacts.command(name="remove")
-@tracing
-def contacts_remove(
-    id_: Annotated[Optional[str], typer.Option("--id")],
-    tenant: Annotated[Optional[str], typer.Option()] = None,
-    region: Annotated[Optional[str], typer.Option()] = None,
-):
-    """Remove a contact in a tenant profile."""
-    service = get_service(environment=region, tenant_id=tenant)
-
-    results = service.tenant_profiles.mutation.delete_critical_contact_mtp(id_=id_)
 
     normalized_results = TaegisTenantProfileResultNormalizer(
         raw_results=results,
