@@ -64,7 +64,7 @@ def process_correlate_netflow(
         Tenant ID to use for the correlation.
     process_column : Optional[str], optional
         Process column to lookup in input DataFrame, by default "process_correlation_id".
-    earliest : Optional[str], default "7d"
+    earliest : Optional[str], default "1d"
         Date filter to apply when querying against netflow events to correlate with process data. Based on Taegis Query language. A "-" will be prepended to whatever value is provided. 
 
     Returns
