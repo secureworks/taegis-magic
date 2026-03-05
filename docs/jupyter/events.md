@@ -162,7 +162,7 @@ inflated_schema
 
 ## Process to Netflow Correlation
 
-The `process_correlate_netflow` function, as shown below, is a pipe function that accepts a `Pandas` `DataFrame` with `process` event information and finds `netflow` events that are correlated based on each `process` event's `process_corelation_id`. A new `DataFrame` is returned and will likely contain more rows that the input `DataFrame` as there is a 1:many relationship between `process:netflow`. 
+``The `process_correlate_netflow` function, as shown below, is a pipe function that accepts a `Pandas` `DataFrame` with `process` event information and finds `netflow` events that are correlated based on each `process` event's `process_corelation_id`. A new `DataFrame` is returned and will likely contain more rows that the input `DataFrame` as there is a 1:many relationship between `process:netflow`. 
 
 ```python
 from taegis_magic.pandas.process import process_correlation_netflow
