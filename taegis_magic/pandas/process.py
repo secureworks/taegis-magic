@@ -137,7 +137,8 @@ def process_correlate_netflow(
                 },
             )
         
-        if not query_result:
+        # query_result is non-empty even if no rows are returned, so can't just do `if not query_result`
+        if not query_result[0].result.rows:
             continue
         
         results.extend(query_result)
