@@ -40,15 +40,18 @@ class NetflowCorrelationId:
 
 
 def process_correlate_netflow(
+    *,
     df: pd.DataFrame,
     region: str,
-    tenant_id: Optional[str] = None,
-    process_column: Optional[List[str]] = None,
+    tenant_id: str,
+    process_column: Optional[str] = None
 ):
     """Correlate process data with netflow information.
 
     Input DataFrame is expected to have a column whose row values contain process_correlation_ids
-    that have the format of {host_id}:{process_id}:{time_window}.`
+    that have the format of {host_id}:{process_id}:{time_window}.
+
+    All parameters are keyword-only.
 
     Parameters
     ----------
@@ -56,15 +59,15 @@ def process_correlate_netflow(
         Dataframe containing process data.
     region : str
         Taegis Region.
-    tenant_id : Optional[str], optional
-        Tenant ID to use for the correlation, by default None.
+    tenant_id : str
+        Tenant ID to use for the correlation.
     process_column : Optional[str], optional
-        Process column to lookup in input DataFrame, by default process_correlation_id
+        Process column to lookup in input DataFrame, by default "process_correlation_id".
 
     Returns
     -------
     pd.DataFrame
-        A new Dataframe with correlated netflow data. New columns will be prepended with 'netflow'
+        A new Dataframe with correlated netflow data. New columns will be prepended with 'netflow'.
 
     Example
     -------
@@ -75,7 +78,7 @@ def process_correlate_netflow(
     0      host123:1234:56789
     1                       1
     2      host123:1234:56789
-    >>> result = process_correlate_netflow(df, region="us1")
+    >>> result = process_correlate_netflow(df=df, region="us1", tenant_id="12345")
     >>> result
        process_correlation_id  netflow.host_id  netflow.processcorrelationid.pid  netflow.processcorrelationid.timewindow  netflow.process_correlation_id  ...
     0      host123:1234:56789          host123                        1234:56789                                      NaN              host123:1234:56789  ...
