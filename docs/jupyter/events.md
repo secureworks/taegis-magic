@@ -159,3 +159,38 @@ inflated_schema
     </tr>
   </tbody>
 </table>
+
+## Process to Netflow Correlation
+
+``The `process_correlate_netflow` function, as shown below, is a pipe function that accepts a `Pandas` `DataFrame` with `process` event information and finds `netflow` events that are correlated based on each `process` event's `process_corelation_id`. A new `DataFrame` is returned and will likely contain more rows that the input `DataFrame` as there is a 1:many relationship between `process:netflow`. 
+
+```python
+from taegis_magic.pandas.process import process_correlation_netflow
+```
+
+A `process_correlation_id` has the structure: `{host_id}:{pid}:{id.time_window}`. `netflow` events do not have a full `process_correlation_id` as `process` events do but do have the original components, `host_id`, `processcorrelationid.pid`, and `processcorrelation.timewindow`. Although `netflow` events can sometimes have different structures for `processcorrelationid` as shown below. The pipe function takes these differences into account. 
+
+```json
+// pid has structure of {pid}:{id.time_window}, no value for timewindow
+{
+  "processcorrelationid":
+        {
+            "pid": "14345:73252035284761978",
+            "timewindow": ""
+        },
+  "host_id": "c57e07c5bf44-4af3-4af3-4af3-4af34af3"
+}
+```
+
+```json
+// pid has structure of {pid}, and timewindow is not empty. 
+{
+  "processcorrelationid":
+        {
+            "pid": "14345",
+            "timewindow": "73252035284761978"
+        },
+  "host_id": "c57e07c5bf44-4af3-4af3-4af3-4af34af3"
+}
+```
+
