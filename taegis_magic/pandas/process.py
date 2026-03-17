@@ -40,11 +40,11 @@ class NetflowCorrelationId:
 
 
 def process_correlate_netflow(
-    *,
     df: pd.DataFrame,
+    *,
     region: str,
     tenant_id: str,
-    process_column: Optional[str] = None,
+    process_column: Optional[str] = "process_correlation_id",
     earliest: Optional[str] = "1d"
 ):
     """Correlate process data with netflow information.
@@ -91,9 +91,6 @@ def process_correlate_netflow(
 
     if df.empty:
         return df
-    
-    if not process_column:
-        process_column = "process_correlation_id"
     
     if process_column not in df.columns:
         log.error(f"Column {process_column} not found in dataframe")
