@@ -194,7 +194,7 @@ class TaegisEventQueryNormalizer(TaegisResultsNormalizer):
 
 
 def get_next_page(events_results: List[EventQueryResults]) -> Optional[str]:
-    """Retrieve events  next page indicator."""
+    """Retrieve events next page indicator."""
     try:
         # the next page could be found in any of the result pages,
         # but we cannot garuntee which result it will be found in
