@@ -180,23 +180,24 @@ def process_correlate_netflow(
 
 def process_pivot_netflow(
     df: pd.DataFrame,
-    region: str = None,
-    tenant_id: str = None,
+    *,
+    region: str,
+    tenant_id: str,
     earliest: Optional[str] = "1d"
 ) -> pd.DataFrame:
     """Pivot aggregate process data into non-aggregate netflow event rows.
 
-    The input DataFrame is expected to contain aggregate process data. Columns
-    present in the DataFrame and a static pivot column list are used to build per-row sub-query filters,
-    which are then combined with OR logic and issued as a single netflow query
+    The input DataFrame is expected to contain aggregate process data. Columns present in the 
+    DataFrame and a static pivot column list are used to build per-row sub-query filters,
+    which are then combined with OR logic and issued as a single query against netflow
 
     Parameters
     ----------
     df : pd.DataFrame
         DataFrame containing aggregate process data.
-    region : str, optional
+    region : str,
         Taegis region.
-    tenant_id : str, optional
+    tenant_id : str,
         Tenant ID to query against.
     earliest : str, optional
         Date filter to apply when querying against netflow events. Based on Taegis Query language. A "-" will be prepended to whatever value is provided. 
@@ -212,26 +213,44 @@ def process_pivot_netflow(
     Only intersecting columns are turned into ``WHERE`` filters, other columns are ignored. 
 
     >>> import pandas as pd
-    >>> df = pd.DataFrame({
+    >>> input_df = pd.DataFrame({
     ...     "host_id": [
     ...         "550e8400-e29b-41d4-a716-446655440001",
     ...         "550e8400-e29b-41d4-a716-446655440002",
     ...         "550e8400-e29b-41d4-a716-446655440003",
     ...     ],
     ...     "sensor_type": ["ENDPOINT_SOPHOS", "ENDPOINT_TAEGIS", "FIREWALL"],
-    ...     "non_matching_pivot_column": ["alpha", "beta", "gamma"],
+    ...     "non_matching_column": ["alpha", "beta", "gamma"],
     ...     "count": [100, 200, 50],
     ... })
-    >>> df
-       host_id                               sensor_type     non_matching_pivot_column  count
-    0  550e8400-e29b-41d4-a716-446655440001  ENDPOINT_SOPHOS alpha                      100
-    1  550e8400-e29b-41d4-a716-446655440002  ENDPOINT_TAEGIS beta                       200
-    2  550e8400-e29b-41d4-a716-446655440003  FIREWALL        gamma                      50
+    >>> input_df
+                                    host_id      sensor_type non_matching_column  count
+    0  550e8400-e29b-41d4-a716-446655440001  ENDPOINT_SOPHOS               alpha    100
+    1  550e8400-e29b-41d4-a716-446655440002  ENDPOINT_TAEGIS                beta    200
+    2  550e8400-e29b-41d4-a716-446655440003         FIREWALL               gamma     50
     >>> # Calling the function
-    >>> result = process_pivot_netflow(df=df, region="us1", tenant_id="12345")
-    >>> # Calling the function when using pipe function
-    >>> result = df.pipe(process_pivot_netflow, region="us1", tenant_id="12345")
+    >>> result = process_pivot_netflow(input_df, region="us1", tenant_id="12345")
+    >>> # Calling the function via pipe
+    >>> result = input_df.pipe(process_pivot_netflow, region="us1", tenant_id="12345")
+    >>> # Raw netflow rows include many fields; a subset might look like:
+    >>> result[
+    ...     [
+    ...         "host_id",
+    ...         "sensor_type",
+    ...         "source_address",
+    ...         "destination_address",
+    ...         "destination_port",
+    ...         "source_port",
+    ...         "direction",
+    ...         "protocol",
+    ...     ]
+    ... ]
+                                    host_id      sensor_type source_address destination_address  destination_port  source_port  direction  protocol
+    0  550e8400-e29b-41d4-a716-446655440001  ENDPOINT_SOPHOS   172.16.16.10       20.189.173.18               443         52773  OUTBOUND         6
+    1  550e8400-e29b-41d4-a716-446655440002  ENDPOINT_TAEGIS   172.16.16.10       20.189.173.18               443         52773  OUTBOUND         6
+    2  550e8400-e29b-41d4-a716-446655440003         FIREWALL   192.168.0.50       93.184.216.34                80         49152   INBOUND         6
 
+    -------------------------------------------------------------------------------------------------------
     For the dataframe above, the generated query would look like:
 
         FROM netflow
@@ -241,7 +260,7 @@ def process_pivot_netflow(
             (host_id = '550e8400-e29b-41d4-a716-446655440003' AND sensor_type = 'FIREWALL')
         EARLIEST=-1d
 
-    Notice how the ``non_matching_pivot_column`` column is not part of the WHERE clause. 
+    Notice how the ``non_matching_column`` column is not part of the WHERE clause. 
 
     """
 
