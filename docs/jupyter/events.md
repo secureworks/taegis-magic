@@ -206,7 +206,7 @@ The `process_pivot_netflow` function, as shown below, is a pipe function that ac
 from taegis_magic.pandas.process import process_pivot_netflow
 ```
 
-The function parses the names of the columns in the input `DataFrame`, checks to see which ones exist in a static list of column names, and build the filters based on which ones exist in the static list. This static list of column names is a list of columns that both the `netflow` and `process` tables have in common. Note that this list does not include all column names that are shared between the two tables, but ones that are most likely used for `process` aggregation. 
+The function parses the names of the columns in the input `DataFrame`, checks to see which ones exist in a static list of column names, and build the filters based on which ones exist in the static list. This static list of column names is a list of columns that both the `netflow` and `process` tables have in common. Note that this list does not include all column names that are shared between the two tables, but ones that are most likely used to aggregate `process` information. 
 
 The input `DataFrame` should look something like: 
 ```
