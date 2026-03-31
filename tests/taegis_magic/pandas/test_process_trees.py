@@ -90,10 +90,17 @@ class TestLookupLineage:
     def test_api_failure_returns_empty(self, mock_lineage, sample_df):
         mock_lineage.side_effect = RuntimeError("API down")
 
-        result = lookup_lineage(sample_df, max_workers=2)
+        result = lookup_lineage(sample_df, max_workers=2, max_failure_rate=None)
 
         # Should not raise — failed rows get empty dicts
         assert not result.empty
+
+    @patch("taegis_magic.pandas.process_trees.process_lineage")
+    def test_failure_rate_exceeds_threshold_raises(self, mock_lineage, sample_df):
+        mock_lineage.side_effect = RuntimeError("API down")
+
+        with pytest.raises(RuntimeError, match="failure rate"):
+            lookup_lineage(sample_df, max_workers=2, max_failure_rate=0.05)
 
     @patch("taegis_magic.pandas.process_trees.process_lineage")
     def test_explode_produces_correct_rows(self, mock_lineage, lineage_result):
@@ -184,9 +191,16 @@ class TestLookupChildren:
     def test_api_failure_returns_empty(self, mock_children, sample_df):
         mock_children.side_effect = RuntimeError("API down")
 
-        result = lookup_children(sample_df, max_workers=2)
+        result = lookup_children(sample_df, max_workers=2, max_failure_rate=None)
 
         assert not result.empty
+
+    @patch("taegis_magic.pandas.process_trees.process_children")
+    def test_failure_rate_exceeds_threshold_raises(self, mock_children, sample_df):
+        mock_children.side_effect = RuntimeError("API down")
+
+        with pytest.raises(RuntimeError, match="failure rate"):
+            lookup_children(sample_df, max_workers=2, max_failure_rate=0.05)
 
     @patch("taegis_magic.pandas.process_trees.process_children")
     def test_explode_produces_correct_rows(self, mock_children, children_result):

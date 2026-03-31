@@ -23,12 +23,19 @@ def _row_to_key(row, key_cols):
     return tuple(None if pd.isna(row[c]) else row[c] for c in key_cols)
 
 
-def _fetch_concurrently(df, fetch_fn, *, region, tenant_id, max_workers):
+def _fetch_concurrently(df, fetch_fn, *, region, tenant_id, max_workers, max_failure_rate: Optional[float] = 0.05):
     """Fetch results for unique key tuples concurrently, returning a results map.
 
     Deduplicates API calls so identical (host_id, process_correlation_id[, resource_id])
     tuples only trigger a single network request.  resource_id is optional and
     may be absent from the DataFrame or contain NaN values.
+
+    Parameters
+    ----------
+    max_failure_rate : float
+        Maximum fraction of keys allowed to fail (0.0–1.0).  If the actual
+        failure rate exceeds this threshold a ``RuntimeError`` is raised.
+        Defaults to 0.05 (5 %).
     """
     key_cols = _build_key_cols(df)
 
@@ -45,9 +52,13 @@ def _fetch_concurrently(df, fetch_fn, *, region, tenant_id, max_workers):
     # Deduplicate after NaN normalisation.
     unique_keys = list(dict.fromkeys(unique_keys))
 
+    total_keys = len(unique_keys)
+    log.info("Starting concurrent fetch for %d unique key(s)", total_keys)
+
     col_to_idx = {c: i for i, c in enumerate(key_cols)}
 
     results_map = {}
+    failed_keys = []
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
@@ -75,6 +86,23 @@ def _fetch_concurrently(df, fetch_fn, *, region, tenant_id, max_workers):
             except Exception:
                 log.warning("Failed to fetch for key %s", key, exc_info=True)
                 results_map[key] = []
+                failed_keys.append(key)
+
+    succeeded = total_keys - len(failed_keys)
+    failure_rate = len(failed_keys) / total_keys if total_keys > 0 else 0.0
+    log.info(
+        "Concurrent fetch complete: %d/%d succeeded (%.1f%% success), %d failed",
+        succeeded,
+        total_keys,
+        (1 - failure_rate) * 100,
+        len(failed_keys),
+    )
+
+    if max_failure_rate is not None and failure_rate > max_failure_rate:
+        raise RuntimeError(
+            f"Fetch failure rate {failure_rate:.1%} exceeds maximum allowed "
+            f"rate of {max_failure_rate:.1%} ({len(failed_keys)}/{total_keys} keys failed)"
+        )
 
     return results_map
 
@@ -92,6 +120,7 @@ def lookup_lineage(
     region: Optional[str] = None,
     tenant_id: Optional[str] = None,
     max_workers: Optional[int] = 10,
+    max_failure_rate: Optional[float] = 0.05,
 ) -> pd.DataFrame:
     """
     For each row in the DataFrame, fetch process lineage using process_correlation_id, host_id, tenant_id, and resource_id.
@@ -107,6 +136,9 @@ def lookup_lineage(
         Taegis SDK Region/Environment that the asset lookup is for.  Defaults to US1.
     max_workers : Optional[int]
         Maximum number of concurrent threads for API calls.  Defaults to 10.
+    max_failure_rate : Optional[float]
+        Maximum fraction of keys allowed to fail (0.0–1.0) before raising a
+        RuntimeError.  Defaults to 0.05 (5 %).
 
     Returns
     -------
@@ -118,6 +150,8 @@ def lookup_lineage(
     ValueError
         If the event is not a process event, or if process_correlation_id, host_id, and resource_id does not have columns in the dataframe a value error will be raised.
         If there the dataframe does not contain a valid tenant identifier.
+    RuntimeError
+        If the fraction of failed keys exceeds *max_failure_rate*.
     """
 
     df = df.copy()
@@ -132,7 +166,8 @@ def lookup_lineage(
     key_cols = _build_key_cols(df)
 
     results_map = _fetch_concurrently(
-        df, process_lineage, region=region, tenant_id=tenant_id, max_workers=max_workers
+        df, process_lineage, region=region, tenant_id=tenant_id, max_workers=max_workers,
+        max_failure_rate=max_failure_rate,
     )
 
     df["process_info.process_lineage"] = df.apply(
@@ -157,6 +192,7 @@ def lookup_children(
     region: Optional[str] = None,
     tenant_id: Optional[str] = None,
     max_workers: Optional[int] = 10,
+    max_failure_rate: Optional[float] = 0.05,
 ) -> pd.DataFrame:
     """
     For each row in the DataFrame, fetch their children processes using process_correlation_id, host_id, tenant_id, and resource_id.
@@ -172,6 +208,9 @@ def lookup_children(
         Taegis SDK Region/Environment that the asset lookup is for.  Defaults to US1.
     max_workers : Optional[int]
         Maximum number of concurrent threads for API calls.  Defaults to 10.
+    max_failure_rate : Optional[float]
+        Maximum fraction of keys allowed to fail (0.0–1.0) before raising a
+        RuntimeError.  Defaults to 0.05 (5 %).
 
     Returns
     -------
@@ -182,6 +221,8 @@ def lookup_children(
     ------
     ValueError
         If the event is not a process event, or if process_correlation_id, host_id, and resource_id does not have columns in the dataframe a value error will be raised.
+    RuntimeError
+        If the fraction of failed keys exceeds *max_failure_rate*.
     """
 
     df = df.copy()
@@ -196,7 +237,8 @@ def lookup_children(
     key_cols = _build_key_cols(df)
 
     results_map = _fetch_concurrently(
-        df, process_children, region=region, tenant_id=tenant_id, max_workers=max_workers
+        df, process_children, region=region, tenant_id=tenant_id, max_workers=max_workers,
+        max_failure_rate=max_failure_rate,
     )
 
     df["process_info.process_children"] = df.apply(
