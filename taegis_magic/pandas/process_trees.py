@@ -23,7 +23,36 @@ def _row_to_key(row, key_cols):
     return tuple(None if pd.isna(row[c]) else row[c] for c in key_cols)
 
 
-def _fetch_concurrently(df, fetch_fn, *, region, tenant_id, max_workers, max_failure_rate: Optional[float] = 0.05):
+def _resolve_show_progress(show_progress: Optional[bool]) -> bool:
+    """Determine whether to display a tqdm progress bar.
+
+    When *show_progress* is ``None`` (auto), the bar is shown only when
+    running inside a Jupyter notebook **and** tqdm is importable.
+    """
+    if show_progress is not None:
+        return show_progress
+
+    try:
+        from IPython import get_ipython
+
+        if get_ipython() is None:
+            return False
+    except Exception:
+        return False
+
+    try:
+        import tqdm  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def _fetch_concurrently(
+    df, fetch_fn, *, region, tenant_id, max_workers,
+    max_failure_rate: Optional[float] = 0.05,
+    show_progress: Optional[bool] = None,
+):
     """Fetch results for unique key tuples concurrently, returning a results map.
 
     Deduplicates API calls so identical (host_id, process_correlation_id[, resource_id])
@@ -36,6 +65,10 @@ def _fetch_concurrently(df, fetch_fn, *, region, tenant_id, max_workers, max_fai
         Maximum fraction of keys allowed to fail (0.0–1.0).  If the actual
         failure rate exceeds this threshold a ``RuntimeError`` is raised.
         Defaults to 0.05 (5 %).
+    show_progress : bool, optional
+        Display a tqdm progress bar.  When ``None`` (the default), a bar is
+        shown automatically if running inside a Jupyter notebook and tqdm is
+        available.
     """
     key_cols = _build_key_cols(df)
 
@@ -54,6 +87,11 @@ def _fetch_concurrently(df, fetch_fn, *, region, tenant_id, max_workers, max_fai
 
     total_keys = len(unique_keys)
     log.info("Starting concurrent fetch for %d unique key(s)", total_keys)
+
+    use_progress = _resolve_show_progress(show_progress)
+    _tqdm = None
+    if use_progress:
+        from tqdm.auto import tqdm as _tqdm
 
     col_to_idx = {c: i for i, c in enumerate(key_cols)}
 
@@ -75,7 +113,13 @@ def _fetch_concurrently(df, fetch_fn, *, region, tenant_id, max_workers, max_fai
             for key in unique_keys
         }
 
-        for future in as_completed(futures):
+        completed_iter = as_completed(futures)
+        if use_progress and _tqdm is not None:
+            completed_iter = _tqdm(
+                completed_iter, total=total_keys, desc="Fetching process trees"
+            )
+
+        for future in completed_iter:
             key = futures[future]
             try:
                 result = future.result()
@@ -121,6 +165,7 @@ def lookup_lineage(
     tenant_id: Optional[str] = None,
     max_workers: Optional[int] = 10,
     max_failure_rate: Optional[float] = 0.05,
+    show_progress: Optional[bool] = None,
 ) -> pd.DataFrame:
     """
     For each row in the DataFrame, fetch process lineage using process_correlation_id, host_id, tenant_id, and resource_id.
@@ -139,6 +184,9 @@ def lookup_lineage(
     max_failure_rate : Optional[float]
         Maximum fraction of keys allowed to fail (0.0–1.0) before raising a
         RuntimeError.  Defaults to 0.05 (5 %).
+    show_progress : Optional[bool]
+        Display a tqdm progress bar.  ``None`` (default) auto-detects based
+        on whether a Jupyter notebook environment and tqdm are available.
 
     Returns
     -------
@@ -167,7 +215,7 @@ def lookup_lineage(
 
     results_map = _fetch_concurrently(
         df, process_lineage, region=region, tenant_id=tenant_id, max_workers=max_workers,
-        max_failure_rate=max_failure_rate,
+        max_failure_rate=max_failure_rate, show_progress=show_progress,
     )
 
     df["process_info.process_lineage"] = df.apply(
@@ -193,6 +241,7 @@ def lookup_children(
     tenant_id: Optional[str] = None,
     max_workers: Optional[int] = 10,
     max_failure_rate: Optional[float] = 0.05,
+    show_progress: Optional[bool] = None,
 ) -> pd.DataFrame:
     """
     For each row in the DataFrame, fetch their children processes using process_correlation_id, host_id, tenant_id, and resource_id.
@@ -211,6 +260,9 @@ def lookup_children(
     max_failure_rate : Optional[float]
         Maximum fraction of keys allowed to fail (0.0–1.0) before raising a
         RuntimeError.  Defaults to 0.05 (5 %).
+    show_progress : Optional[bool]
+        Display a tqdm progress bar.  ``None`` (default) auto-detects based
+        on whether a Jupyter notebook environment and tqdm are available.
 
     Returns
     -------
@@ -238,7 +290,7 @@ def lookup_children(
 
     results_map = _fetch_concurrently(
         df, process_children, region=region, tenant_id=tenant_id, max_workers=max_workers,
-        max_failure_rate=max_failure_rate,
+        max_failure_rate=max_failure_rate, show_progress=show_progress,
     )
 
     df["process_info.process_children"] = df.apply(
