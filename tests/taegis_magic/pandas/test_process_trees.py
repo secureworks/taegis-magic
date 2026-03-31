@@ -113,6 +113,44 @@ class TestLookupLineage:
         assert result["process_info.process_lineage.index"].tolist() == [0, 1]
 
 
+    @patch("taegis_magic.pandas.process_trees.process_lineage")
+    def test_no_resource_id_column(self, mock_lineage, lineage_result):
+        """resource_id is optional — lookup should work without it."""
+        mock_lineage.return_value = lineage_result
+        df = pd.DataFrame(
+            {
+                "host_id": ["host-1", "host-2"],
+                "process_correlation_id": ["pcid-1", "pcid-2"],
+            }
+        )
+
+        result = lookup_lineage(df, max_workers=2)
+
+        assert "process_info.process_lineage" in result.columns
+        assert mock_lineage.call_count == 2
+        # resource_id should be passed as None to the API
+        for call in mock_lineage.call_args_list:
+            assert call.kwargs["resource_id"] is None
+
+    @patch("taegis_magic.pandas.process_trees.process_lineage")
+    def test_nan_resource_id_still_fetches(self, mock_lineage, lineage_result):
+        """Rows with NaN resource_id should still be fetched (resource_id is optional)."""
+        mock_lineage.return_value = lineage_result
+        df = pd.DataFrame(
+            {
+                "host_id": ["host-1"],
+                "process_correlation_id": ["pcid-1"],
+                "resource_id": [None],
+            }
+        )
+
+        result = lookup_lineage(df, max_workers=1)
+
+        assert mock_lineage.call_count == 1
+        assert mock_lineage.call_args.kwargs["resource_id"] is None
+        assert not result.empty
+
+
 class TestLookupChildren:
     def test_empty_dataframe(self):
         df = pd.DataFrame(columns=["host_id", "process_correlation_id", "resource_id"])
@@ -165,3 +203,20 @@ class TestLookupChildren:
 
         # 1 row with 2 children -> 2 rows after explode
         assert len(result) == 2
+
+    @patch("taegis_magic.pandas.process_trees.process_children")
+    def test_no_resource_id_column(self, mock_children, children_result):
+        """resource_id is optional — lookup should work without it."""
+        mock_children.return_value = children_result
+        df = pd.DataFrame(
+            {
+                "host_id": ["host-1"],
+                "process_correlation_id": ["pcid-1"],
+            }
+        )
+
+        result = lookup_children(df, max_workers=1)
+
+        assert "process_info.process_children" in result.columns
+        assert mock_children.call_args.kwargs["resource_id"] is None
+        assert not result.empty

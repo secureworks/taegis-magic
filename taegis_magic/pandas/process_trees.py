@@ -9,22 +9,43 @@ from taegis_magic.commands.process_trees import process_children, process_lineag
 
 log = logging.getLogger(__name__)
 
-KEY_COLS = ["host_id", "process_correlation_id", "resource_id"]
+REQUIRED_KEY_COLS = ["host_id", "process_correlation_id"]
+OPTIONAL_KEY_COLS = ["resource_id"]
+
+
+def _build_key_cols(df):
+    """Return the key columns present in the DataFrame."""
+    return REQUIRED_KEY_COLS + [c for c in OPTIONAL_KEY_COLS if c in df.columns]
+
+
+def _row_to_key(row, key_cols):
+    """Convert a row to a key tuple, substituting None for NaN values."""
+    return tuple(None if pd.isna(row[c]) else row[c] for c in key_cols)
 
 
 def _fetch_concurrently(df, fetch_fn, *, region, tenant_id, max_workers):
     """Fetch results for unique key tuples concurrently, returning a results map.
 
-    Deduplicates API calls so identical (host_id, process_correlation_id, resource_id)
-    tuples only trigger a single network request.
+    Deduplicates API calls so identical (host_id, process_correlation_id[, resource_id])
+    tuples only trigger a single network request.  resource_id is optional and
+    may be absent from the DataFrame or contain NaN values.
     """
+    key_cols = _build_key_cols(df)
+
     unique_keys = (
-        df[KEY_COLS]
+        df[key_cols]
         .drop_duplicates()
-        .dropna(subset=KEY_COLS)
+        .dropna(subset=REQUIRED_KEY_COLS)
         .itertuples(index=False, name=None)
     )
-    unique_keys = list(unique_keys)
+    # Normalise NaN → None so tuples are hashable and consistent.
+    unique_keys = [
+        tuple(None if pd.isna(v) else v for v in key) for key in unique_keys
+    ]
+    # Deduplicate after NaN normalisation.
+    unique_keys = list(dict.fromkeys(unique_keys))
+
+    col_to_idx = {c: i for i, c in enumerate(key_cols)}
 
     results_map = {}
 
@@ -34,9 +55,11 @@ def _fetch_concurrently(df, fetch_fn, *, region, tenant_id, max_workers):
                 fetch_fn,
                 region=region,
                 tenant_id=tenant_id,
-                host_id=key[0],
-                process_correlation_id=key[1],
-                resource_id=key[2],
+                host_id=key[col_to_idx["host_id"]],
+                process_correlation_id=key[col_to_idx["process_correlation_id"]],
+                resource_id=key[col_to_idx["resource_id"]]
+                if "resource_id" in col_to_idx
+                else None,
             ): key
             for key in unique_keys
         }
@@ -56,11 +79,11 @@ def _fetch_concurrently(df, fetch_fn, *, region, tenant_id, max_workers):
     return results_map
 
 
-def _map_results(row, results_map):
+def _map_results(row, results_map, key_cols):
     """Map a row to its pre-fetched results by key tuple."""
-    if any(pd.isna(row.get(c)) for c in KEY_COLS):
+    if any(pd.isna(row.get(c)) for c in REQUIRED_KEY_COLS):
         return []
-    key = (row["host_id"], row["process_correlation_id"], row["resource_id"])
+    key = _row_to_key(row, key_cols)
     return results_map.get(key, [])
 
 
@@ -101,17 +124,19 @@ def lookup_lineage(
     if df.empty:
         return df
 
-    if not all(x in df.columns for x in KEY_COLS):
+    if not all(x in df.columns for x in REQUIRED_KEY_COLS):
         raise ValueError(
-            "DataFrame must contain host_id, process_correlation_id, and resource_id columns for lineage lookup."
+            "DataFrame must contain host_id and process_correlation_id columns for lineage lookup."
         )
+
+    key_cols = _build_key_cols(df)
 
     results_map = _fetch_concurrently(
         df, process_lineage, region=region, tenant_id=tenant_id, max_workers=max_workers
     )
 
     df["process_info.process_lineage"] = df.apply(
-        _map_results, axis=1, results_map=results_map
+        _map_results, axis=1, results_map=results_map, key_cols=key_cols
     )
     df = df.explode("process_info.process_lineage").reset_index(drop=True)
     df["process_info.process_lineage"] = df["process_info.process_lineage"].apply(
@@ -163,17 +188,19 @@ def lookup_children(
     if df.empty:
         return df
 
-    if not all(x in df.columns for x in KEY_COLS):
+    if not all(x in df.columns for x in REQUIRED_KEY_COLS):
         raise ValueError(
-            "DataFrame must contain host_id, process_correlation_id, and resource_id columns for lineage lookup."
+            "DataFrame must contain host_id and process_correlation_id columns for children lookup."
         )
+
+    key_cols = _build_key_cols(df)
 
     results_map = _fetch_concurrently(
         df, process_children, region=region, tenant_id=tenant_id, max_workers=max_workers
     )
 
     df["process_info.process_children"] = df.apply(
-        _map_results, axis=1, results_map=results_map
+        _map_results, axis=1, results_map=results_map, key_cols=key_cols
     )
     df = df.explode("process_info.process_children").reset_index(drop=True)
     df["process_info.process_children"] = df["process_info.process_children"].apply(
