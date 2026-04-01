@@ -1,7 +1,6 @@
 import pandas as pd
 import logging
-from typing import List, Optional
-from dataclasses import asdict
+from typing import Optional
 from taegis_magic.core.service import get_service
 from taegis_magic.pandas.utils import chunk_list
 from dataclasses import dataclass
@@ -19,7 +18,8 @@ from taegis_magic.commands.events import get_next_page
 log = logging.getLogger(__name__)
 
 jinja_env = Environment(loader=PackageLoader("taegis_magic","templates/process"))
-NETFLOW_TEMPLATE = "netflow_correlation_id.jinja"
+NETFLOW_TEMPLATE = "process_netflow_pipe.jinja"
+NETFLOW_PIVOT_COLUMNS = ["host_id", "sensor_id", "sensor_type", "sensor_tenant",  "tenant_id"]
 
 NETFLOW = "netflow"
 
@@ -176,4 +176,177 @@ def process_correlate_netflow(
     )
 
     return merge_df
+
+
+def process_pivot_netflow(
+    df: pd.DataFrame,
+    *,
+    region: str,
+    tenant_id: str,
+    earliest: Optional[str] = "1d"
+) -> pd.DataFrame:
+    """Pivot aggregate process data into non-aggregate netflow event rows.
+
+    The input DataFrame is expected to contain aggregate process data. Columns present in the 
+    DataFrame and a static pivot column list are used to build per-row sub-query filters,
+    which are then combined with OR logic and issued as a single query against netflow
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing aggregate process data.
+    region : str,
+        Taegis region.
+    tenant_id : str,
+        Tenant ID to query against.
+    earliest : str, optional
+        Date filter to apply when querying against netflow events. Based on Taegis Query language. A "-" will be prepended to whatever value is provided. 
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame of raw netflow event rows matching the aggregate filters.
+
+    Example
+    -------
+    Input DataFrame with aggregate process info include columns that are not in the static pivot list (``NETFLOW_PIVOT_COLUMNS``).
+    Only intersecting columns are turned into ``WHERE`` filters, other columns are ignored. 
+
+    >>> import pandas as pd
+    >>> input_df = pd.DataFrame({
+    ...     "host_id": [
+    ...         "550e8400-e29b-41d4-a716-446655440001",
+    ...         "550e8400-e29b-41d4-a716-446655440002",
+    ...         "550e8400-e29b-41d4-a716-446655440003",
+    ...     ],
+    ...     "sensor_type": ["ENDPOINT_SOPHOS", "ENDPOINT_TAEGIS", "FIREWALL"],
+    ...     "non_matching_column": ["alpha", "beta", "gamma"],
+    ...     "count": [100, 200, 50],
+    ... })
+    >>> input_df
+                                    host_id      sensor_type non_matching_column  count
+    0  550e8400-e29b-41d4-a716-446655440001  ENDPOINT_SOPHOS               alpha    100
+    1  550e8400-e29b-41d4-a716-446655440002  ENDPOINT_TAEGIS                beta    200
+    2  550e8400-e29b-41d4-a716-446655440003         FIREWALL               gamma     50
+    >>> # Calling the function
+    >>> result = process_pivot_netflow(input_df, region="us1", tenant_id="12345")
+    >>> # Calling the function via pipe
+    >>> result = input_df.pipe(process_pivot_netflow, region="us1", tenant_id="12345")
+    >>> # Raw netflow rows include many fields; a subset might look like:
+    >>> result[
+    ...     [
+    ...         "host_id",
+    ...         "sensor_type",
+    ...         "source_address",
+    ...         "destination_address",
+    ...         "destination_port",
+    ...         "source_port",
+    ...         "direction",
+    ...         "protocol",
+    ...     ]
+    ... ]
+                                    host_id      sensor_type source_address destination_address  destination_port  source_port  direction  protocol
+    0  550e8400-e29b-41d4-a716-446655440001  ENDPOINT_SOPHOS   172.16.16.10       20.189.173.18               443         52773  OUTBOUND         6
+    1  550e8400-e29b-41d4-a716-446655440002  ENDPOINT_TAEGIS   172.16.16.10       20.189.173.18               443         52773  OUTBOUND         6
+    2  550e8400-e29b-41d4-a716-446655440003         FIREWALL   192.168.0.50       93.184.216.34                80         49152   INBOUND         6
+
+    -------------------------------------------------------------------------------------------------------
+    For the dataframe above, the generated query would look like:
+
+        FROM netflow
+        WHERE
+            (host_id = '550e8400-e29b-41d4-a716-446655440001' AND sensor_type = 'ENDPOINT_SOPHOS') or 
+            (host_id = '550e8400-e29b-41d4-a716-446655440002' AND sensor_type = 'ENDPOINT_TAEGIS') or 
+            (host_id = '550e8400-e29b-41d4-a716-446655440003' AND sensor_type = 'FIREWALL')
+        EARLIEST=-1d
+
+    Notice how the ``non_matching_column`` column is not part of the WHERE clause. 
+
+    """
+
+    if df.empty:
+        return df
+
+    cols = [col for col in df.columns if col in NETFLOW_PIVOT_COLUMNS]
+
+    if not cols:
+        log.error(
+            f"DataFrame contains none of the expected pivot columns: {NETFLOW_PIVOT_COLUMNS}"
+        )
+        return df
+
+    single_quote = "'"
+    replacement = "\\'"
+
+    sub_queries = []
+    for _, row in df.iterrows():
+        row_filters = [
+            (
+                f"{col} = '{row[col]}'"
+                if not str(row[col]).find("'") > -1
+                else f"{col} = e'{str(row[col]).replace(single_quote, replacement)}'"
+            )
+            for col in cols
+            if col in row and pd.notna(row[col])
+        ]
+        if row_filters:
+            sub_queries.append( "(" + " AND ".join(row_filters) + ")" )
+
+    unique_sub_queries = list(dict.fromkeys(sub_queries))
+
+    if not unique_sub_queries:
+        raise ValueError(
+            "No sub-queries could be built from the DataFrame. "
+            "Ensure the DataFrame contains non-null values in one or more of the following columns: "
+            f"{NETFLOW_PIVOT_COLUMNS}"
+        )
+
+    template = jinja_env.get_template(NETFLOW_TEMPLATE)
+    service = get_service(environment=region, tenant_id=tenant_id)
+    query_options = EventQueryOptions(
+        timestamp_ascending=True,
+        page_size=1000,
+        max_rows=100000,
+        aggregation_off=True,
+    )
+
+    results = []
+
+    for chunk in chunk_list(unique_sub_queries, 100):
+
+        query = template.render(netflow_correlation=chunk, earliest=f"-{earliest}")
+        log.debug(query)
+    
+        query_result = service.events.subscription.event_query(
+            query=query,
+            options=query_options,
+            metadata={
+                "callerName": CONFIG[QUERIES_SECTION].get(
+                    "callername", fallback="Taegis Magic"
+                ),
+            },
+        )
+
+        if not query_result[0].result.rows:
+            log.debug("No results were returned from process_pivot_netflow query.")
+            return df
+
+        results.extend(query_result)
+        next_page = get_next_page(query_result)
+
+        while next_page:
+            query_result = service.events.subscription.event_page(next_page)
+            results.extend(query_result)
+            next_page = get_next_page(query_result)
+
+    if not results:
+        log.info("No results were returned from query.")
+        return df
+
+    return to_dataframe(
+        row
+        for r in results
+        if r.result and r.result.rows
+        for row in r.result.rows
+    )
 
