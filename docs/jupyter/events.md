@@ -160,9 +160,12 @@ inflated_schema
   </tbody>
 </table>
 
-## Process to Netflow Correlation
+## Process to Netflow 
 
-``The `process_correlate_netflow` function, as shown below, is a pipe function that accepts a `Pandas` `DataFrame` with `process` event information and finds `netflow` events that are correlated based on each `process` event's `process_corelation_id`. A new `DataFrame` is returned and will likely contain more rows that the input `DataFrame` as there is a 1:many relationship between `process:netflow`. 
+This section describes `DataFrame` pipe functions that take in a `DataFrame` with `process` info and return `netflow` info. 
+### Correlation Function
+
+The `process_correlate_netflow` function, as shown below, is a pipe function that accepts a `Pandas` `DataFrame` with `process` event information and finds `netflow` events that are correlated based on each `process` event's `process_corelation_id`. A new `DataFrame` is returned and will likely contain more rows that the input `DataFrame` as there is a 1:many relationship between `process:netflow`. 
 
 ```python
 from taegis_magic.pandas.process import process_correlation_netflow
@@ -194,3 +197,34 @@ A `process_correlation_id` has the structure: `{host_id}:{pid}:{id.time_window}`
 }
 ```
 
+
+### Pivot Function
+
+The `process_pivot_netflow` function, as shown below, is a pipe function that accepts a `Pandas` `DataFrame` with aggregate `process` event information and finds `netflow` events by creating a query against the `netflow` table with filters (i.e. WHERE clauses) based on the column names of the provided `DataFrame`.  A new `DataFrame` is returned that contains `netflow` events. 
+
+```python
+from taegis_magic.pandas.process import process_pivot_netflow
+```
+
+The function parses the names of the columns in the input `DataFrame`, checks to see which ones exist in a static list of column names, and build the filters based on which ones exist in the static list. This static list of column names is a list of columns that both the `netflow` and `process` tables have in common. Note that this list does not include all column names that are shared between the two tables, but ones that are most likely used to aggregate `process` information. 
+
+The input `DataFrame` should look something like: 
+```
+                                host_id      sensor_type non_matching_column  count
+0  550e8400-e29b-41d4-a716-446655440001  ENDPOINT_SOPHOS               alpha    100
+1  550e8400-e29b-41d4-a716-446655440002  ENDPOINT_TAEGIS                beta    200
+2  550e8400-e29b-41d4-a716-446655440003         FIREWALL               gamma     50
+```
+
+`process_pivot_netflow` parses the columns and generates a query against the `netflow` table that looks like:
+
+```
+FROM netflow
+  WHERE
+    (host_id = '550e8400-e29b-41d4-a716-446655440001' AND sensor_type = 'ENDPOINT_SOPHOS') or 
+    (host_id = '550e8400-e29b-41d4-a716-446655440002' AND sensor_type = 'ENDPOINT_TAEGIS') or 
+    (host_id = '550e8400-e29b-41d4-a716-446655440003' AND sensor_type = 'FIREWALL')
+  EARLIEST=-1d
+```
+
+Note how the `WHERE` clause does not include the `non_matching_column` from the input `DataFrame` as that column is not included in the static list.
