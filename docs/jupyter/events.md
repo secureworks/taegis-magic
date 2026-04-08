@@ -198,15 +198,31 @@ A `process_correlation_id` has the structure: `{host_id}:{pid}:{id.time_window}`
 ```
 
 
-### Pivot Function
+### Pivot Functions
 
-The `process_pivot_netflow` function, as shown below, is a pipe function that accepts a `Pandas` `DataFrame` with aggregate `process` event information and finds `netflow` events by creating a query against the `netflow` table with filters (i.e. WHERE clauses) based on the column names of the provided `DataFrame`.  A new `DataFrame` is returned that contains `netflow` events. 
+There are several pivot functions that "pivot" from `process` -> some other type of event such as `netflow`, `http`, etc.
+
+The `_process_pivot_base_func` function, as shown below, is a pipe function that accepts a `Pandas` `DataFrame` with aggregate `process` event information and finds other events from the table to pivot to (i.e. pivot table) by creating a query against that table with filters (i.e. WHERE clauses) based on the column names of the provided `DataFrame` and `pivot_columns` parameter.  A new `DataFrame` is returned that contains events from the pivot table. 
 
 ```python
-from taegis_magic.pandas.process import process_pivot_netflow
+from taegis_magic.pandas.process import _process_pivot_base_func
 ```
 
-The function parses the names of the columns in the input `DataFrame`, checks to see which ones exist in a static list of column names, and build the filters based on which ones exist in the static list. This static list of column names is a list of columns that both the `netflow` and `process` tables have in common. Note that this list does not include all column names that are shared between the two tables, but ones that are most likely used to aggregate `process` information. 
+`_process_pivot_base_func` has the following function signature: 
+
+```python
+def _process_pivot_base_func(
+    df: pd.DataFrame,
+    region: str,
+    tenant_id: str,
+    query_template: str,
+    table: str,
+    pivot_columns: list[str],
+    earliest: str
+) -> pd.DataFrame:
+```
+
+The function parses the names of the columns in the input `df`, checks to see which ones exist in the `pivot_columns` list, and then builds the filters based on the matches between the two. `pivot_columns` is a list of columns that both the `process` table and the pivot table have in common. Note that this list does not include all column names that are shared between the two tables, but ones that are most likely used to aggregate `process` information and of course also exist in the pivot table. 
 
 The input `DataFrame` should look something like: 
 ```
@@ -216,10 +232,10 @@ The input `DataFrame` should look something like:
 2  550e8400-e29b-41d4-a716-446655440003         FIREWALL               gamma     50
 ```
 
-`process_pivot_netflow` parses the columns and generates a query against the `netflow` table that looks like:
+`_process_pivot_base_func` parses the columns and generates a query against the pivot table to that looks like:
 
 ```
-FROM netflow
+FROM {table_to_pivot_to}
   WHERE
     (host_id = '550e8400-e29b-41d4-a716-446655440001' AND sensor_type = 'ENDPOINT_SOPHOS') or 
     (host_id = '550e8400-e29b-41d4-a716-446655440002' AND sensor_type = 'ENDPOINT_TAEGIS') or 
@@ -227,4 +243,17 @@ FROM netflow
   EARLIEST=-1d
 ```
 
-Note how the `WHERE` clause does not include the `non_matching_column` from the input `DataFrame` as that column is not included in the static list.
+Note how the `WHERE` clause does not include the `non_matching_column` from the input `DataFrame` as that column was not part of the `pivot_columns` list in this example.
+
+When using the `_process_pivot_base_func`, one would create a wrapper function called `process_pivot_{name_of_pivot_table}`, and this wrapper function would have a signature that looks like: 
+
+```python
+def process_pivot_{name_of_pivot_table}(
+    df: pd.DataFrame,
+    *,
+    region: str,
+    tenant_id: str,
+    earliest: Optional[str] = "1d"
+) -> pd.DataFrame:
+  return _process_pivot_base_func(df, region, tenant_id, {query_template}, {name_of_pivot_table}, {pivot_columns}, earliest)
+```
