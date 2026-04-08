@@ -1,4 +1,0 @@
-FROM netflow
-WHERE
-    {{netflow_correlation | join(' or ')}}
-EARLIEST={{ earliest }}
