@@ -7,13 +7,20 @@ import re
 from datetime import timedelta
 from typing import List, Optional, Tuple
 
-# Direct mapping for simple units
+import pandas as pd
+
+# Pandas-supported units for simple relative timestamps
 UNIT_MAP = {
-    "s": "seconds",
-    "m": "minutes",
-    "h": "hours",
-    "d": "days",
-    "w": "weeks",
+    "s": "s",
+    "m": "min",
+    "h": "h",
+    "d": "d",
+    "w": "W",
+}
+
+_APPROXIMATE_UNIT_MAP = {
+    "mo": (30, "d"),
+    "y": (365, "d"),
 }
 
 # Pattern to parse relative timestamps like '-30d', '-3mo', '-1y', '7d', etc.
@@ -53,13 +60,13 @@ def parse_relative_timestamp(ts: str) -> timedelta:
     unit = match.group(2).lower()
 
     if unit in UNIT_MAP:
-        return timedelta(**{UNIT_MAP[unit]: value})
-    elif unit == "mo":
-        return timedelta(days=value * 30)
-    elif unit == "y":
-        return timedelta(days=value * 365)
-    else:
-        raise ValueError(f"Unknown unit: {unit!r} in timestamp {ts!r}.")
+        return pd.to_timedelta(value, unit=UNIT_MAP[unit]).to_pytimedelta()
+
+    if unit in _APPROXIMATE_UNIT_MAP:
+        multiplier, pandas_unit = _APPROXIMATE_UNIT_MAP[unit]
+        return pd.to_timedelta(value * multiplier, unit=pandas_unit).to_pytimedelta()
+
+    raise ValueError(f"Unknown unit: {unit!r} in timestamp {ts!r}.")
 
 
 def sort_timestamps_descending(timestamps: List[str]) -> List[str]:
@@ -109,7 +116,7 @@ def generate_chunk_windows(
     sorted_ts = sort_timestamps_descending(timestamps)
 
     # Parse all durations for arithmetic
-    durations = [parse_relative_timestamp(ts) for ts in sorted_ts]
+    durations = [pd.Timedelta(parse_relative_timestamp(ts)) for ts in sorted_ts]
 
     full_range = durations[0]
     full_range_ts = sorted_ts[0]
@@ -134,12 +141,11 @@ def generate_chunk_windows(
             latest_offset = full_range - (window_size * (i + 1))
 
             # Convert offsets back to relative timestamp strings
-            earliest_days = earliest_offset.total_seconds()
-            latest_days = latest_offset.total_seconds()
+            latest_seconds = latest_offset.total_seconds()
 
             earliest_clause = f"earliest=-{_offset_to_relative_str(earliest_offset)}"
 
-            if latest_days <= 0:
+            if latest_seconds <= 0:
                 # This is the most recent window — LATEST defaults to now
                 latest_clause = None
             else:
@@ -167,7 +173,7 @@ def _offset_to_relative_str(offset: timedelta) -> str:
     str
         Compact string like '30d', '2w', '3600s', etc.
     """
-    total_seconds = int(offset.total_seconds())
+    total_seconds = int(pd.Timedelta(offset).total_seconds())
 
     if total_seconds <= 0:
         return "0s"
