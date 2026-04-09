@@ -129,8 +129,6 @@ def process_correlate_netflow(
         netflow_correlation_ids = [NetflowCorrelationId(part[0], part[1], part[2]) for part in (pid.split(":") for pid in chunk)]
         
         query = template.render(table=NETFLOW, filters=netflow_correlation_ids, earliest=f"-{earliest}")
-        print("MUH QUERY IS")
-        print(query)
 
         query_result = service.events.subscription.event_query(
             query=query,
@@ -488,7 +486,7 @@ def _process_pivot_with_map(
     pivot_map : Mapping[str, str] | None
         Maps input DataFrame column names to target table column names for query filters.
     """
-    
+
     if pivot_map is None:
         return _process_pivot_base_func(
             df, region, tenant_id, query_template, table, pivot_columns, earliest
