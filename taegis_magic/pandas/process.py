@@ -28,7 +28,6 @@ NETFLOW = "netflow"
 HTTP = "HTTP"
 AUTH = "AUTH"
 
-
 CONFIG = get_config()
 if not CONFIG.has_section(QUERIES_SECTION):
     CONFIG.add_section(QUERIES_SECTION)
@@ -195,7 +194,8 @@ def process_pivot_netflow(
 ) -> pd.DataFrame:
     """Pivot aggregate process data into non-aggregate netflow event rows."""
 
-    return _process_pivot_with_map(df, region, tenant_id, PROCESS_PIPE_TEMPLATE, NETFLOW, NETFLOW_PIVOT_COLUMNS, earliest, pivot_map)
+    return _process_pivot_with_map(df, region, tenant_id, PROCESS_PIPE_TEMPLATE, NETFLOW, NETFLOW_PIVOT_COLUMNS, pivot_map, earliest)
+
 
 def process_pivot_http(
     df: pd.DataFrame,
@@ -207,7 +207,7 @@ def process_pivot_http(
 ) -> pd.DataFrame:
     """Pivot aggregate process data into non-aggregate http event rows."""
 
-    return _process_pivot_with_map(df, region, tenant_id, PROCESS_PIPE_TEMPLATE, HTTP, HTTP_PIVOT_COLUMNS, earliest, pivot_map)
+    return _process_pivot_with_map(df, region, tenant_id, PROCESS_PIPE_TEMPLATE, HTTP, HTTP_PIVOT_COLUMNS, pivot_map, earliest)
 
 
 def process_pivot_auth(
@@ -220,7 +220,7 @@ def process_pivot_auth(
 ) -> pd.DataFrame:
     """Pivot aggregate process data into non-aggregate http event rows."""
 
-    return _process_pivot_with_map(df, region, tenant_id, PROCESS_PIPE_TEMPLATE, HTTP, HTTP_PIVOT_COLUMNS, earliest, pivot_map)
+    return _process_pivot_with_map(df, region, tenant_id, PROCESS_PIPE_TEMPLATE, AUTH, AUTH_PIVOT_COLUMNS, pivot_map, earliest)
 
 
 def _execute_pivot_subqueries(
@@ -249,15 +249,21 @@ def _execute_pivot_subqueries(
 
         query = template.render(table=table, filters=chunk, earliest=f"-{earliest}")
 
-        query_result = service.events.subscription.event_query(
-            query=query,
-            options=query_options,
-            metadata={
-                "callerName": CONFIG[QUERIES_SECTION].get(
-                    "callername", fallback="Taegis Magic"
-                ),
-            },
-        )
+        log.trace(query)
+
+        try:
+            query_result = service.events.subscription.event_query(
+                query=query,
+                options=query_options,
+                metadata={
+                    "callerName": CONFIG[QUERIES_SECTION].get(
+                        "callername", fallback="Taegis Magic"
+                    ),
+                },
+            )
+        except Exception as e:
+            log.error(f"Encountered error when trying to execute query {query}. Error is {e}")
+            return df
 
         if not query_result[0].result.rows:
             log.debug("No results were returned from query.")
@@ -413,8 +419,8 @@ def _process_pivot_with_map(
     query_template: str,
     table: str,
     pivot_columns: list[str],
-    earliest: str,
-    pivot_map: Optional[Mapping[str, str]]
+    pivot_map: Optional[Mapping[str, str]],
+    earliest: str
 ) -> pd.DataFrame:
     """Works similarly to `_process_pivot_base_func`, but optional `pivot_map` contains keys that are column names in the input
     DataFrame and the corresponding values are column names in the table to pivot to. Therefore, the pivot_map remaps DataFrame
