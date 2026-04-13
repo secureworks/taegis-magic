@@ -435,8 +435,9 @@ def _process_pivot_with_map(
 
     This function is being created to allow for additional "customization" to overcome the "limitations" of `_process_pivot_base_func`.
     `_process_pivot_base_func` only works with a static list of columns that must exist both in the `process` table and the table to 
-    pivot to. If there is schema evolution, a mismatch in column names between `process` and target table with similar data, etc. then
-    the `_process_pivot_base_func` is not as useful. This function helps overcome said limitations without adding new code. 
+    pivot to. If there is schema evolution, a mismatch in column names between `process` and target table with similar data, custom 
+    column names etc. then the `_process_pivot_base_func` is not as useful. This function helps overcome these limitations 
+    without adding new code. 
 
 
     Example
@@ -464,12 +465,13 @@ def _process_pivot_with_map(
 
         FROM netflow
         WHERE
-            (sensor_type = 'ENDPOINT_SOPHOS' AND env = 'alpha') or 
-            (sensor_type = 'ENDPOINT_TAEGIS' AND env = 'beta') or 
-            (sensor_type = 'FIREWALL' AND env = 'gamma')
+            (sensor_type = 'ENDPOINT_SOPHOS' AND region = 'alpha') or 
+            (sensor_type = 'ENDPOINT_TAEGIS' AND region = 'beta') or 
+            (sensor_type = 'FIREWALL' AND region = 'gamma')
         EARLIEST=-1d
 
-    Notice how the `pivot_map` did not include `host_id` and therefore `host_id` was not included in the query. 
+    Notice how the `pivot_map` did not include `host_id` and therefore `host_id` was not included in the query. In addition, notice how
+    the values for `env` column got remapped to `region` in the query.  
 
 
     Parameters
