@@ -129,6 +129,8 @@ def process_correlate_netflow(
         
         query = template.render(table=NETFLOW, filters=netflow_correlation_ids, earliest=f"-{earliest}")
 
+        log.trace(query)
+
         query_result = service.events.subscription.event_query(
             query=query,
             options=options,

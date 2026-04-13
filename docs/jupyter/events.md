@@ -301,7 +301,7 @@ For the `input_df` dataframe above, the generated query would look like:
 
 
 Notice how the `pivot_map` did not include `host_id` and therefore `host_id` was not included in the query. In addition, notice how
-the values for `env` column got remapped to `region` in the query WHERE clauses.  
+the values for `env` column got remapped to `region` in the query WHERE clauses and that `sensor_type` was "remapped" to itself.  
 
 
 When using `_process_pivot_with_map`, one would create a wrapper function called `process_pivot_{name_of_pivot_table}`, and this wrapper function would have a signature that looks like: 
