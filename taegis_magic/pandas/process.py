@@ -51,7 +51,7 @@ def process_correlate_netflow(
     tenant_id: str,
     process_column: Optional[str] = "process_correlation_id",
     earliest: Optional[str] = "1d"
-):
+) -> pd.DataFrame:
     """Correlate process data with netflow information.
 
     Input DataFrame is expected to have a column whose row values contain process_correlation_ids
