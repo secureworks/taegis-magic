@@ -29,8 +29,6 @@ def trace(self: logging.Logger, message: str, *args, **kwargs):
 
 logging.Logger.trace = trace
 
-log = logging.getLogger(__name__)
-
 
 def get_module_logger() -> logging.Logger:
     """
@@ -47,7 +45,7 @@ def get_module_logger() -> logging.Logger:
 
     handler = logging.StreamHandler()
     formatter = logging.Formatter(
-        "%(asctime)s::%(levelname)s::%(name)s::%(message)s", datefmt="%Y-%m-%dT%H:%M:%S"
+        "%(asctime)s::%(levelname)s::%(name)s::%(message)s"
     )
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -67,15 +65,16 @@ def tracing(func: Callable):
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        log.trace(f"Entering {func.__name__}(args: {args}, kwargs: {kwargs})...")
+        logger = logging.getLogger(func.__module__)
+        logger.trace(f"Entering {func.__name__}(args: {args}, kwargs: {kwargs})...")
 
         try:
             result = func(*args, **kwargs)
         except Exception as exc:
-            log.error(f"Exception raised in {func.__name__}. exception: {str(exc)}")
+            logger.error(f"Exception raised in {func.__name__}. exception: {str(exc)}")
             raise exc
 
-        log.trace(f"Exiting {func.__name__}...")
+        logger.trace(f"Exiting {func.__name__}...")
 
         return result
 
