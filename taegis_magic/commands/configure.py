@@ -378,7 +378,7 @@ def logging_defaults(
         status.value,
     )
 
-    # After writing to config, set log levels so they take effect immediately
+    # After writing to config, set log levels so they take effect immediately w/o requiring restart of notebook
 
     config = get_config()
 
