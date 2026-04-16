@@ -66,6 +66,8 @@ app.add_typer(process_trees.app, name="process-trees")
 
 CONFIG = configure.set_defaults()
 
+logger = get_module_logger()
+sdk_logger = logging.getLogger("taegis_sdk_python")
 
 @app.callback()
 def main(
@@ -88,7 +90,6 @@ def main(
     ),
 ):
     """Taegis Magic help menu."""
-    logger = get_module_logger()
     if trace:
         logger.setLevel(TRACE_LOG_LEVEL)
     elif debug:
@@ -99,8 +100,6 @@ def main(
         logger.setLevel(logging.WARNING)
     else:
         logger.setLevel(logging.ERROR)
-
-    sdk_logger = logging.getLogger("taegis_sdk_python")
 
     if sdk_debug:
         sdk_logger.setLevel(logging.DEBUG)
