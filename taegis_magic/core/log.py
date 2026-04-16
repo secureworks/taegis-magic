@@ -65,16 +65,16 @@ def tracing(func: Callable):
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        logger = logging.getLogger(func.__module__)
-        logger.trace(f"Entering {func.__name__}(args: {args}, kwargs: {kwargs})...")
+        log = logging.getLogger(func.__module__)
+        log.trace(f"Entering {func.__name__}(args: {args}, kwargs: {kwargs})...")
 
         try:
             result = func(*args, **kwargs)
         except Exception as exc:
-            logger.error(f"Exception raised in {func.__name__}. exception: {str(exc)}")
+            log.error(f"Exception raised in {func.__name__}. exception: {str(exc)}")
             raise exc
 
-        logger.trace(f"Exiting {func.__name__}...")
+        log.trace(f"Exiting {func.__name__}...")
 
         return result
 
