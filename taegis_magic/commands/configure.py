@@ -27,10 +27,12 @@ middlewares = typer.Typer(help="Configure HTTP Middleware modules.")
 middlewares_retry = typer.Typer(help="Configure HTTP Retry middleware.")
 
 template = typer.Typer(help="Configure Template options.")
+macros = typer.Typer(help="Configure Tenant Macro Commands.")
 
 middlewares.add_typer(middlewares_retry, name="retry")
 
 app.add_typer(auth, name="auth")
+app.add_typer(macros, name="macros")
 app.add_typer(middlewares, name="middlewares")
 app.add_typer(regions, name="regions")
 app.add_typer(template, name="template")
@@ -39,6 +41,7 @@ app.add_typer(configure_logging, name="logging")
 
 
 AUTH_SECTION = "magics.auth"
+MACROS_SECTION = "magics.macros"
 REGIONS_SECTION = "magics.regions"
 QUERIES_SECTION = "magics.queries"
 LOGGING_SECTION = "magics.logging"
@@ -120,6 +123,9 @@ def set_defaults():  # pragma: no cover
 
     if not config.has_section(MIDDLEWARES_SECTION):
         config.add_section(MIDDLEWARES_SECTION)
+
+    if not config.has_section(MACROS_SECTION):
+        config.add_section(MACROS_SECTION)
 
     if not config.has_section(RETRY_SECTION):
         config.add_section(RETRY_SECTION)
@@ -528,6 +534,82 @@ def middlewares_retry_list():
                 value=value,
             )
             for name, value in config[RETRY_SECTION].items()
+        ],
+    )
+    return results
+
+
+@macros.command(name="path")
+@tracing
+def macros_path(
+    path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            writable=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ],
+):
+    """Set a custom YAML resource path for tenant macros."""
+    write_to_config(
+        MACROS_SECTION,
+        "resource_path",
+        str(path),
+    )
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[dict(resource_path=str(path))],
+    )
+    return results
+
+
+@macros.command(name="reset")
+@tracing
+def macros_reset():
+    """Reset tenant macros to the bundled default resource."""
+    from taegis_magic.core.macros import DEFAULT_MACROS_PATH
+
+    config = get_config()
+    config.remove_option(MACROS_SECTION, "resource_path")
+    write_config(config)
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[dict(resource_path=str(DEFAULT_MACROS_PATH), status="reset")],
+    )
+    return results
+
+
+@macros.command(name="list")
+@tracing
+def macros_list():
+    """List available tenant macros and the current resource path."""
+    from taegis_magic.core.macros import get_macros_config_path, load_macros
+
+    macros_path = get_macros_config_path()
+    macro_defs = load_macros(macros_path)
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[
+            dict(
+                resource_path=str(macros_path),
+                macros=[
+                    dict(name=name, definition=definition)
+                    for name, definition in macro_defs.items()
+                ],
+            )
         ],
     )
     return results

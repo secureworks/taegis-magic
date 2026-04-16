@@ -1,0 +1,1 @@
+"""Taegis Magic bundled resources."""

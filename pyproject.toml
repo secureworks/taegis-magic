@@ -40,7 +40,8 @@ dependencies = [
     "requests",
     "ipynbname",
     "panel",
-    "tabulator",  
+    "tabulator",
+    "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -61,3 +62,9 @@ path = "taegis_magic/_version.py"
 
 [tool.hatch.build.targets.sdist]
 include = ["/taegis_magic"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["taegis_magic"]
+
+[tool.hatch.build]
+artifacts = ["taegis_magic/resources/*.yaml"]
