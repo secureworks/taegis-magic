@@ -10,7 +10,12 @@ from dataclasses_json import config, dataclass_json
 from taegis_magic.commands.configure import QUERIES_SECTION
 from taegis_magic.commands.utils.investigations import insert_search_query
 from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResults, TaegisResultsNormalizer
+from taegis_magic.core.macros import resolve_tenants
+from taegis_magic.core.normalizer import (
+    TaegisResults,
+    TaegisResultsNormalizer,
+    merge_normalizer_results,
+)
 from taegis_magic.core.service import get_service
 from typing_extensions import Annotated
 
@@ -256,28 +261,15 @@ def alerts_service_poll_with_events(
     raise GraphQLNoRowsInResultSetError("for custom query alertsServicePoll")
 
 
-@app.command()
-@tracing
-def search(
-    cell: Optional[str] = None,
-    region: Optional[str] = None,
-    tenant: Optional[str] = None,
-    limit: int = 10000,
-    graphql_output: Optional[str] = None,
-    track: Annotated[bool, typer.Option()] = CONFIG[QUERIES_SECTION].getboolean(
-        "track", fallback=False
-    ),
-    database: Annotated[str, typer.Option()] = ":memory:",
-) -> Optional[AlertsResultsNormalizer]:
-    """
-    Search Taegis Alerts service.
-    """
-    service = get_service(environment=region, tenant_id=tenant)
-    if not cell:
-        cell = ""
-
-    if "aggregate" in cell:
-        limit = 1
+def _search_single_tenant(
+    cell: str,
+    region: Optional[str],
+    tenant_id: Optional[str],
+    limit: int,
+    graphql_output: Optional[str],
+) -> AlertsResultsNormalizer:
+    """Execute an alerts search against a single tenant."""
+    service = get_service(environment=region, tenant_id=tenant_id)
 
     with service(output=graphql_output):
         result = alerts_service_search_with_events(
@@ -326,7 +318,7 @@ def search(
                 ):
                     break
 
-    results = AlertsResultsNormalizer(
+    return AlertsResultsNormalizer(
         raw_results=poll_responses,
         service="alerts",
         tenant_id=service.tenant_id,
@@ -340,6 +332,43 @@ def search(
             "graphql_output": graphql_output,
         },
     )
+
+
+@app.command()
+@tracing
+def search(
+    cell: Optional[str] = None,
+    region: Optional[str] = None,
+    tenant: Optional[str] = None,
+    limit: int = 10000,
+    graphql_output: Optional[str] = None,
+    track: Annotated[bool, typer.Option()] = CONFIG[QUERIES_SECTION].getboolean(
+        "track", fallback=False
+    ),
+    database: Annotated[str, typer.Option()] = ":memory:",
+) -> Optional[AlertsResultsNormalizer]:
+    """
+    Search Taegis Alerts service.
+
+    Supports @macro syntax in --tenant to search across multiple tenants.
+    """
+    if not cell:
+        cell = ""
+
+    if "aggregate" in cell:
+        limit = 1
+
+    tenant_ids = resolve_tenants(tenant, region)
+
+    all_results = [
+        _search_single_tenant(cell, region, tid, limit, graphql_output)
+        for tid in tenant_ids
+    ]
+
+    if len(all_results) == 1:
+        results = all_results[0]
+    else:
+        results = merge_normalizer_results(all_results)
 
     if track:
         insert_search_query(database, results)
