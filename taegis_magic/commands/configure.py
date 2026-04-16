@@ -4,11 +4,10 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List
 
 import typer
 from dataclasses_json import dataclass_json
-from taegis_magic.core.log import tracing
+from taegis_magic.core.log import tracing, TRACE_LOG_LEVEL, get_module_logger, get_sdk_logger
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
 from typing_extensions import Annotated
 
@@ -62,7 +61,7 @@ class LoggingOptions(str, Enum):
     sdk_debug = "sdk_debug"
     sdk_verbose = "sdk_verbose"
     sdk_warning = "sdk_warning"
-
+   
 
 class ConfigureLogging(str, Enum):
     """Configure default logging options."""
@@ -378,6 +377,33 @@ def logging_defaults(
         option.value,
         status.value,
     )
+
+    # After writing to config, set log levels so they take effect immediately
+
+    config = get_config()
+
+    # Whichever log level is true first wins. Goes from lowest to highest log level
+    taegis_magics_logger = get_module_logger()
+    if config.getboolean(LOGGING_SECTION, LoggingOptions.trace.value, fallback=False):
+        taegis_magics_logger.setLevel(TRACE_LOG_LEVEL)
+    elif config.getboolean(LOGGING_SECTION, LoggingOptions.debug.value, fallback=False):
+        taegis_magics_logger.setLevel(logging.DEBUG)
+    elif config.getboolean(LOGGING_SECTION, LoggingOptions.verbose.value, fallback=False):
+        taegis_magics_logger.setLevel(logging.INFO)
+    elif config.getboolean(LOGGING_SECTION, LoggingOptions.warning.value, fallback=False):
+        taegis_magics_logger.setLevel(logging.WARNING)
+    else:
+        taegis_magics_logger.setLevel(logging.ERROR)
+
+    sdk_logger = get_sdk_logger()
+    if config.getboolean(LOGGING_SECTION, LoggingOptions.sdk_debug.value, fallback=False):
+        sdk_logger.setLevel(logging.DEBUG)
+    elif config.getboolean(LOGGING_SECTION, LoggingOptions.sdk_verbose.value, fallback=False):
+        sdk_logger.setLevel(logging.INFO)
+    elif config.getboolean(LOGGING_SECTION, LoggingOptions.sdk_warning.value, fallback=False):
+        sdk_logger.setLevel(logging.WARNING)
+    else:
+        sdk_logger.setLevel(logging.ERROR)
 
     results = ConfigurationNormalizer(
         service="configure",

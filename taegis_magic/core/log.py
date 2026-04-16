@@ -53,6 +53,19 @@ def get_module_logger() -> logging.Logger:
     return logger
 
 
+def get_sdk_logger() -> logging.Logger:
+    """
+    Get the taegis_sdk_python logger
+
+    Returns
+    -------
+    logging.Logger
+        taegis_sdk_python module logger
+    """
+
+    return logging.getLogger("taegis_sdk_python")
+
+
 def tracing(func: Callable):
     """
     Log entry and exit from function.

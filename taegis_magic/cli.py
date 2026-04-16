@@ -1,7 +1,6 @@
 """Taegis Magic CLI definitions."""
 
 import json
-import logging
 import sys
 from dataclasses import dataclass
 
@@ -28,10 +27,7 @@ from taegis_magic.commands import (
     threat,
     users,
 )
-from taegis_magic.core.log import TRACE_LOG_LEVEL, get_module_logger
 from taegis_magic.core.normalizer import TaegisResult
-
-log = logging.getLogger(__name__)
 
 
 @dataclass_json
@@ -64,51 +60,10 @@ app.add_typer(threat.app, name="threat")
 app.add_typer(users.app, name="users")
 app.add_typer(process_trees.app, name="process-trees")
 
-CONFIG = configure.set_defaults()
-
-taegis_magic_logger = get_module_logger()
-sdk_logger = logging.getLogger("taegis_sdk_python")
 
 @app.callback()
-def main(
-    warning: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
-        "warning", fallback=True
-    ),
-    verbose: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
-        "verbose", fallback=False
-    ),
-    debug: bool = CONFIG[configure.LOGGING_SECTION].getboolean("debug", fallback=False),
-    trace: bool = CONFIG[configure.LOGGING_SECTION].getboolean("trace", fallback=False),
-    sdk_warning: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
-        "sdk_warning", fallback=True
-    ),
-    sdk_verbose: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
-        "sdk_verbose", fallback=False
-    ),
-    sdk_debug: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
-        "sdk_debug", fallback=False
-    ),
-):
+def main():
     """Taegis Magic help menu."""
-    if trace:
-        taegis_magic_logger.setLevel(TRACE_LOG_LEVEL)
-    elif debug:
-        taegis_magic_logger.setLevel(logging.DEBUG)
-    elif verbose:
-        taegis_magic_logger.setLevel(logging.INFO)
-    elif warning:
-        taegis_magic_logger.setLevel(logging.WARNING)
-    else:
-        taegis_magic_logger.setLevel(logging.ERROR)
-
-    if sdk_debug:
-        sdk_logger.setLevel(logging.DEBUG)
-    elif sdk_verbose:
-        sdk_logger.setLevel(logging.INFO)
-    elif sdk_warning:
-        sdk_logger.setLevel(logging.WARNING)
-    else:
-        sdk_logger.setLevel(logging.ERROR)
 
 
 @app.command()
