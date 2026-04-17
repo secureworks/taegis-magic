@@ -1,5 +1,6 @@
 """Magics Configuration tool."""
 
+from configparser import SectionProxy
 import logging
 from dataclasses import dataclass
 from enum import Enum
@@ -8,7 +9,7 @@ from pathlib import Path
 import typer
 from dataclasses_json import dataclass_json
 from taegis_magic.core.log import tracing, TRACE_LOG_LEVEL, get_module_logger, get_sdk_logger
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_magic.core.normalizer import TaegisResultsNormalizer, TaegisResultWithMessage
 from typing_extensions import Annotated
 
 from taegis_sdk_python.config import get_config, write_config, write_to_config
@@ -40,8 +41,10 @@ app.add_typer(configure_logging, name="logging")
 AUTH_SECTION = "magics.auth"
 REGIONS_SECTION = "magics.regions"
 QUERIES_SECTION = "magics.queries"
-LOGGING_SECTION = "magics.logging"
+LOGGING_SECTION = "magics.loggers"
 MIDDLEWARES_SECTION = "magics.middlewares"
+MAGIC_LOG_LEVEL_KEY = "magic_log_level"
+SDK_LOG_LEVEL_KEY = "sdk_log_level"
 
 
 class UseUniversalAuthOptions(str, Enum):
@@ -70,6 +73,25 @@ class ConfigureLogging(str, Enum):
     false = "false"
 
 
+class MagicLoggerLevel(str, Enum):
+    """Allowed taegis_magic logger levels."""
+
+    trace = "trace"
+    debug = "debug"
+    info = "info"
+    warning = "warning"
+    error = "error"
+
+
+class SdkLoggerLevel(str, Enum):
+    """Allowed taegis_sdk_python logger levels."""
+
+    debug = "debug"
+    info = "info"
+    warning = "warning"
+    error = "error"
+
+
 class QueriesTrack(str, Enum):
     """Automatically track alert/event search queries."""
 
@@ -89,6 +111,32 @@ class DisableReturnDisplay(str, Enum):
     off = "off"
     all = "all"
     on_empty = "on_empty"
+
+
+def _set_magic_logger_level(level: MagicLoggerLevel):
+    taegis_magics_logger = get_module_logger()
+    if level == MagicLoggerLevel.trace:
+        taegis_magics_logger.setLevel(TRACE_LOG_LEVEL)
+    elif level == MagicLoggerLevel.debug:
+        taegis_magics_logger.setLevel(logging.DEBUG)
+    elif level == MagicLoggerLevel.info:
+        taegis_magics_logger.setLevel(logging.INFO)
+    elif level == MagicLoggerLevel.warning:
+        taegis_magics_logger.setLevel(logging.WARNING)
+    else:
+        taegis_magics_logger.setLevel(logging.ERROR)
+
+
+def _set_sdk_logger_level(level: SdkLoggerLevel):
+    sdk_logger = get_sdk_logger()
+    if level == SdkLoggerLevel.debug:
+        sdk_logger.setLevel(logging.DEBUG)
+    elif level == SdkLoggerLevel.info:
+        sdk_logger.setLevel(logging.INFO)
+    elif level == SdkLoggerLevel.warning:
+        sdk_logger.setLevel(logging.WARNING)
+    else:
+        sdk_logger.setLevel(logging.ERROR)
 
 
 @dataclass_json
@@ -138,20 +186,14 @@ def set_defaults():  # pragma: no cover
     ###
     # Logging Defaults
     ###
-    if not config.has_option(LOGGING_SECTION, LoggingOptions.warning):
-        config[LOGGING_SECTION][LoggingOptions.warning.value] = "true"
-    if not config.has_option(LOGGING_SECTION, LoggingOptions.verbose):
-        config[LOGGING_SECTION][LoggingOptions.verbose.value] = "false"
-    if not config.has_option(LOGGING_SECTION, LoggingOptions.debug):
-        config[LOGGING_SECTION][LoggingOptions.debug.value] = "false"
-    if not config.has_option(LOGGING_SECTION, LoggingOptions.trace):
-        config[LOGGING_SECTION][LoggingOptions.trace.value] = "false"
-    if not config.has_option(LOGGING_SECTION, LoggingOptions.sdk_warning):
-        config[LOGGING_SECTION][LoggingOptions.sdk_warning.value] = "true"
-    if not config.has_option(LOGGING_SECTION, LoggingOptions.sdk_verbose):
-        config[LOGGING_SECTION][LoggingOptions.sdk_verbose.value] = "false"
-    if not config.has_option(LOGGING_SECTION, LoggingOptions.sdk_debug):
-        config[LOGGING_SECTION][LoggingOptions.sdk_debug.value] = "false"
+    if not config.has_option(LOGGING_SECTION, MAGIC_LOG_LEVEL_KEY):
+        config[LOGGING_SECTION][MAGIC_LOG_LEVEL_KEY] = (
+            MagicLoggerLevel.warning.value
+        )
+    if not config.has_option(LOGGING_SECTION, SDK_LOG_LEVEL_KEY):
+        config[LOGGING_SECTION][SDK_LOG_LEVEL_KEY] = (
+            SdkLoggerLevel.warning.value
+        )
 
     ###
     # Middleware Defaults
@@ -371,45 +413,71 @@ def queries_disable_return_display(
 def logging_defaults(
     option: LoggingOptions, status: Annotated[ConfigureLogging, typer.Option()]
 ):
-    """Configure logging defaults."""
-    write_to_config(
-        LOGGING_SECTION,
-        option.value,
-        status.value,
-    )
-
-    # After writing to config, set log levels so they take effect immediately w/o requiring restart of notebook
-
-    config = get_config()
-
-    # Whichever log level is true first wins. Goes from lowest to highest log level
-    taegis_magics_logger = get_module_logger()
-    if config.getboolean(LOGGING_SECTION, LoggingOptions.trace.value, fallback=False):
-        taegis_magics_logger.setLevel(TRACE_LOG_LEVEL)
-    elif config.getboolean(LOGGING_SECTION, LoggingOptions.debug.value, fallback=False):
-        taegis_magics_logger.setLevel(logging.DEBUG)
-    elif config.getboolean(LOGGING_SECTION, LoggingOptions.verbose.value, fallback=False):
-        taegis_magics_logger.setLevel(logging.INFO)
-    elif config.getboolean(LOGGING_SECTION, LoggingOptions.warning.value, fallback=False):
-        taegis_magics_logger.setLevel(logging.WARNING)
-    else:
-        taegis_magics_logger.setLevel(logging.ERROR)
-
-    sdk_logger = get_sdk_logger()
-    if config.getboolean(LOGGING_SECTION, LoggingOptions.sdk_debug.value, fallback=False):
-        sdk_logger.setLevel(logging.DEBUG)
-    elif config.getboolean(LOGGING_SECTION, LoggingOptions.sdk_verbose.value, fallback=False):
-        sdk_logger.setLevel(logging.INFO)
-    elif config.getboolean(LOGGING_SECTION, LoggingOptions.sdk_warning.value, fallback=False):
-        sdk_logger.setLevel(logging.WARNING)
-    else:
-        sdk_logger.setLevel(logging.ERROR)
-
-    results = ConfigurationNormalizer(
+    results = TaegisResultWithMessage(
         service="configure",
         tenant_id="None",
         region="None",
-        raw_results=[dict(option=option.value, status=status.value)],
+        raw_results=[
+            dict(
+                deprecated=True,
+                message="This command is deprecated and does nothing. Use `configure logging levels` instead.",               
+            )
+        ],
+    )
+    return results
+
+
+@configure_logging.command(name="list")
+@tracing
+def list_current_config(): 
+    """List current logging config"""
+    config = get_config()
+
+    return TaegisResultWithMessage(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[
+            dict(config[LOGGING_SECTION])
+        ],
+    )
+
+
+@configure_logging.command(name="levels")
+@tracing
+def logging_levels(
+    magic_log_level: Annotated[
+        MagicLoggerLevel,
+        typer.Option(
+            help="Set taegis_magic logger level (trace/debug/info/warning/error).",
+        ),
+    ] = MagicLoggerLevel.warning,
+    sdk_log_level: Annotated[
+        SdkLoggerLevel,
+        typer.Option(
+            help="Set taegis_sdk_python logger level (debug/info/warning/error).",
+        ),
+    ] = SdkLoggerLevel.warning,
+):
+    """Configure logging levels for magic and SDK loggers."""
+    config = get_config()
+    if not config.has_section(LOGGING_SECTION):
+        config.add_section(LOGGING_SECTION)
+
+    config[LOGGING_SECTION][MAGIC_LOG_LEVEL_KEY] = magic_log_level.value
+    config[LOGGING_SECTION][SDK_LOG_LEVEL_KEY] = sdk_log_level.value
+    write_config(config)
+
+    _set_magic_logger_level(magic_log_level)
+    _set_sdk_logger_level(sdk_log_level)
+
+    results = TaegisResultWithMessage(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[
+            dict(config[LOGGING_SECTION])
+        ],
     )
     return results
 

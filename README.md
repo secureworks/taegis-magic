@@ -17,7 +17,14 @@ $ taegis --help
                                                                                                    
  Taegis Magic main callback.                                                                       
                                                                                                    
-╭─ Options ───────────────────────────────────────────────────────────────────────────────────────╮                       │
+╭─ Options ───────────────────────────────────────────────────────────────────────────────────────╮
+│ --warning                 --no-warning          [default: warning]                              │
+│ --verbose                 --no-verbose          [default: no-verbose]                           │
+│ --debug                   --no-debug            [default: no-debug]                             │
+│ --trace                   --no-trace            [default: no-trace]                             │
+│ --sdk-warning             --no-sdk-warning      [default: no-sdk-warning]                       │
+│ --sdk-verbose             --no-sdk-verbose      [default: no-sdk-verbose]                       │
+│ --sdk-debug               --no-sdk-debug        [default: no-sdk-debug]                         │
 │ --install-completion                            Install completion for the current shell.       │
 │ --show-completion                               Show completion for the current shell, to copy  │
 │                                                 it or customize the installation.               │

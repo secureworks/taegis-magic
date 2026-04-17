@@ -3,6 +3,7 @@
 import json
 import sys
 from dataclasses import dataclass
+from typing import Annotated
 
 import typer
 from dataclasses_json import dataclass_json
@@ -28,7 +29,6 @@ from taegis_magic.commands import (
     users,
 )
 from taegis_magic.core.normalizer import TaegisResult
-
 
 @dataclass_json
 @dataclass
@@ -62,7 +62,63 @@ app.add_typer(process_trees.app, name="process-trees")
 
 
 @app.callback()
-def main():
+def main(
+    ctx: typer.Context,
+    warning: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_magic logger level for this command.",
+        ),
+    ] = False,
+    verbose: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_magic logger level for this command.",
+        ),
+    ] = False,
+    debug: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_magic logger level for this command.",
+        ),
+    ] = False,
+    trace: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_magic logger level for this command.",
+        ),
+    ] = False,
+    error: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_magic logger level for this command.",
+        ),
+    ] = False,
+    sdk_warning: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_sdk_python logger level for this command.",
+        ),
+    ] = False,
+    sdk_verbose: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_sdk_python logger level for this command.",
+        ),
+    ] = False,
+    sdk_debug: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_sdk_python logger level for this command.",
+        ),
+    ] = False,
+    sdk_error: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_sdk_python logger level for this command.",
+        ),
+    ] = False,
+):
     """Taegis Magic help menu."""
 
 

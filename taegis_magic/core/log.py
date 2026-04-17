@@ -41,14 +41,13 @@ def get_module_logger() -> logging.Logger:
     """
     logger = logging.getLogger("taegis_magic")
     logger.propagate = False
-    logger.handlers = []
-
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        "%(asctime)s::%(levelname)s::%(name)s::%(message)s"
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            "%(asctime)s::%(levelname)s::%(name)s::%(message)s"
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
     return logger
 
