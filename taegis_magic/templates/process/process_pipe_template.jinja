@@ -1,0 +1,4 @@
+FROM {{ table }}
+WHERE
+    {{filters | join(' or ')}}
+EARLIEST={{ earliest }}
