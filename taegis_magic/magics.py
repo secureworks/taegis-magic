@@ -195,9 +195,10 @@ class TaegisMagics(Magics):
             if "--help" in args or "-h" in args:
                 command_args = args
             else:
+                log.warning("Argument parsing failed, exiting magic...")
                 return
         except ArgumentError as e:
-            print(e)
+            log.error(f"Invalid argument: {e}")
             return
 
         restore_log_levels = _set_temporary_log_levels(command_args or [])
@@ -212,6 +213,7 @@ class TaegisMagics(Magics):
                 template_environment = load_jinja2_template_environment()
                 try:
                     if magic_args.cell_template_file:
+                        log.debug(f"Loading template file: {magic_args.cell_template_file}")
                         template = template_environment.get_template(
                             magic_args.cell_template_file
                         )
@@ -224,6 +226,7 @@ class TaegisMagics(Magics):
                     return
 
                 cell = template.render(**self.shell.user_ns)
+                log.debug("Template rendered successfully")
 
             if magic_args and magic_args.cache:
                 if not magic_args.assign:
@@ -235,6 +238,7 @@ class TaegisMagics(Magics):
                 ):
                     notebook_filename = self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME]
                 else:
+                    log.warning(f"{TAEGIS_MAGIC_NOTEBOOK_FILENAME} not set, prompting for input...")
                     notebook_filename = input("Notebook Filename:")
 
                 if not notebook_filename:
@@ -246,7 +250,7 @@ class TaegisMagics(Magics):
                     self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME] = notebook_filename
                 else:
                     raise ValueError(
-                        "Notebook does not exist on disk, save notebook to disk before caching or "
+                        f"Notebook {notebook_filename} does not exist on disk, save notebook to disk before caching or "
                         "reload the taegis_magic extension (%reload_ext taegis_magic)..."
                     )
 
@@ -257,21 +261,21 @@ class TaegisMagics(Magics):
                 cache = get_cache_item(notebook_fp, magic_args.assign, cache_digest)
                 if cache:
                     log.info(f"{magic_args.assign} found in cache...")
-                    log.debug("normalizing results...")
+                    log.debug("Normalizing results...")
                     data = decode_base64_obj_as_pickle(cache.get("data"))
 
-                    log.debug("converting to dataframe...")
+                    log.debug("Converting to dataframe...")
                     self.shell.user_ns[magic_args.assign] = pd.json_normalize(
                         data.results, max_level=3
                     ).dropna(axis=1, how="all")
 
-                    log.info(f"re-setting {magic_args.assign}:{cache_digest} to cache...")
+                    log.info(f"Resetting {magic_args.assign}:{cache_digest} to cache...")
                     display_cache(magic_args.assign, cache_digest, data)
                     save_notebook()
 
                     return
-
-                log.info(f"{magic_args.assign} not found in cache...")
+                else:
+                    log.info(f"{magic_args.assign} not found in cache...")
 
             if cell:
                 command_args.extend(["--cell", cell])

@@ -118,7 +118,7 @@ def get_cache_item(
         Cached object.
     """
     if name not in [item[0] for item in get_cache_list(path)]:
-        logger.debug(f"{name} not found in {str(path)} cache...")
+        logger.info(f"{name} not found in {str(path)} cache...")
         return {}
 
     nb = read_notebook(path)
