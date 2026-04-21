@@ -320,3 +320,10 @@ Static `pivot_columns` can be shown by executing the code below:
 from taegis_magic.pandas.process import NETFLOW_PIVOT_COLUMNS
 print(NETFLOW_PIVOT_COLUMNS) 
 ```
+
+#### process_pivot_http
+Pivot aggregate process data into non-aggregate detectionfinding event rows.
+Static `pivot_columns` can be shown by executing the code below:
+```python
+from taegis_magic.pandas.process import DETECTIONFINDING_PIVOT_COLUMNS
+print(DETECTIONFINDING_PIVOT_COLUMNS) 
