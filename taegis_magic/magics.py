@@ -36,6 +36,8 @@ from taegis_sdk_python.templates import load_jinja2_template_environment
 from taegis_sdk_python.config import get_config
 from taegis_magic.commands.configure import QUERIES_SECTION, DisableReturnDisplay
 
+TAEGIS_MAGIC_NOTEBOOK_FILENAME = "TAEGIS_MAGIC_NOTEBOOK_FILENAME"
+
 log = logging.getLogger(__name__)
 set_defaults()
 taegis_magic_logger = get_module_logger()
@@ -153,7 +155,7 @@ class TaegisMagics(Magics):
         log.debug("Trying to get notebook name for IPython shell...")
         # try to get the notebook name from the environment
         notebook_name = (
-            self.shell.user_ns.get("TAEGIS_MAGIC_NOTEBOOK_FILENAME")
+            self.shell.user_ns.get(TAEGIS_MAGIC_NOTEBOOK_FILENAME)
             or self.shell.user_ns.get("PAPERMILL_OUTPUT_PATH")
             or self.shell.user_ns.get("PAPERMILL_INPUT_PATH")
         )
@@ -169,12 +171,12 @@ class TaegisMagics(Magics):
 
         if notebook_name:
             log.debug(f"Notebook name found: {notebook_name}")
-            self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"] = notebook_name
+            self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME] = notebook_name
             if not self.shell.user_ns.get("REPORT_TITLE"):
                 self.shell.user_ns["REPORT_TITLE"] = Path(notebook_name).stem.title()
         else:
             log.error(
-                "Could not determine notebook name.  Please set TAEGIS_MAGIC_NOTEBOOK_FILENAME manually."
+                f"Could not determine notebook name. Please set {TAEGIS_MAGIC_NOTEBOOK_FILENAME} manually."
             )
 
     @line_cell_magic
@@ -228,10 +230,10 @@ class TaegisMagics(Magics):
                     raise ValueError("--assign must be set with cache...")
 
                 if (
-                    "TAEGIS_MAGIC_NOTEBOOK_FILENAME" in self.shell.user_ns
-                    and self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"]
+                    TAEGIS_MAGIC_NOTEBOOK_FILENAME in self.shell.user_ns
+                    and self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME]
                 ):
-                    notebook_filename = self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"]
+                    notebook_filename = self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME]
                 else:
                     notebook_filename = input("Notebook Filename:")
 
@@ -241,7 +243,7 @@ class TaegisMagics(Magics):
                 notebook_fp = Path(notebook_filename)
 
                 if notebook_fp.exists():
-                    self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"] = notebook_filename
+                    self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME] = notebook_filename
                 else:
                     raise ValueError(
                         "Notebook does not exist on disk, save notebook to disk before caching or "
@@ -357,17 +359,17 @@ class TaegisMagics(Magics):
 
         Sets the TAEGIS_MAGIC_REPORT_FILENAME variable in the user namespace."""
         if (
-            "TAEGIS_MAGIC_NOTEBOOK_FILENAME" not in self.shell.user_ns
-            or not self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"]
+            TAEGIS_MAGIC_NOTEBOOK_FILENAME not in self.shell.user_ns
+            or not self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME]
         ):
             raise ValueError(
-                "Cannot determine file name of notebook. Please set TAEGIS_MAGIC_NOTEBOOK_FILENAME."
+                f"Cannot determine file name of notebook. Please set {TAEGIS_MAGIC_NOTEBOOK_FILENAME}."
             )
 
-        if not Path(self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"]).exists():
+        if not Path(self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME]).exists():
             raise FileNotFoundError(
                 dedent(
-                    f"""Notebook {self.shell.user_ns['TAEGIS_MAGIC_NOTEBOOK_FILENAME']} does not exist.
+                    f"""Notebook {self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME]} does not exist.
                 
                     Save notebook manually or run %save_notebook to save the notebook to disk.
                     """
@@ -375,7 +377,7 @@ class TaegisMagics(Magics):
             )
 
         report = generate_report(
-            filename=self.shell.user_ns["TAEGIS_MAGIC_NOTEBOOK_FILENAME"]
+            filename=self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME]
         )
         self.shell.user_ns["TAEGIS_MAGIC_REPORT_FILENAME"] = str(report.resolve())
 

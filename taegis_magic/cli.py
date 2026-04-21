@@ -27,6 +27,7 @@ from taegis_magic.commands import (
     tenants,
     threat,
     users,
+    configure,
 )
 from taegis_magic.core.normalizer import TaegisResult
 
@@ -60,6 +61,7 @@ app.add_typer(threat.app, name="threat")
 app.add_typer(users.app, name="users")
 app.add_typer(process_trees.app, name="process-trees")
 
+configure.set_defaults()
 
 @app.callback()
 def main(
