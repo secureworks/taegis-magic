@@ -606,13 +606,13 @@ def lookup_assignee_id(service: GraphQLService, assignee_id: str) -> str:
         and not assignee_id.startswith("@")  # don't lookup submitted mentions
         and not assignee_id.endswith("@clients")  # don't lookup submitted clients
     ):
-        log.debug("Looking up user {assignee_id} by email...")
+        log.debug(f"Looking up user {assignee_id} by email...")
 
         # search for email in subject accessible tenants
         subject = service.subjects.query.current_subject()
         users = []
         for tenant_id in subject.role_assignment_data.assigned_tenant_ids:
-            log.debug("Looking up user {assignee_id} in {tenant_id}...")
+            log.debug(f"Looking up user {assignee_id} in {tenant_id}...")
             with service(tenant_id=tenant_id):
                 users = service.users.query.tdrusers(email=assignee_id)
                 if users:
@@ -620,11 +620,11 @@ def lookup_assignee_id(service: GraphQLService, assignee_id: str) -> str:
 
         # search for email in tenant context
         if not users:
-            log.debug("Looking up user {assignee_id} in {service.tenant_id}...")
+            log.debug(f"Looking up user {assignee_id} in {service.tenant_id}...")
             users = service.users.query.tdrusers(email=assignee_id)
 
         if users:
-            log.debug("User {assignee_id} found. Using ID: {users[0].id}")
+            log.debug(f"User {assignee_id} found. Using ID: {users[0].id}")
             assignee_id = users[0].id
 
             if not assignee_id:

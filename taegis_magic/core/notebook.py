@@ -338,4 +338,4 @@ def execute_notebook_pool(
         )
         exc = executed_procedure.exception()
         if exc:
-            log.error(procedure_scope, exc)
+            log.exception(f"{procedure_scope}: {exc}")

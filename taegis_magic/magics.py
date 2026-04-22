@@ -283,7 +283,8 @@ class TaegisMagics(Magics):
             # os.environ["TAEGIS_MAGIC_OUTPUT"] = "True"
             try:
                 result = app(command_args, prog_name="taegis", standalone_mode=False)
-            except (SystemExit, TransportQueryError):
+            except (SystemExit, TransportQueryError) as e:
+                log.exception(f"Command execution failed: {type(e).__name__}: {e}")
                 result = None
             # os.environ["TAEGIS_MAGIC_OUTPUT"] = "False"
 
