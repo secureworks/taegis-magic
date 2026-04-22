@@ -8,7 +8,7 @@ import pandas as pd
 
 warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 def get_diffs(df: pd.DataFrame) -> pd.DataFrame:
@@ -95,9 +95,9 @@ def get_diffs(df: pd.DataFrame) -> pd.DataFrame:
     for column in diff_columns:
         column_name = f"taegis_magic.diff.{column}"
         if column_name not in df.columns:
-            logger.debug("Getting difference on %s...", column_name)
+            log.debug("Getting difference on %s...", column_name)
             df[column_name] = df.apply(get_diff, args=(column,), axis=1)
         else:
-            logger.debug("%s found, moving to next column...", column_name)
+            log.debug("%s found, moving to next column...", column_name)
 
     return df

@@ -4,7 +4,7 @@ import logging
 
 import pandas as pd
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 def inflate_filters(df: pd.DataFrame) -> pd.DataFrame:

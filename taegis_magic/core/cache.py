@@ -14,7 +14,7 @@ from taegis_magic.commands.alerts import AlertsResultsNormalizer
 from taegis_magic.commands.events import TaegisEventQueryNormalizer
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 def encode_obj_as_base64_pickle(obj: TaegisResultsNormalizer) -> str:
@@ -118,7 +118,7 @@ def get_cache_item(
         Cached object.
     """
     if name not in [item[0] for item in get_cache_list(path)]:
-        logger.info(f"{name} not found in {str(path)} cache...")
+        log.info(f"{name} not found in {str(path)} cache...")
         return {}
 
     nb = read_notebook(path)
@@ -136,7 +136,7 @@ def get_cache_item(
             )
         )
     except Exception as e:
-        logger.error(f"Error searching cache::{type(e).__name__}: {e}...")
+        log.exception(f"Error searching cache::{type(e).__name__}: {e}...")
         cache = {}
 
     return cache
