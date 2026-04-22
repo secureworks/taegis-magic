@@ -122,13 +122,13 @@ def save_notebook(delay: int = 0):
                     ).format(script)
                 )
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            log.exception(f"Failed to save notebook via HTML/JS injection: {exc}")
 
         try:
             display(Javascript("IPython.notebook.save_checkpoint();"))
-        except Exception:
-            pass
+        except Exception as exc:
+            log.exception(f"Failed to save notebook checkpoint: {exc}")
 
         display("<-- #endregion -->")
 
@@ -136,8 +136,8 @@ def save_notebook(delay: int = 0):
         try:
             app = JupyterFrontEnd()
             app.commands.execute("docmanager:save")
-        except Exception:
-            pass
+        except Exception as exc:
+            log.exception(f"Failed to save notebook: {exc}")
 
     else:
         log.error(
