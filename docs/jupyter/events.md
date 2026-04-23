@@ -160,18 +160,25 @@ inflated_schema
   </tbody>
 </table>
 
-## Process to Netflow 
+## Process Pipe Functions
+This section describes `DataFrame` pipe functions that take in a `DataFrame` with `process` info and return a new `DataFrame` that contains correlated data or other event info. 
+### Correlation Functions
 
-This section describes `DataFrame` pipe functions that take in a `DataFrame` with `process` info and return `netflow` info. 
-### Correlation Function
-
-The `process_correlate_netflow` function, as shown below, is a pipe function that accepts a `Pandas` `DataFrame` with `process` event information and finds `netflow` events that are correlated based on each `process` event's `process_corelation_id`. A new `DataFrame` is returned and will likely contain more rows that the input `DataFrame` as there is a 1:many relationship between `process:netflow`. 
+#### process_correlate_netflow
+The `process_correlate_netflow` function, as shown below, is a pipe function that accepts a `Pandas` `DataFrame` with `process` event information and finds `netflow` events that are correlated based on each `process` event's `process_corelation_id`. A new `DataFrame` is returned that will include the columns from the input `DataFrame` as well as columns from the `netflow` table and will likely contain more rows that the input `DataFrame` as there is a 1:many relationship between `process:netflow`. 
 
 ```python
-from taegis_magic.pandas.process import process_correlation_netflow
+def process_correlate_netflow(
+    df: pd.DataFrame,
+    *,
+    region: str,
+    tenant_id: str,
+    process_column: Optional[str] = "process_correlation_id",
+    earliest: Optional[str] = "1d"
+) -> pd.DataFrame:
 ```
 
-A `process_correlation_id` has the structure: `{host_id}:{pid}:{id.time_window}`. `netflow` events do not have a full `process_correlation_id` as `process` events do but do have the original components, `host_id`, `processcorrelationid.pid`, and `processcorrelation.timewindow`. Although `netflow` events can sometimes have different structures for `processcorrelationid` as shown below. The pipe function takes these differences into account. 
+A `process_correlation_id` has the structure: `{host_id}:{pid}:{id.time_window}`. `netflow` events do not have a full `process_correlation_id` as `process` events do but do have the original components, `host_id`, `processcorrelationid.pid`, and `processcorrelation.timewindow`. `netflow` events can sometimes have different structures for `processcorrelationid` as shown below. The pipe function takes these differences into account. 
 
 ```json
 // pid has structure of {pid}:{id.time_window}, no value for timewindow
@@ -198,33 +205,118 @@ A `process_correlation_id` has the structure: `{host_id}:{pid}:{id.time_window}`
 ```
 
 
-### Pivot Function
+### Pivot Functions
 
-The `process_pivot_netflow` function, as shown below, is a pipe function that accepts a `Pandas` `DataFrame` with aggregate `process` event information and finds `netflow` events by creating a query against the `netflow` table with filters (i.e. WHERE clauses) based on the column names of the provided `DataFrame`.  A new `DataFrame` is returned that contains `netflow` events. 
+There are several pivot functions that "pivot" from `process` -> some other type of event such as `netflow`, `http`, `auth`, etc. 
+
+Pivot functions have the following signature: 
+```python
+def process_pivot_func(
+    df: pd.DataFrame,
+    *,
+    region: str,
+    tenant_id: str,
+    pivot_map: Optional[Mapping[str, str]] = None,
+    earliest: Optional[str] = "1d"
+) -> pd.DataFrame:
+```
+
+
+Each pivot function expects an input `DataFrame` with aggregate `process` data such as one the shown below: 
 
 ```python
-from taegis_magic.pandas.process import process_pivot_netflow
+>>> input_df
+                                    host_id      sensor_type  count
+    0  550e8400-e29b-41d4-a716-446655440001  ENDPOINT_SOPHOS    100
+    1  550e8400-e29b-41d4-a716-446655440002  ENDPOINT_TAEGIS    200
+    2  550e8400-e29b-41d4-a716-446655440003         FIREWALL     50
 ```
 
-The function parses the names of the columns in the input `DataFrame`, checks to see which ones exist in a static list of column names, and build the filters based on which ones exist in the static list. This static list of column names is a list of columns that both the `netflow` and `process` tables have in common. Note that this list does not include all column names that are shared between the two tables, but ones that are most likely used to aggregate `process` information. 
+The pivot function will then query the table to the pivot to (i.e. pivot table) with WHERE clauses that are based off of the column names and their values from the input `DataFrame`. For example, for the `input_df` example above, it would generate the query below and return the results from the query as a `DataFrame`. 
 
-The input `DataFrame` should look something like: 
-```
-                                host_id      sensor_type non_matching_column  count
-0  550e8400-e29b-41d4-a716-446655440001  ENDPOINT_SOPHOS               alpha    100
-1  550e8400-e29b-41d4-a716-446655440002  ENDPOINT_TAEGIS                beta    200
-2  550e8400-e29b-41d4-a716-446655440003         FIREWALL               gamma     50
-```
-
-`process_pivot_netflow` parses the columns and generates a query against the `netflow` table that looks like:
-
-```
-FROM netflow
-  WHERE
+```sql
+FROM {pivot_table}
+WHERE
     (host_id = '550e8400-e29b-41d4-a716-446655440001' AND sensor_type = 'ENDPOINT_SOPHOS') or 
     (host_id = '550e8400-e29b-41d4-a716-446655440002' AND sensor_type = 'ENDPOINT_TAEGIS') or 
     (host_id = '550e8400-e29b-41d4-a716-446655440003' AND sensor_type = 'FIREWALL')
-  EARLIEST=-1d
+EARLIEST=-1d
 ```
 
-Note how the `WHERE` clause does not include the `non_matching_column` from the input `DataFrame` as that column is not included in the static list.
+Notice how in this particular case the number of total where clauses = the number of rows in the `input_df`. 
+
+Each time a pivot function is called, by default, the where clauses generated are determined by the matches between the `pivot_columns` passed to the pivot function and the column names in the input `DataFrame`. Each pivot function already has a predetermined list of `pivot_columns` which are a list of columns that both the `process` table and the pivot table have in common. Please see notes for each process pivot function below to see what those `pivot_columns` are. 
+
+Building off of the previous `input_df` example, consider if it had another column named `other_column`: 
+
+```python
+>>> input_df
+                                    host_id      sensor_type  other_column count
+    0  550e8400-e29b-41d4-a716-446655440001  ENDPOINT_SOPHOS         delta   100
+    1  550e8400-e29b-41d4-a716-446655440002  ENDPOINT_TAEGIS         sigma   200
+    2  550e8400-e29b-41d4-a716-446655440003         FIREWALL       foxtrot   300
+>>> # Example of what pivot_columns may be
+>>> from taegis_magic.pandas.process import NETFLOW_PIVOT_COLUMNS
+>>> print(NETFLOW_PIVOT_COLUMNS) 
+    ["host_id", "sensor_id", "sensor_tenant", "sensor_type", "tenant_id"]
+>>> from taegis_magic.pandas.process import process_pivot_netflow
+>>> # Actually call pipe pivot function
+>>> input_df.pipe(process_pivot_netflow, region="charlie", tenant_id="11063")
+```
+
+The call to `input_df.pipe(process_pivot_netflow, region="charlie", tenant_id="11063")` would generate a query that is the same as the one above because the column `other_column` is not part of the `NETFLOW_PIVOT_COLUMNS`. Since `host_id` and `sensor_type` are part of `NETFLOW_PIVOT_COLUMNS` and are in the `input_df` they are part of the query's WHERE clauses. 
+
+If one would like to override the pivot columns, a value must be provided for the `pivot_map` argument which is `None` by default. The `pivot_map` must have keys that are the same as the name of the columns in the input `DataFrame` and the corresponding values are the names of the columns in the target pivot table. 
+
+```python
+>>> input_df
+                                    host_id      sensor_type  other_column count
+    0  550e8400-e29b-41d4-a716-446655440001  ENDPOINT_SOPHOS         delta   100
+    1  550e8400-e29b-41d4-a716-446655440002  ENDPOINT_TAEGIS         sigma   200
+    2  550e8400-e29b-41d4-a716-446655440003         FIREWALL       foxtrot   300
+
+>>> from taegis_magic.pandas.process import process_pivot_netflow
+>>> # Create a pivot_map
+>>> pivot_map={"sensor_type":"t_sensor"}
+>>> # Actually call pipe pivot function with pivot_map
+>>> input_df.pipe(process_pivot_netflow, region="charlie", tenant_id="11063", pivot_map=pivot_map)
+```
+
+The call to `input_df.pipe(process_pivot_netflow, region="charlie", tenant_id="11063", pivot_map=pivot_map)` above would generate the following query: 
+
+
+```sql
+FROM netflow
+WHERE
+    (t_sensor = 'ENDPOINT_SOPHOS') or 
+    (t_sensor = 'ENDPOINT_TAEGIS') or 
+    (t_sensor = 'FIREWALL')
+EARLIEST=-1d
+```
+
+Notice how in `input_df` the name of the column was `sensor_type` but in the where clauses it got remapped to `t_sensor`. In addition, ONLY columns specified in the `pivot_map` will be included in the WHERE clauses. 
+
+
+#### process_pivot_auth
+Pivot aggregate process data into non-aggregate netflow event rows. 
+Static `pivot_columns` can be shown by executing the code below:
+```python
+from taegis_magic.pandas.process import AUTH_PIVOT_COLUMNS
+print(AUTH_PIVOT_COLUMNS) 
+```
+
+#### process_pivot_http
+Pivot aggregate process data into non-aggregate http event rows.
+Static `pivot_columns` can be shown by executing the code below:
+```python
+from taegis_magic.pandas.process import HTTP_PIVOT_COLUMNS
+print(HTTP_PIVOT_COLUMNS) 
+```
+
+#### process_pivot_netflow
+Pivot aggregate process data into non-aggregate http event rows.
+Static `pivot_columns` can be shown by executing the code below:
+```python
+from taegis_magic.pandas.process import NETFLOW_PIVOT_COLUMNS
+print(NETFLOW_PIVOT_COLUMNS) 
+```
