@@ -9,7 +9,6 @@ from taegis_sdk_python.services.trigger_action.types import (
     ExecuteActionInput,
     PlaybookActions,
     PlaybookActionsV2Arguments,
-    PlaybookExecution,
 )
 from typing_extensions import Annotated
 
@@ -80,12 +79,12 @@ def list_playbook_actions(
     page: Optional[int] = 1,
     per_page: Optional[int] = 50,
     region: Annotated[Optional[str], typer.Option(help="Taegis region")] = None,
-    tenant_id: Annotated[Optional[str], typer.Option(help="Taegis tenant ID")] = None,
+    tenant: Annotated[Optional[str], typer.Option(help="Taegis tenant ID")] = None,
 ):
     """
     List Playbook Actions
     """
-    service = get_service(environment=region, tenant_id=tenant_id)
+    service = get_service(environment=region, tenant_id=tenant)
     all_playbooks = []
 
     while True:
@@ -123,19 +122,24 @@ def list_playbook_actions(
 def execute_playbook_action(
     playbook_action_id: Annotated[str, typer.Option(help="Playbook Action ID to execute.")],
     target_resource_id: Annotated[str, typer.Option(help="Target resource ID for the action.")],
+    investigation_id: Annotated[Optional[str], typer.Option(help="Investigation ID to associate with the action.")] = None,
+    additional_inputs: Annotated[Optional[str], typer.Option(help="Additional inputs for the action.")] = None,
     reason: Annotated[Optional[str], typer.Option(help="Reason for action.")] = None,
     region: Annotated[Optional[str], typer.Option(help="Taegis region")] = None,
-    tenant_id: Annotated[Optional[str], typer.Option(help="Taegis tenant ID")] = None,
+    tenant: Annotated[Optional[str], typer.Option(help="Taegis tenant ID")] = None,
+
 ):
     """
     Execute a Playbook Action
     """
-    service = get_service(environment=region, tenant_id=tenant_id)
+    service = get_service(environment=region, tenant_id=tenant)
 
     input_data = ExecuteActionInput(
         playbook_action_id=playbook_action_id,
         target_resource_id=target_resource_id,
         reason=reason,
+        investigation_id=investigation_id,
+        additional_inputs=additional_inputs
     )
 
     execution = service.trigger_action.mutation.execute_action(input_data)
@@ -158,12 +162,12 @@ def execute_playbook_action(
 def get_playbook_execution_logs(
     playbook_execution_id: Annotated[str, typer.Option(help="Playbook Execution ID to retrieve logs for.")],
     region: Annotated[Optional[str], typer.Option(help="Taegis region")] = None,
-    tenant_id: Annotated[Optional[str], typer.Option(help="Taegis tenant ID")] = None,
+    tenant: Annotated[Optional[str], typer.Option(help="Taegis tenant ID")] = None,
 ):
     """
     Get Playbook Execution Logs.
     """
-    service = get_service(environment=region, tenant_id=tenant_id)
+    service = get_service(environment=region, tenant_id=tenant)
 
     endpoint = "playbookExecutionLogs"
     variables = {"playbookExecutionId": playbook_execution_id}
