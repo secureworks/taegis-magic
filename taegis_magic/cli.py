@@ -65,7 +65,6 @@ configure.set_defaults()
 
 @app.callback()
 def main(
-    ctx: typer.Context,
     warning: Annotated[
         bool,
         typer.Option(
