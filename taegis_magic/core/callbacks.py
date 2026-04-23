@@ -13,7 +13,7 @@ def verify_file(value: str):
 
     if fp.exists():
         while not overwrite in options:
-            overwrite = input(f"{fp} exists.  Overwrite [{'/'.join(options)}]? ")
+            overwrite = input(f"{fp} exists. Overwrite [{'/'.join(options)}]? ")
 
         if overwrite == "n":
             raise typer.Exit()
