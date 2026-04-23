@@ -574,7 +574,7 @@ def macros_path(
 @tracing
 def macros_reset():
     """Reset tenant macros to the bundled default resource."""
-    from taegis_magic.core.macros import DEFAULT_MACROS_PATH
+    from taegis_magic.core.macros import DEFAULT_MACROS_RESOURCE
 
     config = get_config()
     config.remove_option(MACROS_SECTION, "resource_path")
@@ -584,7 +584,7 @@ def macros_reset():
         service="configure",
         tenant_id="None",
         region="None",
-        raw_results=[dict(resource_path=str(DEFAULT_MACROS_PATH), status="reset")],
+        raw_results=[dict(resource_path=str(DEFAULT_MACROS_RESOURCE), status="reset")],
     )
     return results
 
@@ -593,10 +593,15 @@ def macros_reset():
 @tracing
 def macros_list():
     """List available tenant macros and the current resource path."""
-    from taegis_magic.core.macros import get_macros_config_path, load_macros
+    from taegis_magic.core.macros import (
+        DEFAULT_MACROS_RESOURCE,
+        _get_custom_macros_path,
+        load_macros,
+    )
 
-    macros_path = get_macros_config_path()
-    macro_defs = load_macros(macros_path)
+    custom_path = _get_custom_macros_path()
+    source = str(custom_path) if custom_path else str(DEFAULT_MACROS_RESOURCE)
+    macro_defs = load_macros(custom_path)
 
     results = ConfigurationNormalizer(
         service="configure",
@@ -604,7 +609,7 @@ def macros_list():
         region="None",
         raw_results=[
             dict(
-                resource_path=str(macros_path),
+                resource_path=source,
                 macros=[
                     dict(name=name, definition=definition)
                     for name, definition in macro_defs.items()

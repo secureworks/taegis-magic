@@ -8,11 +8,11 @@ import pytest
 import yaml
 
 from taegis_magic.core.macros import (
-    DEFAULT_MACROS_PATH,
+    DEFAULT_MACROS_RESOURCE,
     MACROS_SECTION,
     _build_tenants_queries,
     _fetch_tenant_ids,
-    get_macros_config_path,
+    _get_custom_macros_path,
     load_macros,
     resolve_tenants,
 )
@@ -55,15 +55,15 @@ def empty_yaml_file(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-class TestGetMacrosConfigPath:
-    def test_returns_default_when_no_config(self):
+class TestGetCustomMacrosPath:
+    def test_returns_none_when_no_config(self):
         mock_config = MagicMock()
         mock_config.has_section.return_value = False
 
         with patch("taegis_magic.core.macros.get_config", return_value=mock_config):
-            result = get_macros_config_path()
+            result = _get_custom_macros_path()
 
-        assert result == DEFAULT_MACROS_PATH
+        assert result is None
 
     def test_returns_custom_path_when_configured(self, tmp_path):
         custom_file = tmp_path / "custom_macros.yaml"
@@ -75,20 +75,20 @@ class TestGetMacrosConfigPath:
         mock_config.get.return_value = str(custom_file)
 
         with patch("taegis_magic.core.macros.get_config", return_value=mock_config):
-            result = get_macros_config_path()
+            result = _get_custom_macros_path()
 
         assert result == custom_file
 
-    def test_falls_back_when_custom_path_missing(self):
+    def test_returns_none_when_custom_path_missing(self):
         mock_config = MagicMock()
         mock_config.has_section.return_value = True
         mock_config.has_option.return_value = True
         mock_config.get.return_value = "/nonexistent/macros.yaml"
 
         with patch("taegis_magic.core.macros.get_config", return_value=mock_config):
-            result = get_macros_config_path()
+            result = _get_custom_macros_path()
 
-        assert result == DEFAULT_MACROS_PATH
+        assert result is None
 
 
 # ---------------------------------------------------------------------------
@@ -114,8 +114,14 @@ class TestLoadMacros:
         macros = load_macros(empty_yaml_file)
         assert macros == {}
 
-    def test_loads_default_macros_file(self):
-        macros = load_macros(DEFAULT_MACROS_PATH)
+    def test_loads_default_macros_resource(self):
+        """Loading with no args and no custom config uses the bundled resource."""
+        mock_config = MagicMock()
+        mock_config.has_section.return_value = False
+
+        with patch("taegis_magic.core.macros.get_config", return_value=mock_config):
+            macros = load_macros()
+
         assert "mdr" in macros
         assert "services" in macros["mdr"]
 

@@ -5,6 +5,7 @@ using the tenantsv4 API, with macro definitions stored in a YAML resource.
 """
 
 import logging
+from importlib.resources import files
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -21,15 +22,11 @@ from taegis_sdk_python.services.tenants4.types import (
 log = logging.getLogger(__name__)
 
 MACROS_SECTION = "magics.macros"
-DEFAULT_MACROS_PATH = Path(__file__).parent.parent / "resources" / "default_macros.yaml"
+DEFAULT_MACROS_RESOURCE = files("taegis_magic.resources").joinpath("default_macros.yaml")
 
 
-def get_macros_config_path() -> Path:
-    """Return the path to the macros YAML resource.
-
-    Checks the SDK config for a custom path override, falling
-    back to the bundled default.
-    """
+def _get_custom_macros_path() -> Optional[Path]:
+    """Return a custom macros path from config, if set and valid."""
     config = get_config()
 
     if config.has_section(MACROS_SECTION) and config.has_option(
@@ -43,7 +40,7 @@ def get_macros_config_path() -> Path:
             custom_path,
         )
 
-    return DEFAULT_MACROS_PATH
+    return None
 
 
 def load_macros(path: Optional[Path] = None) -> Dict[str, Any]:
@@ -52,23 +49,30 @@ def load_macros(path: Optional[Path] = None) -> Dict[str, Any]:
     Parameters
     ----------
     path
-        Path to the YAML file.  Uses the configured path when ``None``.
+        Path to a custom YAML file.  When ``None``, checks the SDK
+        config for a custom path, then falls back to the bundled
+        default resource via ``importlib.resources``.
 
     Returns
     -------
     dict
         Mapping of macro name to its definition dict.
     """
-    if path is None:
-        path = get_macros_config_path()
+    if path is not None:
+        if not path.exists():
+            log.warning("Macros file %s not found", path)
+            return {}
+        with open(path, "r") as fh:
+            data = yaml.safe_load(fh) or {}
+        return data.get("macros", {})
 
-    if not path.exists():
-        log.warning("Macros file %s not found", path)
-        return {}
+    custom_path = _get_custom_macros_path()
+    if custom_path is not None:
+        with open(custom_path, "r") as fh:
+            data = yaml.safe_load(fh) or {}
+        return data.get("macros", {})
 
-    with open(path, "r") as fh:
-        data = yaml.safe_load(fh) or {}
-
+    data = yaml.safe_load(DEFAULT_MACROS_RESOURCE.read_text()) or {}
     return data.get("macros", {})
 
 
@@ -84,35 +88,35 @@ def _build_tenants_queries(macro_def: Dict[str, Any]) -> List[TenantsQuery]:
     """
     base_kwargs: Dict[str, Any] = {}
 
-    if names := macro_def.get("names"):
-        base_kwargs["names"] = names
+    # if names := macro_def.get("names"):
+    #     base_kwargs["names"] = names
 
-    if ids := macro_def.get("ids"):
-        base_kwargs["ids"] = ids
+    # if ids := macro_def.get("ids"):
+    #     base_kwargs["ids"] = ids
 
-    if partners := macro_def.get("partners"):
-        base_kwargs["partners"] = partners
+    # if partners := macro_def.get("partners"):
+    #     base_kwargs["partners"] = partners
 
-    if organizations := macro_def.get("organizations"):
-        base_kwargs["organizations"] = organizations
+    # if organizations := macro_def.get("organizations"):
+    #     base_kwargs["organizations"] = organizations
 
-    if hierarchies := macro_def.get("hierarchies"):
-        base_kwargs["hierarchies"] = hierarchies
+    # if hierarchies := macro_def.get("hierarchies"):
+    #     base_kwargs["hierarchies"] = hierarchies
 
-    if mdr_providers := macro_def.get("mdr_providers"):
-        base_kwargs["mdr_providers"] = mdr_providers
+    # if mdr_providers := macro_def.get("mdr_providers"):
+    #     base_kwargs["mdr_providers"] = mdr_providers
 
-    if labels := macro_def.get("labels"):
-        base_kwargs["labels_match"] = [
-            TenantLabelMatcher(
-                name=label.get("name"),
-                value=label.get("value"),
-            )
-            for label in labels
-        ]
+    # if labels := macro_def.get("labels"):
+    #     base_kwargs["labels_match"] = [
+    #         TenantLabelMatcher(
+    #             name=label.get("name"),
+    #             value=label.get("value"),
+    #         )
+    #         for label in labels
+    #     ]
 
-    if (enabled := macro_def.get("enabled")) is not None:
-        base_kwargs["enabled"] = enabled
+    # if (enabled := macro_def.get("enabled")) is not None:
+    #     base_kwargs["enabled"] = enabled
 
     services = macro_def.get("services")
     if not services:
