@@ -88,35 +88,6 @@ def _build_tenants_queries(macro_def: Dict[str, Any]) -> List[TenantsQuery]:
     """
     base_kwargs: Dict[str, Any] = {}
 
-    # if names := macro_def.get("names"):
-    #     base_kwargs["names"] = names
-
-    # if ids := macro_def.get("ids"):
-    #     base_kwargs["ids"] = ids
-
-    # if partners := macro_def.get("partners"):
-    #     base_kwargs["partners"] = partners
-
-    # if organizations := macro_def.get("organizations"):
-    #     base_kwargs["organizations"] = organizations
-
-    # if hierarchies := macro_def.get("hierarchies"):
-    #     base_kwargs["hierarchies"] = hierarchies
-
-    # if mdr_providers := macro_def.get("mdr_providers"):
-    #     base_kwargs["mdr_providers"] = mdr_providers
-
-    # if labels := macro_def.get("labels"):
-    #     base_kwargs["labels_match"] = [
-    #         TenantLabelMatcher(
-    #             name=label.get("name"),
-    #             value=label.get("value"),
-    #         )
-    #         for label in labels
-    #     ]
-
-    # if (enabled := macro_def.get("enabled")) is not None:
-    #     base_kwargs["enabled"] = enabled
 
     services = macro_def.get("services")
     if not services:
@@ -166,19 +137,15 @@ def _fetch_tenant_ids(
     unioned (deduplicated) to achieve OR semantics across services.
     """
     service = get_service(environment=region)
-    seen: set = set()
-    tenant_ids: List[str] = []
+    tenant_ids: set = set()
 
     for query in queries:
-        for tid in _fetch_tenant_ids_single(service, query):
-            if tid not in seen:
-                seen.add(tid)
-                tenant_ids.append(tid)
+        tenant_ids.update(_fetch_tenant_ids_single(service, query))
 
     log.info("Macro resolved to %d unique tenant(s) from %d query(ies)",
              len(tenant_ids), len(queries))
 
-    return tenant_ids
+    return list(tenant_ids)
 
 
 def resolve_tenants(

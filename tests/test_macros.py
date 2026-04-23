@@ -246,7 +246,8 @@ class TestFetchTenantIds:
         queries = _build_tenants_queries({"services": ["MDR"]})
         result = _fetch_tenant_ids(queries, region="charlie")
 
-        assert result == ["100", "200"]
+        assert set(result) == {"100", "200"}
+        assert len(result) == 2
         mock_service.tenants4.query.tenants.assert_called_once()
 
     @patch("taegis_magic.core.macros.get_service")
@@ -268,7 +269,8 @@ class TestFetchTenantIds:
         queries = _build_tenants_queries({"services": ["MDR"]})
         result = _fetch_tenant_ids(queries, region="charlie")
 
-        assert result == ["100", "200"]
+        assert set(result) == {"100", "200"}
+        assert len(result) == 2
         assert mock_service.tenants4.query.tenants.call_count == 2
 
     @patch("taegis_magic.core.macros.get_service")
@@ -290,5 +292,6 @@ class TestFetchTenantIds:
         queries = _build_tenants_queries({"services": ["MDR", "MXDR POC"]})
         result = _fetch_tenant_ids(queries, region="charlie")
 
-        assert result == ["100", "200", "300"]
+        assert set(result) == {"100", "200", "300"}
+        assert len(result) == 3
         assert mock_service.tenants4.query.tenants.call_count == 2
