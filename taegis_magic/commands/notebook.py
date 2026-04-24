@@ -595,6 +595,6 @@ def _get_remote_notebook_status(service: GraphQLService) -> Notebook:
     notebook = Notebook(status=NOTEBOOK_STATUS.UNKNOWN)
     try:
         notebook = service.notebooks.query.notebook()
-    except Exception:
-        None
+    except Exception as exc:
+        log.exception(f"Failed to retrieve remote notebook status: {exc}")
     return notebook

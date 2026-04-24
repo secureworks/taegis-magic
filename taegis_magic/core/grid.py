@@ -68,9 +68,8 @@ def data_grid(
         df = df.head(limit)
 
     if validate_data:
-        # targeting pandas 2.0+, should update to just 'map' when we want to move to 2.1+
         log.debug("Validating dataframe...")
-        df = df.applymap(validate_data_map, na_action="ignore")
+        df.map(validate_data_map, na_action="ignore")
 
     if "share_link" in df.columns:
         if "renderers" not in kwargs:

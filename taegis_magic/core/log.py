@@ -29,8 +29,6 @@ def trace(self: logging.Logger, message: str, *args, **kwargs):
 
 logging.Logger.trace = trace
 
-log = logging.getLogger(__name__)
-
 
 def get_module_logger() -> logging.Logger:
     """
@@ -43,16 +41,28 @@ def get_module_logger() -> logging.Logger:
     """
     logger = logging.getLogger("taegis_magic")
     logger.propagate = False
-    logger.handlers = []
-
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        "%(asctime)s::%(levelname)s::%(name)s::%(message)s", datefmt="%Y-%m-%dT%H:%M:%S"
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            "%(asctime)s::%(levelname)s::%(name)s::%(message)s"
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
     return logger
+
+
+def get_sdk_logger() -> logging.Logger:
+    """
+    Get the taegis_sdk_python logger
+
+    Returns
+    -------
+    logging.Logger
+        taegis_sdk_python module logger
+    """
+
+    return logging.getLogger("taegis_sdk_python")
 
 
 def tracing(func: Callable):
@@ -67,6 +77,7 @@ def tracing(func: Callable):
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+        log = logging.getLogger(func.__module__)
         log.trace(f"Entering {func.__name__}(args: {args}, kwargs: {kwargs})...")
 
         try:

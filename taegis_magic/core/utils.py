@@ -1,8 +1,12 @@
 from typing import Any, Dict, List, Optional
 
+import logging
 import pandas as pd
 
 from taegis_sdk_python import GraphQLService
+
+
+log = logging.getLogger(__name__)
 
 
 def get_tenant_id_column(df: pd.DataFrame) -> str:
@@ -69,6 +73,7 @@ def remove_output_node(
     try:
         start_idx = output.index(f" {node} ", start, end) + 1
     except ValueError:
+        log.debug(f"Failed to remove node '{node}' from GraphQL string, it does not exist. {str}")
         return output
 
     end_idx = None
