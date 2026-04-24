@@ -72,7 +72,7 @@ class TaegisResultsNormalizer:
         return template.render(obj=self)
 
 class TaegisResultWithMessage(TaegisResultsNormalizer):
-    """Shows a message inin output"""
+    """Shows a message in output"""
 
     def _repr_markdown_(self):
         """Represent as markdown."""
