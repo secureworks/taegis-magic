@@ -149,6 +149,12 @@ class TaegisMagics(Magics):
 
         if magic_args and magic_args.cell_template:
             template_environment = load_jinja2_template_environment()
+
+            from taegis_magic.core.filters import earliest_filter, latest_filter, clear_chunking_registry
+            clear_chunking_registry()
+            template_environment.filters["earliest"] = earliest_filter
+            template_environment.filters["latest"] = latest_filter
+
             try:
                 if magic_args.cell_template_file:
                     template = template_environment.get_template(
@@ -216,10 +222,24 @@ class TaegisMagics(Magics):
             command_args.extend(["--cell", cell])
 
         # os.environ["TAEGIS_MAGIC_OUTPUT"] = "True"
-        try:
-            result = app(command_args, prog_name="taegis", standalone_mode=False)
-        except (SystemExit, TransportQueryError):
-            result = None
+        from taegis_magic.core.filters import get_chunking_schedule
+        chunking_schedule = get_chunking_schedule(cell) if cell else None
+
+        if chunking_schedule:
+            self.shell.user_ns["_taegis_magic_chunking_schedule"] = chunking_schedule
+
+            from taegis_magic.core.chunked_search import execute_chunked_search_from_magic
+            result = execute_chunked_search_from_magic(
+                cell=cell,
+                command_args=command_args,
+                chunking_schedule=chunking_schedule,
+                app_fn=app,
+            )
+        else:
+            try:
+                result = app(command_args, prog_name="taegis", standalone_mode=False)
+            except (SystemExit, TransportQueryError):
+                result = None
         # os.environ["TAEGIS_MAGIC_OUTPUT"] = "False"
 
         if not result:
