@@ -1,0 +1,29 @@
+# Taegis Magic Tenant Macros
+#
+# Each macro defines a shorthand that expands to a tenantsv4 tenant query.
+# Use macros in the --tenant flag with an @ prefix, e.g.: --tenant @mdr
+#
+# Supported fields per macro:
+#   services       - List of tenant service/subscription names to match
+#                    (supports * wildcard, e.g. "*MDR*")
+#   names          - List of tenant name patterns (supports * wildcard)
+#   ids            - List of specific tenant IDs
+#   partners       - List of partner tenant IDs to search under
+#   organizations  - List of organization tenant IDs to search under
+#   hierarchies    - List of hierarchy IDs (partners, orgs, or customers)
+#   mdr_providers  - List of MDR provider IDs to filter by
+#   labels         - List of {name, value} label matchers (supports * wildcard)
+#   enabled        - Boolean, filter to tenants enabled in the current region
+#
+# Note: Multiple services use OR logic (tenants matching ANY service).
+# The SubscriptionMatcher "name" field supports * as wildcard.
+
+macros:
+  mdr:
+    services:
+      - "*ManagedXDR Essentials*"
+      - "*MDR*"
+      - "*Dell SafeGuard*"
+      - "*MXDR POC*"
+      - "*EIR Monitoring*"
+      - "*iSensor Only*"

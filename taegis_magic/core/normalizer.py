@@ -1,5 +1,6 @@
 """Taegis Base Normalizer."""
 
+import logging
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Union
 
@@ -90,6 +91,67 @@ class TaegisResults(TaegisResultsNormalizer):
     @property
     def results(self):
         return [asdict(r) for r in self.raw_results]
+
+
+log = logging.getLogger(__name__)
+
+
+def merge_normalizer_results(
+    results: List[TaegisResultsNormalizer],
+) -> TaegisResultsNormalizer:
+    """Merge multiple normalizer results from a multi-tenant macro execution.
+
+    Each result's individual records are tagged with ``_macro_tenant_id``
+    so the originating tenant is preserved after merging.
+
+    Parameters
+    ----------
+    results
+        Normalizer instances to merge, one per tenant execution.
+
+    Returns
+    -------
+    TaegisResultsNormalizer
+        A single normalizer with all results combined.
+    """
+    if not results:
+        return TaegisResultsNormalizer(
+            service="unknown",
+            tenant_id="None",
+            region="None",
+        )
+
+    if len(results) == 1:
+        return results[0]
+
+    merged_raw: List[Dict[str, Any]] = []
+    tenant_ids: List[str] = []
+
+    for normalizer in results:
+        tid = normalizer.tenant_id
+        tenant_ids.append(tid)
+        for record in normalizer.results:
+            tagged = dict(record)
+            tagged["_macro_tenant_id"] = tid
+            merged_raw.append(tagged)
+
+    first = results[0]
+
+    merged = TaegisResultsNormalizer(
+        service=first.service,
+        tenant_id=", ".join(tenant_ids),
+        region=first.region,
+        raw_results=merged_raw,
+        arguments=first.arguments,
+    )
+
+    log.info(
+        "Merged results from %d tenants (%d total records)",
+        len(results),
+        len(merged_raw),
+    )
+
+    return merged
 
 
 @dataclass_json
