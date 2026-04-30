@@ -126,7 +126,7 @@ def process_correlate_netflow(
             
     # Retrieve netflow data that correlates with process data in batches. 
     template = jinja_env.get_template(PROCESS_PIPE_TEMPLATE)
-    for chunk in chunk_list(pids, 100):
+    for chunk in chunk_list(pids, 40):
         netflow_correlation_ids = [NetflowCorrelationId(part[0], part[1], part[2]) for part in (pid.split(":") for pid in chunk)]
         
         query = template.render(table=NETFLOW, filters=netflow_correlation_ids, earliest=f"-{earliest}")
