@@ -21,9 +21,9 @@ jinja_env = Environment(loader=PackageLoader("taegis_magic","templates/process")
 PROCESS_PIPE_TEMPLATE = "process_pipe_template.jinja"
 
 NETFLOW_PIVOT_COLUMNS = ["host_id", "sensor_id", "sensor_tenant", "sensor_type", "tenant_id"]
-HTTP_PIVOT_COLUMNS = ["host_id", "process_correlation_id", "resource_id", "sensor_id", "sensor_type", "tenant_id"]
-AUTH_PIVOT_COLUMNS = ["host_id", "process_correlation_id", "resource_id", "sensor_id", "sensor_type", "tenant_id"]
-DETECTIONFINDING_PIVOT_COLUMNS = ["host_id", "resource_id", "sensor_id", "sensor_tenant", "sensor_type", "tenant_id"]
+HTTP_PIVOT_COLUMNS = ["host_id", "process_correlation_id", "sensor_id", "sensor_type", "tenant_id"]
+AUTH_PIVOT_COLUMNS = ["host_id", "process_correlation_id", "sensor_id", "sensor_type", "tenant_id"]
+DETECTIONFINDING_PIVOT_COLUMNS = ["host_id", "sensor_id", "sensor_tenant", "sensor_type", "tenant_id"]
 
 NETFLOW = "netflow"
 HTTP = "HTTP"
