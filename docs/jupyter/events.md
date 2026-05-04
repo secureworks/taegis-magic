@@ -18,6 +18,15 @@ EARLIEST=-1h | head 5
 
 **Note:** The Event Schema provided is an example, this data returned will be dependant on integrations configured with Taegis and normalized into individual schemas.
 
+### Size
+
+Configuration of the events page size can be determined with the `taegis configure` command. 
+
+Example
+```shell
+taegis configure queries page-size events [size]
+```
+
 ### Convert Timestamps
 
 Timestamps returned by the Events API are in Unix epoch timestamp integers.  These can be converted into human readable timestamps with the pipe function `convert_event_timestamps`.  This creates a new set of columns with `taegis_magic.` prepended to the timestamp related columns.
