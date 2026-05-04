@@ -15,6 +15,7 @@ from IPython.core.magic_arguments import argument, magic_arguments, parse_argstr
 from IPython.display import display, display_markdown
 from jinja2 import TemplateSyntaxError
 from taegis_magic.cli import app
+from taegis_magic.commands.configure import QUERIES_SECTION, DisableReturnDisplay
 from taegis_magic.core.cache import (
     decode_base64_obj_as_pickle,
     display_cache,
@@ -26,9 +27,8 @@ from taegis_magic.core.notebook import (
     save_notebook,
 )
 
-from taegis_sdk_python.templates import load_jinja2_template_environment
 from taegis_sdk_python.config import get_config
-from taegis_magic.commands.configure import QUERIES_SECTION, DisableReturnDisplay
+from taegis_sdk_python.templates import load_jinja2_template_environment
 
 log = logging.getLogger(__name__)
 

@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
-
 from taegis_magic.core.macros import (
     DEFAULT_MACROS_RESOURCE,
     MACROS_SECTION,
@@ -16,7 +15,6 @@ from taegis_magic.core.macros import (
     load_macros,
     resolve_tenants,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -157,9 +155,7 @@ class TestBuildTenantsQueries:
 
     def test_services_with_base_filters_propagated(self):
         """Base filters like enabled should appear on every per-service query."""
-        macro_def = {
-            "services": ["MDR", "MXDR POC"]
-        }
+        macro_def = {"services": ["MDR", "MXDR POC"]}
         queries = _build_tenants_queries(macro_def)
         assert len(queries) == 2
 
