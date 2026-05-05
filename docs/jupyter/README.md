@@ -119,4 +119,5 @@ taegis notebook execute sample.ipynb --tenant XXXXX --region charlie --title "My
 * [Investigations](investigations.md) 
 * [Rules](rules.md)
 * [Threat](threat.md)
+* [Tenant Macros](macros.md)
 * [Save Notebook and Save Report](save_report.md)
