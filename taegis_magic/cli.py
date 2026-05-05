@@ -17,6 +17,7 @@ from taegis_magic.commands import (
     events,
     investigations,
     notebook,
+    orchestration,
     preferences,
     process_trees,
     rules,
@@ -63,7 +64,7 @@ app.add_typer(tenants.app, name="tenants")
 app.add_typer(threat.app, name="threat")
 app.add_typer(users.app, name="users")
 app.add_typer(process_trees.app, name="process-trees")
-
+app.add_typer(orchestration.app, name="orchestration")
 CONFIG = configure.set_defaults()
 
 
