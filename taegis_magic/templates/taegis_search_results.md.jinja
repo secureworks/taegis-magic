@@ -8,6 +8,13 @@ ID: *{{ obj.query_identifier }}*
 |Region          |Tenant             |Service          |Status          |Num. Total                      |Num. Aggregates           |
 |----------------|-------------------|-----------------|----------------|--------------------------------|--------------------------|
 |{{ obj.region }}|{{ obj.tenant_id }}|{{ obj.service }}|{{ obj.status }}|{{ obj.total_results|validate_int }}|{{ obj.aggregate|length }}|
+{% elif obj._chunk_results is defined and obj._chunk_results -%}
+|Chunk|Region          |Tenant             |Service          |Status          |Num. Returned                          |Query ID                |Link                   |
+|-----|----------------|-------------------|-----------------|----------------|---------------------------------------|:-----------------------|:----------------------|
+{% for chunk in obj._chunk_results -%}
+|{{ loop.index }}|{{ chunk.region }}|{{ chunk.tenant_id }}|{{ chunk.service }}|{{ chunk.status }}|{{ chunk.results_returned|validate_int }}|{{ chunk.query_identifier or 'N/A' }}|{{ chunk.shareable_url }}|
+{% endfor -%}
+|**Total**| | | | |**{{ obj.results_returned|validate_int }}**| | |
 {% else %}
 |Region          |Tenant             |Service          |Status          |Num. Total                          |Num. Returned                          |Link                   |
 |----------------|-------------------|-----------------|----------------|------------------------------------|---------------------------------------|:----------------------|
