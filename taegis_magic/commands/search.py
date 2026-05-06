@@ -53,10 +53,11 @@ def nl_search_generate(
         Optional[int], typer.Option(help="Limit number of results")
     ] = None,
     database: Annotated[str, typer.Option()] = ":memory:",
+    tenant: Annotated[Optional[str], typer.Option(help="Taegis Tenant")] = None,
     region: Annotated[Optional[str], typer.Option(help="Taegis Region")] = None,
 ):
     """Generate Taegis QL from natural language query."""
-    service = get_service(environment=region)
+    service = get_service(tenant_id=tenant, environment=region)
 
     if limit:
         log.warning(
