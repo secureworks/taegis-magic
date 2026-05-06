@@ -9,6 +9,7 @@ import typer
 from dataclasses_json import dataclass_json
 from taegis_magic.commands.configure import QUERIES_SECTION
 from taegis_magic.commands.utils.investigations import insert_search_query
+from taegis_magic.commands.utils.nl_queries import insert_nl_search_query
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResults, TaegisResultsNormalizer
 from taegis_magic.core.service import get_service
@@ -20,6 +21,7 @@ from taegis_sdk_python.services.events.types import (
     EventQueryOptions,
     EventQueryResults,
 )
+from taegis_sdk_python.services.llm_service.types import NLSearchInputsV2
 from taegis_sdk_python.services.rules.types import RuleEventType
 from taegis_sdk_python.services.sharelinks.types import (
     ExtraParamCreateInput,
@@ -217,6 +219,7 @@ def search(
         fallback=False,
     ),
     database: Annotated[str, typer.Option()] = ":memory:",
+    ai: Annotated[bool, typer.Option()] = False,
 ):
     """Taegis Events search."""
     if not cell:
@@ -230,6 +233,29 @@ def search(
         aggregation_off=False,
     )
     results = []
+
+    if ai:
+        llm_results = service.llm_service.query.nl_search_v2(
+            in_=NLSearchInputsV2(
+                query=cell,
+            )
+        )
+        log.info(f"LLM Search Results: {llm_results}")
+
+        if not llm_results.ql:
+            raise ValueError("LLM did not return a query. Cannot proceed with search.")
+
+        if (
+            "from alert" in llm_results.ql.lower()
+            or "from detection" in llm_results.ql.lower()
+        ):
+            raise ValueError(
+                "LLM did not return a query targeting the alerts service. Cannot proceed with search."
+            )
+
+        insert_nl_search_query(database, cell, llm_results)
+
+        cell = llm_results.ql
 
     result = service.events.subscription.event_query(
         cell,
