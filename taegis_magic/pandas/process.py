@@ -21,12 +21,14 @@ jinja_env = Environment(loader=PackageLoader("taegis_magic","templates/process")
 PROCESS_PIPE_TEMPLATE = "process_pipe_template.jinja"
 
 NETFLOW_PIVOT_COLUMNS = ["host_id", "sensor_id", "sensor_tenant", "sensor_type", "tenant_id"]
-HTTP_PIVOT_COLUMNS = ["host_id", "process_correlation_id", "resource_id", "sensor_id", "sensor_type", "tenant_id"]
-AUTH_PIVOT_COLUMNS = ["host_id", "process_correlation_id", "resource_id", "sensor_id", "sensor_type", "tenant_id"]
+HTTP_PIVOT_COLUMNS = ["host_id", "process_correlation_id", "sensor_id", "sensor_type", "tenant_id"]
+AUTH_PIVOT_COLUMNS = ["host_id", "process_correlation_id", "sensor_id", "sensor_type", "tenant_id"]
+DETECTIONFINDING_PIVOT_COLUMNS = ["host_id", "sensor_id", "sensor_tenant", "sensor_type", "tenant_id"]
 
 NETFLOW = "netflow"
 HTTP = "HTTP"
 AUTH = "AUTH"
+DETECTIONFINDING = "detectionfinding"
 
 CONFIG = get_config()
 if not CONFIG.has_section(QUERIES_SECTION):
@@ -124,7 +126,7 @@ def process_correlate_netflow(
             
     # Retrieve netflow data that correlates with process data in batches. 
     template = jinja_env.get_template(PROCESS_PIPE_TEMPLATE)
-    for chunk in chunk_list(pids, 100):
+    for chunk in chunk_list(pids, 40):
         netflow_correlation_ids = [NetflowCorrelationId(part[0], part[1], part[2]) for part in (pid.split(":") for pid in chunk)]
         
         query = template.render(table=NETFLOW, filters=netflow_correlation_ids, earliest=f"-{earliest}")
@@ -223,6 +225,19 @@ def process_pivot_auth(
     """Pivot aggregate process data into non-aggregate http event rows."""
 
     return _process_pivot_with_map(df, region, tenant_id, PROCESS_PIPE_TEMPLATE, AUTH, AUTH_PIVOT_COLUMNS, pivot_map, earliest)
+
+
+def process_pivot_detectionfinding(
+    df: pd.DataFrame,
+    *,
+    region: str,
+    tenant_id: str,
+    pivot_map: Optional[Mapping[str, str]] = None,
+    earliest: Optional[str] = "1d"
+) -> pd.DataFrame:
+    """Pivot aggregate process data into non-aggregate detectionfinding event rows."""
+
+    return _process_pivot_with_map(df, region, tenant_id, PROCESS_PIPE_TEMPLATE, DETECTIONFINDING, DETECTIONFINDING_PIVOT_COLUMNS, pivot_map, earliest)
 
 
 def _execute_pivot_subqueries(
