@@ -15,14 +15,13 @@ from typing import Any, Dict, List, Optional, Union
 import requests
 import typer
 from dataclasses_json import config, dataclass_json
+from taegis_magic.commands.utils._database import find_database, find_dataframe
 from taegis_magic.commands.utils.investigations import (
     InvestigationEvidenceChanges,
     InvestigationEvidenceNormalizer,
     InvestigationEvidenceType,
     clear_search_queries,
     delete_search_query,
-    find_database,
-    find_dataframe,
     get_investigation_evidence,
     insert_search_query,
     list_search_queries,

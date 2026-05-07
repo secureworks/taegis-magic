@@ -9,6 +9,7 @@ import typer
 from dataclasses_json import config, dataclass_json
 from taegis_magic.commands.configure import QUERIES_SECTION
 from taegis_magic.commands.utils.investigations import insert_search_query
+from taegis_magic.commands.utils.nl_queries import insert_nl_search_query
 from taegis_magic.core.log import tracing
 from taegis_magic.core.macros import resolve_tenants
 from taegis_magic.core.normalizer import (
@@ -34,6 +35,7 @@ from taegis_sdk_python.services.alerts.types import (
     PollRequestInput,
     SearchRequestInput,
 )
+from taegis_sdk_python.services.llm_service.types import NLSearchInputsV2
 from taegis_sdk_python.services.sharelinks.types import (
     ExtraParamCreateInput,
     ShareLinkCreateInput,
@@ -267,9 +269,34 @@ def _search_single_tenant(
     tenant_id: Optional[str],
     limit: int,
     graphql_output: Optional[str],
+    ai: bool = False,
+    database: str = ":memory:",
 ) -> AlertsResultsNormalizer:
     """Execute an alerts search against a single tenant."""
     service = get_service(environment=region, tenant_id=tenant_id)
+
+    if ai:
+        llm_results = service.llm_service.query.nl_search_v2(
+            in_=NLSearchInputsV2(
+                query=cell,
+            )
+        )
+        log.info(f"LLM Search Results: {llm_results}")
+
+        if not llm_results.ql:
+            raise ValueError("LLM did not return a query. Cannot proceed with search.")
+
+        if (
+            "from alert" not in llm_results.ql.lower()
+            and "from detection" not in llm_results.ql.lower()
+        ):
+            raise ValueError(
+                "LLM did not return a query targeting the alerts service. Cannot proceed with search."
+            )
+
+        insert_nl_search_query(database, cell, llm_results)
+
+        cell = llm_results.ql
 
     with service(output=graphql_output):
         result = alerts_service_search_with_events(
@@ -346,6 +373,7 @@ def search(
         "track", fallback=False
     ),
     database: Annotated[str, typer.Option()] = ":memory:",
+    ai: Annotated[bool, typer.Option()] = False,
 ) -> Optional[AlertsResultsNormalizer]:
     """
     Search Taegis Alerts service.
@@ -361,7 +389,7 @@ def search(
     tenant_ids = resolve_tenants(tenant, region)
 
     all_results = [
-        _search_single_tenant(cell, region, tid, limit, graphql_output)
+        _search_single_tenant(cell, region, tid, limit, graphql_output, ai, database)
         for tid in tenant_ids
     ]
 
