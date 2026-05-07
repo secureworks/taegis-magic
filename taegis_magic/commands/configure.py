@@ -22,6 +22,9 @@ app = typer.Typer(help="Taegis Magic Configuration Commands.")
 auth = typer.Typer(help="Configure Authentication options.")
 regions = typer.Typer(help="Configure Addtional Regions Commands.")
 queries = typer.Typer(help="Configure Default Query Commands.")
+queries_page_size = typer.Typer(
+    help="Configure default page size for Alert/Event queries."
+)
 configure_logging = typer.Typer(help="Configure Magic Logging Commands.")
 middlewares = typer.Typer(help="Configure HTTP Middleware modules.")
 middlewares_retry = typer.Typer(help="Configure HTTP Retry middleware.")
@@ -30,6 +33,8 @@ template = typer.Typer(help="Configure Template options.")
 macros = typer.Typer(help="Configure Tenant Macro Commands.")
 
 middlewares.add_typer(middlewares_retry, name="retry")
+
+queries.add_typer(queries_page_size, name="page-size")
 
 app.add_typer(auth, name="auth")
 app.add_typer(macros, name="macros")
@@ -46,6 +51,9 @@ REGIONS_SECTION = "magics.regions"
 QUERIES_SECTION = "magics.queries"
 LOGGING_SECTION = "magics.logging"
 MIDDLEWARES_SECTION = "magics.middlewares"
+
+QUERIES_PAGE_SIZE_DETECTIONS_DEFAULT = 10_000
+QUERIES_PAGE_SIZE_EVENTS_DEFAULT = 10_000
 
 
 class UseUniversalAuthOptions(str, Enum):
@@ -141,6 +149,22 @@ def set_defaults():  # pragma: no cover
     ###
     if not config.has_option(QUERIES_SECTION, "track"):
         config[QUERIES_SECTION]["track"] = "no"
+
+    if not config.has_option(QUERIES_SECTION, "disable-return-display"):
+        config[QUERIES_SECTION]["disable-return-display"] = "off"
+
+    if not config.has_option(QUERIES_SECTION, "callername"):
+        config[QUERIES_SECTION]["callername"] = "Taegis Magic"
+
+    if not config.has_option(QUERIES_SECTION, "page-size.alerts"):
+        config[QUERIES_SECTION]["page-size.alerts"] = str(
+            QUERIES_PAGE_SIZE_DETECTIONS_DEFAULT
+        )
+
+    if not config.has_option(QUERIES_SECTION, "page-size.events"):
+        config[QUERIES_SECTION]["page-size.events"] = str(
+            QUERIES_PAGE_SIZE_EVENTS_DEFAULT
+        )
 
     ###
     # Logging Defaults
@@ -299,6 +323,44 @@ def queries_track(status: QueriesTrack = QueriesTrack.no):
         tenant_id="None",
         region="None",
         raw_results=[dict(status=status.value)],
+    )
+    return results
+
+
+@queries_page_size.command(name="alerts")
+@tracing
+def queries_page_size_alerts(size: int = QUERIES_PAGE_SIZE_DETECTIONS_DEFAULT):
+    """Configure Alert/Event query page size by default."""
+    write_to_config(
+        QUERIES_SECTION,
+        "page-size.alerts",
+        str(size),
+    )
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[dict(page_size=size)],
+    )
+    return results
+
+
+@queries_page_size.command(name="events")
+@tracing
+def queries_page_size_events(size: int = QUERIES_PAGE_SIZE_EVENTS_DEFAULT):
+    """Configure Alert/Event query page size by default."""
+    write_to_config(
+        QUERIES_SECTION,
+        "page-size.events",
+        str(size),
+    )
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[dict(page_size=size)],
     )
     return results
 

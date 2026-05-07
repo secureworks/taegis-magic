@@ -228,7 +228,7 @@ def search(
     service = get_service(tenant_id=tenant, environment=region)
     options = EventQueryOptions(
         timestamp_ascending=True,
-        page_size=1000,
+        page_size=CONFIG[QUERIES_SECTION].getint("page-size.events", fallback=10_000),
         max_rows=100000,
         aggregation_off=False,
     )

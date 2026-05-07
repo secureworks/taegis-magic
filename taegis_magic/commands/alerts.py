@@ -367,7 +367,7 @@ def search(
     cell: Optional[str] = None,
     region: Optional[str] = None,
     tenant: Optional[str] = None,
-    limit: int = 10000,
+    limit: int = CONFIG[QUERIES_SECTION].getint("page-size.alerts", fallback=10_000),
     graphql_output: Optional[str] = None,
     track: Annotated[bool, typer.Option()] = CONFIG[QUERIES_SECTION].getboolean(
         "track", fallback=False

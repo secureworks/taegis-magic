@@ -14,10 +14,7 @@ from taegis_magic.core.service import get_service
 from typing_extensions import Annotated
 
 from taegis_sdk_python.services.threat.types import ThreatParentType
-
-from taegis_sdk_python.services.threat_publications.types import (
-    ThreatPublication,
-)
+from taegis_sdk_python.services.threat_publications.types import ThreatPublication
 
 log = logging.getLogger(__name__)
 

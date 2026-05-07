@@ -18,6 +18,15 @@ FROM alert
 EARLIEST=-1d | head 5
 ```
 
+### Size
+
+Configuration of the alerts page size can be determined with the `taegis configure` command. 
+
+Example
+```shell
+taegis configure queries page-size detections [size]
+```
+
 ### Convert Timestamps
 
 Timestamps returned by the Alerts API are in Unix epoch timestamp integers.  These can be converted into human readable timestamps with the pipe function `convert_alert_timestamps`.  This creates a new set of columns with `taegis_magic.` prepended to the timestamp related columns.
