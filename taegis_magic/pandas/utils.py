@@ -5,7 +5,7 @@ from typing import List
 
 import pandas as pd
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 MAGIC_COLUMN = "taegis_magic.{}"
 
@@ -255,7 +255,7 @@ def return_valid_column(df: pd.DataFrame, column_list: List[str]) -> pd.Series:
     for col in column_list:
         if col in df.columns:
             valid_columns.append(col)
-            logger.debug(f"Found identifier column: {col}")
+            log.debug(f"Found identifier column: {col}")
 
     if not valid_columns:
         raise ValueError(
@@ -309,7 +309,7 @@ def groupby(df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
     """
     for column in columns.copy():
         if not column in df.columns:
-            logger.error(f"Column {column} not found in dataframe")
+            log.error(f"Column {column} not found in dataframe")
             columns.remove(column)
     return (
         df[columns]

@@ -48,7 +48,7 @@ def convert_event_timestamps(
                 df[column], errors="ignore", unit="us"
             ).dt.strftime(format_)
         except Exception as exc:
-            log.error(exc)
+            log.error(f"Failed to convert timestamp column '{column}': {exc}")
             continue
 
         df[f"taegis_magic.{column}"] = df[f"taegis_magic.{column}"].fillna("N/A")

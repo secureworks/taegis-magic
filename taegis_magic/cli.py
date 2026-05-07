@@ -1,9 +1,9 @@
 """Taegis Magic CLI definitions."""
 
 import json
-import logging
 import sys
 from dataclasses import dataclass
+from typing import Annotated
 
 import typer
 from dataclasses_json import dataclass_json
@@ -28,12 +28,9 @@ from taegis_magic.commands import (
     tenants,
     threat,
     users,
+    configure,
 )
-from taegis_magic.core.log import TRACE_LOG_LEVEL, get_module_logger
 from taegis_magic.core.normalizer import TaegisResult
-
-log = logging.getLogger(__name__)
-
 
 @dataclass_json
 @dataclass
@@ -67,50 +64,64 @@ app.add_typer(process_trees.app, name="process-trees")
 app.add_typer(orchestration.app, name="orchestration")
 CONFIG = configure.set_defaults()
 
-
 @app.callback()
 def main(
-    warning: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
-        "warning", fallback=True
-    ),
-    verbose: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
-        "verbose", fallback=False
-    ),
-    debug: bool = CONFIG[configure.LOGGING_SECTION].getboolean("debug", fallback=False),
-    trace: bool = CONFIG[configure.LOGGING_SECTION].getboolean("trace", fallback=False),
-    sdk_warning: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
-        "sdk_warning", fallback=True
-    ),
-    sdk_verbose: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
-        "sdk_verbose", fallback=False
-    ),
-    sdk_debug: bool = CONFIG[configure.LOGGING_SECTION].getboolean(
-        "sdk_debug", fallback=False
-    ),
+    warning: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_magic logger level for this command.",
+        ),
+    ] = False,
+    verbose: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_magic logger level for this command.",
+        ),
+    ] = False,
+    debug: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_magic logger level for this command.",
+        ),
+    ] = False,
+    trace: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_magic logger level for this command.",
+        ),
+    ] = False,
+    error: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_magic logger level for this command.",
+        ),
+    ] = False,
+    sdk_warning: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_sdk_python logger level for this command.",
+        ),
+    ] = False,
+    sdk_verbose: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_sdk_python logger level for this command.",
+        ),
+    ] = False,
+    sdk_debug: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_sdk_python logger level for this command.",
+        ),
+    ] = False,
+    sdk_error: Annotated[
+        bool,
+        typer.Option(
+            help="Set taegis_sdk_python logger level for this command.",
+        ),
+    ] = False,
 ):
     """Taegis Magic help menu."""
-    logger = get_module_logger()
-    if trace:
-        logger.setLevel(TRACE_LOG_LEVEL)
-    elif debug:
-        logger.setLevel(logging.DEBUG)
-    elif verbose:
-        logger.setLevel(logging.INFO)
-    elif warning:
-        logger.setLevel(logging.WARNING)
-    else:
-        logger.setLevel(logging.ERROR)
-
-    sdk_logger = logging.getLogger("taegis_sdk_python")
-
-    if sdk_debug:
-        sdk_logger.setLevel(logging.DEBUG)
-    elif sdk_verbose:
-        sdk_logger.setLevel(logging.INFO)
-    elif sdk_warning:
-        sdk_logger.setLevel(logging.WARNING)
-    else:
-        sdk_logger.setLevel(logging.ERROR)
 
 
 @app.command()

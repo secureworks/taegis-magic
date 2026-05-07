@@ -60,7 +60,7 @@ def convert_alert_timestamps(
                 df[column], errors="ignore", unit="s"
             ).dt.strftime(format_)
         except Exception as exc:
-            log.error(exc)
+            log.error(f"Failed to convert timestamp column '{column}': {exc}")
             continue
 
         df[f"taegis_magic.{column}"] = df[f"taegis_magic.{column}"].fillna("N/A")
@@ -229,7 +229,7 @@ def get_alerts_from_aggregation(
             ),
         )
     except Exception as exc:
-        log.error(exc)
+        log.error(f"Alert search failed: {exc}")
         return pd.DataFrame()
 
     normalized_results = AlertsResultsNormalizer(

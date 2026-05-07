@@ -742,7 +742,7 @@ def evidence_append(
             search_queries=search_queries,
         )
     )
-    log.debug("Add evidence API results:", results)
+    log.debug(f"Add evidence API results: {results}")
 
     results = service.investigations2.query.investigation_v2(
         InvestigationV2Arguments(
@@ -790,7 +790,7 @@ def evidence_remove(
     evidence = get_investigation_evidence(
         database, service.tenant_id, "NEW" if use_new else investigation_id
     )
-    log.debug("Retrieved evidence for investigation:", evidence)
+    log.debug(f"Retrieved evidence for investigation: {evidence}")
     alerts = evidence.alerts
     events = evidence.events
     search_queries = evidence.search_queries
@@ -803,7 +803,7 @@ def evidence_remove(
             search_queries=search_queries,
         )
     )
-    log.debug("Remove evidence API results:", results)
+    log.debug(f"Remove evidence API results: {results}")
 
     results = service.investigations2.query.investigation_v2(
         InvestigationV2Arguments(
@@ -1002,7 +1002,7 @@ def investigations_merge(
             comment=f"Investigation evidence moved into {target_investigation.id} ({target_shareable_url}).",
         )
     )
-    log.debug("Add comment to investigation:", results)
+    log.debug(f"Add comment to investigation: {results}")
 
     results = service.investigations2.mutation.add_comment_to_investigation(
         AddCommentToInvestigationInput(
@@ -1010,7 +1010,7 @@ def investigations_merge(
             comment=f"Investigation evidence moved from {source_investigation.id} ({source_shareable_url}).",
         )
     )
-    log.debug("Add comment to investigation:", results)
+    log.debug(f"Add comment to investigation: {results}")
 
     results = service.investigations2.mutation.update_investigation_v2(
         UpdateInvestigationV2Input(
@@ -1019,11 +1019,11 @@ def investigations_merge(
             title=f"Merged Investigation: {source_investigation.title}",
         )
     )
-    log.debug("Close source investigation:", results)
+    log.debug(f"Close source investigation: {results}")
     results = service.investigations2.mutation.archive_investigation_v2(
         ArchiveInvestigationInput(id=source_investigation.id)
     )
-    log.debug("Archive source investigation:", results)
+    log.debug(f"Archive source investigation: {results}")
 
     results = service.investigations2.mutation.add_evidence_to_investigation(
         AddEvidenceToInvestigationInput(
@@ -1040,7 +1040,7 @@ def investigations_merge(
             ],
         )
     )
-    log.debug("Add evidence to target investigation:", results)
+    log.debug(f"Add evidence to target investigation: {results}")
 
     time.sleep(3)  # allow background workers to process
     target_investigation = service.investigations2.query.investigation_v2(
