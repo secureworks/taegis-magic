@@ -112,8 +112,8 @@ def process_children(
             resource_id=resource_id,
             next_token=next_token,
         )
-
-        all_results.extend(results.process_list)
+        if results.process_list:
+            all_results.extend(results.process_list)
         next_token = results.next_token
         if not next_token:
             break
