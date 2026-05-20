@@ -1,6 +1,6 @@
 import pandas as pd
 import logging
-from typing import Mapping, Optional
+from typing import Callable, Mapping, Optional
 from taegis_magic.core.service import get_service
 from taegis_magic.pandas.utils import chunk_list
 from dataclasses import dataclass
@@ -222,8 +222,8 @@ def _process_correlate_base(
     tenant_id: str,
     target_table: str,
     process_column: Optional[str] = "process_correlation_id",
-    correlation_id_func: Optional[function] = None,
-    table_df_post_process_func: Optional[function] = None, 
+    correlation_id_func: Optional[Callable[[list[str]], list]] = None,
+    table_df_post_process_func: Optional[Callable[[pd.DataFrame, str], pd.DataFrame]] = None,
     earliest: Optional[str] = "1d"
 ) -> pd.DataFrame:
     """Correlate process data with data from the target_table.
@@ -240,11 +240,13 @@ def _process_correlate_base(
     the been through this function, or process_column is not in the input DataFrame, then the input DataFrame will be returned.
 
     As for a real example, if the input DataFrame has columns [my_column, process_correlation_id], the name of the target_table
-    is my_target, my_target has columns [col0, col1] and the process_correlation_id values from the input DataFrame are found 
-    in the target_table, the resulting DataFrame would have columns [my_columns, process_correlation_id, target_table_col0, target_table_col1]
+    is my_target, my_target has columns [col0, col1, process_correlation_id] and the process_correlation_id values from the input 
+    DataFrame are found in the target_table, the resulting DataFrame would have columns 
+    [my_columns, process_correlation_id, my_target.col0, my_target.col1, my_target.process_correlation_id]
 
-    All parameters are keyword-only.
-
+    In the event that the target_table doesn't have a process_correlation_id column but does have its constituent parts across
+    multiple columns, different functions can be passed in to account for this. Please see parameter explanations below.
+    
     Parameters
     ----------
     df : pd.DataFrame   
@@ -257,16 +259,21 @@ def _process_correlate_base(
         Target table for the correlate pivot function.
     process_column : Optional[str], default None
         Process column to lookup in input DataFrame, by default "process_correlation_id".
-    correlation_id_func : Optional[function], default None
+    correlation_id_func : Optional[Callable[[list[str]], list]], default None
         When searching for process_correlation_ids in the target_table, they are usually just passed as a list. A where clause is
         then made using this list, e.g. `where process_correlation_id = pid1 or process_correlation_id = pid2`.... But in the case 
-        of tables that don't have this column the process_correlation_id column from the input df has to be parsed to generate a 
-        custom where clause. For example, since host_id, process_id, and time_window are in the process_correlation_id, 
-        this correlation_id_func might make it so that instead of the elements in the list being the full process_correlation_id 
-        as found in the input df, they look something like
+        of target_tables that don't have this column the process_correlation_id column from the input df has to be parsed to generate a 
+        custom list. For example, since host_id, process_id, and time_window are in the process_correlation_id, this correlation_id_func 
+        might make it so that instead of the elements in the list being the full process_correlation_id as found in the input df, 
+        they look something like
         (target_table.host_id=host_id AND ((target_table=pid+time_window) OR (target_table.pid=pid AND target_table.timewindow=timewindow))
-    table_df_post_process_func : Optional[function]
-        After the search agains the targe_table concludes
+    table_df_post_process_func : Optional[Callable[[pd.DataFrame, str], pd.DataFrame]]
+        Typically used in conjunction with correlation_id_func. If the target_table does not have a process_correlation_id column, 
+        then this function will need to be defined. This base function (not table_df_post_process_func parameter) effectively does 
+        a left join between the input DataFrame and the target_table and the join is done on the process_correlation_id column. 
+        If the target_table doesn't have this column, it will need to be created. When the query against the target_table returns 
+        it is then turned into a DataFrame. This function will then take in that DataFrame and create a target_table.process_correlation_id 
+        column that will be used when joining the input DataFrame's process_correlation_id. 
     earliest : Optional[str], default "1d"
         Date filter to apply when querying against target_table events to correlate with process data. Based on Taegis Query language. A "-" will be prepended to whatever value is provided. 
 
@@ -364,7 +371,7 @@ def _process_correlate_base(
         for row in r.result.rows
     )
 
-    table_df = table_df_post_process_func(table_df) if table_df_post_process_func else table_df
+    table_df = table_df_post_process_func(table_df, merge_on) if table_df_post_process_func else table_df
 
     table_df_with_new_col = table_df.add_prefix(f"{target_table}.")
         
