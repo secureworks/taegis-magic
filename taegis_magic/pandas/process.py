@@ -25,6 +25,8 @@ HTTP_PIVOT_COLUMNS = ["host_id", "process_correlation_id", "sensor_id", "sensor_
 AUTH_PIVOT_COLUMNS = ["host_id", "process_correlation_id", "sensor_id", "sensor_type", "tenant_id"]
 DETECTIONFINDING_PIVOT_COLUMNS = ["host_id", "sensor_id", "sensor_tenant", "sensor_type", "tenant_id"]
 
+PROCESS_CORRELATION_ID_COL = "process_correlation_id"
+
 NETFLOW = "netflow"
 HTTP = "http"
 AUTH = "auth"
@@ -53,148 +55,6 @@ class BaseCorrelationId:
         return f"process_correlation_id='{self.process_correlation_id}'"
 
 
-def process_correlate_netflow_og(
-    df: pd.DataFrame,
-    *,
-    region: str,
-    tenant_id: str,
-    process_column: Optional[str] = "process_correlation_id",
-    earliest: Optional[str] = "1d"
-) -> pd.DataFrame:
-    """Correlate process data with netflow information.
-
-    Input DataFrame is expected to have a column whose row values contain process_correlation_ids
-    that have the format of {host_id}:{process_id}:{time_window}.
-
-    All parameters are keyword-only.
-
-    Parameters
-    ----------
-    df : pd.DataFrame   
-        Dataframe containing process data.
-    region : str
-        Taegis Region.
-    tenant_id : str
-        Tenant ID to use for the correlation.
-    process_column : Optional[str], optional
-        Process column to lookup in input DataFrame, by default "process_correlation_id".
-    earliest : Optional[str], default "1d"
-        Date filter to apply when querying against netflow events to correlate with process data. Based on Taegis Query language. A "-" will be prepended to whatever value is provided. 
-
-    Returns
-    -------
-    pd.DataFrame
-        A new Dataframe with correlated netflow data. New columns will be prepended with 'netflow'.
-
-    Example
-    -------
-    >>> import pandas as pd
-    >>> df = pd.DataFrame({"process_correlation_id": ["host123:1234:56789", 1, "host123:1234:56789"]})
-    >>> df
-       process_correlation_id
-    0      host123:1234:56789
-    1                       1
-    2      host123:1234:56789
-    >>> result = process_correlate_netflow(df=df, region="us1", tenant_id="12345")
-    >>> result
-       process_correlation_id  netflow.host_id  netflow.processcorrelationid.pid  netflow.processcorrelationid.timewindow  netflow.process_correlation_id  ...
-    0      host123:1234:56789          host123                        1234:56789                                      NaN              host123:1234:56789  ...
-    1                       1              NaN                               NaN                                      NaN                             NaN  ...
-    2      host123:1234:56789          host123                              1234                                    56789              host123:1234:56789  ...
-    """
-
-    if df.empty:
-        return df
-    
-    if process_column not in df.columns:
-        log.error(f"Column {process_column} not found in dataframe")
-        return df
-    
-    merge_on = "process_correlation_id"
-    
-    if f"{NETFLOW}.{merge_on}" in df.columns:
-        log.debug(f"Netflow columns already exist in DataFrame")
-        return df
-
-    service = get_service(tenant_id=tenant_id, environment=region)
-
-    pids = set()
-    pids.update(df[process_column].dropna().unique().tolist())
-    pids = list(pids)
-
-    results = []
-
-    options = EventQueryOptions(
-        timestamp_ascending=True,
-        page_size=1000,
-        max_rows=100000,
-        aggregation_off=False,
-    )
-            
-    # Retrieve netflow data that correlates with process data in batches. 
-    template = jinja_env.get_template(PROCESS_PIPE_TEMPLATE)
-    for chunk in chunk_list(pids, 40):
-        netflow_correlation_ids = [NetflowCorrelationId(part[0], part[1], part[2]) for part in (pid.split(":") for pid in chunk)]
-        
-        query = template.render(table=NETFLOW, filters=netflow_correlation_ids, earliest=f"-{earliest}")
-        print(query)
-
-        log.trace(query)
-
-        query_result = service.events.subscription.event_query(
-            query=query,
-            options=options,
-            metadata={
-                "callerName": CONFIG[QUERIES_SECTION].get(
-                    "callername", fallback="Taegis Magic"
-                    ),
-                },
-            )
-        
-        # query_result is non-empty even if no rows are returned, so can't just do `if not query_result`
-        if not query_result[0].result.rows:
-            continue
-        
-        results.extend(query_result)
-        next_page = get_next_page(query_result)
-
-        while next_page:
-            query_result = service.events.subscription.event_page(next_page)
-            results.extend(query_result)
-            next_page = get_next_page(query_result)
-    
-    if not results:
-        log.debug("No results were returned from query.")
-        print("No results were returned from query.")
-        return df
-
-    netflow_df = to_dataframe(
-        row
-        for r in results
-        if r.result and r.result.rows
-        for row in r.result.rows
-    )
-
-    # Create a new column for full process_correlation_id to merge on
-    has_colon = netflow_df['processcorrelationid.pid'].str.contains(':', na=False)
-    netflow_df[f'{merge_on}'] = netflow_df['host_id'] + ":" + netflow_df['processcorrelationid.pid']
-    netflow_df.loc[~has_colon, f'{merge_on}'] = (
-        netflow_df['host_id'] + ":" + netflow_df['processcorrelationid.pid'] + ":" + netflow_df['processcorrelationid.timewindow']
-    )
-
-    netflow_df_with_new_col = netflow_df.add_prefix(f"{NETFLOW}.")
-        
-    merge_df = pd.merge(
-        left=df,
-        right=netflow_df_with_new_col,        
-        left_on=process_column,
-        right_on=f"{NETFLOW}.{merge_on}",
-        how="left",
-        suffixes=(None, ".correlate_netflow")
-    )
-
-    return merge_df
-
 def process_correlate_netflow(
     df: pd.DataFrame,
     *,
@@ -203,7 +63,7 @@ def process_correlate_netflow(
     process_column: Optional[str] = "process_correlation_id",
     earliest: Optional[str] = "1d"
 ) -> pd.DataFrame:
-    """Correlate process data with netflow information."""
+    """Correlate process data with netflow data."""
     return _process_correlate_base(df, region, tenant_id, NETFLOW, process_column, _create_netflow_correlation_ids, _process_correlate_netflow_helper, earliest)
 
 def process_correlate_http(
@@ -214,8 +74,9 @@ def process_correlate_http(
     process_column: Optional[str] = "process_correlation_id",
     earliest: Optional[str] = "1d"
 ) -> pd.DataFrame:
-    """Correlate process data with netflow information."""
+    """Correlate process data with http data."""
     return _process_correlate_base(df, region, tenant_id, HTTP, process_column, None, None, earliest)
+
 
 def process_correlate_auth(
     df: pd.DataFrame,
@@ -225,7 +86,7 @@ def process_correlate_auth(
     process_column: Optional[str] = "process_correlation_id",
     earliest: Optional[str] = "1d"
 ) -> pd.DataFrame:
-    """Correlate process data with netflow information."""
+    """Correlate process data with auth data."""
     return _process_correlate_base(df, region, tenant_id, AUTH, process_column, None, None, earliest)
 
 
@@ -627,8 +488,8 @@ def _create_netflow_correlation_ids(chunk: list[str]) -> list[NetflowCorrelation
     """
     return list(map(lambda pid: NetflowCorrelationId(*pid.split(":")), chunk))
 
-def _create_base_correlation_ids(chunk: list[str]) -> list[NetflowCorrelationId]:
-    """Convert correlation ID strings to BaseCorrelationI objects.
+def _create_base_correlation_ids(chunk: list[str]) -> list[BaseCorrelationId]:
+    """Convert correlation ID strings to BaseCorrelationId objects.
 
     Parameters
     ----------
@@ -645,13 +506,26 @@ def _create_base_correlation_ids(chunk: list[str]) -> list[NetflowCorrelationId]
 
 def _process_correlate_netflow_helper(
     df: pd.DataFrame,
-    merge_on: str
 ) -> pd.DataFrame:
+    """Create process_correlation_id in netflow DataFrame using multiple columns
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input DataFrame contain netflow data
+    Returns
+    -------
+    pd.DataFrame
+        New DataFrame that contains process_correlation_id column
+    
+    """  
+
+    
     table_df = df.copy()
 
     has_colon = table_df['processcorrelationid.pid'].str.contains(':', na=False)
-    table_df[f'{merge_on}'] = table_df['host_id'] + ":" + table_df['processcorrelationid.pid']
-    table_df.loc[~has_colon, f'{merge_on}'] = (
+    table_df[f'{PROCESS_CORRELATION_ID_COL}'] = table_df['host_id'] + ":" + table_df['processcorrelationid.pid']
+    table_df.loc[~has_colon, f'{PROCESS_CORRELATION_ID_COL}'] = (
         table_df['host_id'] + ":" + table_df['processcorrelationid.pid'] + ":" + table_df['processcorrelationid.timewindow']
     )
     return table_df
@@ -746,9 +620,8 @@ def _process_correlate_base(
         log.error(f"Column {process_column} not found in dataframe")
         return df
     
-    merge_on = "process_correlation_id"
     
-    if f"{target_table}.{merge_on}" in df.columns:
+    if f"{target_table}.{PROCESS_CORRELATION_ID_COL}" in df.columns:
         log.debug(f"{target_table} columns already exist in DataFrame")
         return df
 
@@ -813,7 +686,7 @@ def _process_correlate_base(
         for row in r.result.rows
     )
 
-    table_df = table_df_post_process_func(table_df, merge_on) if table_df_post_process_func else table_df
+    table_df = table_df_post_process_func(table_df, PROCESS_CORRELATION_ID_COL) if table_df_post_process_func else table_df
 
     table_df_with_new_col = table_df.add_prefix(f"{target_table}.")
         
@@ -821,7 +694,7 @@ def _process_correlate_base(
         left=df,
         right=table_df_with_new_col,        
         left_on=process_column,
-        right_on=f"{target_table}.{merge_on}",
+        right_on=f"{target_table}.{PROCESS_CORRELATION_ID_COL}",
         how="left",
         suffixes=(None, f".correlate_{target_table}")
     )
