@@ -130,6 +130,7 @@ def process_correlate_netflow_og(
         netflow_correlation_ids = [NetflowCorrelationId(part[0], part[1], part[2]) for part in (pid.split(":") for pid in chunk)]
         
         query = template.render(table=NETFLOW, filters=netflow_correlation_ids, earliest=f"-{earliest}")
+        print(query)
 
         log.trace(query)
 
