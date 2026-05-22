@@ -63,8 +63,13 @@ def process_correlate_netflow(
     process_column: Optional[str] = "process_correlation_id",
     earliest: Optional[str] = "1d"
 ) -> pd.DataFrame:
-    """Correlate process data with netflow data."""
+    """Correlate process data with netflow data. Effectively does a left join between process and netflow table based on process_correlation_id. Function first 
+    does a SELECT * from netflow table where process_correlation_id is equal to the process_correlation_id values in input DataFrame, then merges those results
+    into the input DataFrame and returns the result as a new DataFrame. Note that for the netflow table there is no process_correlation_id column so the 
+    process_correlation_id values from the input DataFrame are parsed to create where clauses that search for data in the the netflow table that correlate with 
+    the full process_correlation_id."""
     return _process_correlate_base(df, region, tenant_id, NETFLOW, process_column, _create_netflow_correlation_ids, _process_correlate_netflow_helper, earliest)
+
 
 def process_correlate_http(
     df: pd.DataFrame,
@@ -74,7 +79,9 @@ def process_correlate_http(
     process_column: Optional[str] = "process_correlation_id",
     earliest: Optional[str] = "1d"
 ) -> pd.DataFrame:
-    """Correlate process data with http data."""
+    """Correlate process data with http data. Effectively does a left join between process and http table based on process_correlation_id. Function first 
+    does a SELECT * from http table where process_correlation_id is equal to the process_correlation_id values in input DataFrame, then merges those results
+    into the input DataFrame and returns the result as a new DataFrame."""
     return _process_correlate_base(df, region, tenant_id, HTTP, process_column, None, None, earliest)
 
 
@@ -86,7 +93,9 @@ def process_correlate_auth(
     process_column: Optional[str] = "process_correlation_id",
     earliest: Optional[str] = "1d"
 ) -> pd.DataFrame:
-    """Correlate process data with auth data."""
+    """Correlate process data with auth data. Effectively does a left join between process and auth table based on process_correlation_id. Function first 
+    does a SELECT * from auth table where process_correlation_id is equal to the process_correlation_id values in input DataFrame, then merges those results
+    into the input DataFrame and returns the result as a new DataFrame."""
     return _process_correlate_base(df, region, tenant_id, AUTH, process_column, None, None, earliest)
 
 
@@ -537,7 +546,7 @@ def _process_correlate_base(
     target_table: str,
     process_column: Optional[str] = "process_correlation_id",
     correlation_id_func: Optional[Callable[[list[str]], list]] = None,
-    table_df_post_process_func: Optional[Callable[[pd.DataFrame, str], pd.DataFrame]] = None,
+    table_df_post_process_func: Optional[Callable[[pd.DataFrame], pd.DataFrame]] = None,
     earliest: Optional[str] = "1d"
 ) -> pd.DataFrame:
     """Correlate process data with data from the target_table.
@@ -605,7 +614,7 @@ def _process_correlate_base(
     0      host123:1234:56789
     1                       1
     2      host123:1234:56789
-    >>> result = process_correlate_target_table(df=df, region="us1", tenant_id="12345")
+    >>> result = df.pipe(process_correlate_{target_table}, region="us1", tenant_id="12345")
     >>> result
        process_correlation_id  target_table.host_id  target_table.processcorrelationid.pid  target_table.processcorrelationid.timewindow  target_table.process_correlation_id  ...
     0      host123:1234:56789          host123                        1234:56789                                      NaN              host123:1234:56789  ...
@@ -645,10 +654,8 @@ def _process_correlate_base(
     for chunk in chunk_list(pids, 40):
 
         table_pids = correlation_id_func(chunk) if correlation_id_func else _create_base_correlation_ids(chunk)
-        print(table_pids)
         
         query = template.render(table=target_table, filters=table_pids, earliest=f"-{earliest}")
-        print(query)
 
         log.trace(query)
 
@@ -686,7 +693,7 @@ def _process_correlate_base(
         for row in r.result.rows
     )
 
-    table_df = table_df_post_process_func(table_df, PROCESS_CORRELATION_ID_COL) if table_df_post_process_func else table_df
+    table_df = table_df_post_process_func(table_df) if table_df_post_process_func else table_df
 
     table_df_with_new_col = table_df.add_prefix(f"{target_table}.")
         
