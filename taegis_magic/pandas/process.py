@@ -683,7 +683,6 @@ def _process_correlate_base(
     
     if not results:
         log.debug("No results were returned from query.")
-        print("No results were returned from query.")
         return df
 
     table_df = to_dataframe(
