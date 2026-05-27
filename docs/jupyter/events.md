@@ -161,14 +161,17 @@ inflated_schema
 </table>
 
 ## Process Pipe Functions
-This section describes `DataFrame` pipe functions that take in a `DataFrame` with `process` info and return a new `DataFrame` that contains correlated data or other event info. 
+This section describes `DataFrame` pipe functions that take in a `DataFrame` with `process` table info and return a new `DataFrame` that contains correlated data or other event info. 
+
+Please note that the number of rows returned by a `process` pipe function could be greater than the number of rows in the input `DataFrame` 
+due to there sometimes being a 1:many relationship between the `process` table info and the table that gets queried as part of the pipe 
+function.
+
 ### Correlation Functions
+Process correlation functions typically have the following function signature: 
 
-#### process_correlate_netflow
-The `process_correlate_netflow` function, as shown below, is a pipe function that accepts a `Pandas` `DataFrame` with `process` event information and finds `netflow` events that are correlated based on each `process` event's `process_corelation_id`. A new `DataFrame` is returned that will include the columns from the input `DataFrame` as well as columns from the `netflow` table and will likely contain more rows that the input `DataFrame` as there is a 1:many relationship between `process:netflow`. 
-
-```python
-def process_correlate_netflow(
+```
+def process_correlate_{target_table}(
     df: pd.DataFrame,
     *,
     region: str,
@@ -178,7 +181,45 @@ def process_correlate_netflow(
 ) -> pd.DataFrame:
 ```
 
-A `process_correlation_id` has the structure: `{host_id}:{pid}:{id.time_window}`. `netflow` events do not have a full `process_correlation_id` as `process` events do but do have the original components, `host_id`, `processcorrelationid.pid`, and `processcorrelation.timewindow`. `netflow` events can sometimes have different structures for `processcorrelationid` as shown below. The pipe function takes these differences into account. 
+
+Process correlation functions are effectively SQL left joins between the input `DataFrame` and `target_table` (e.g. for `process_correlate_auth` function `target_table` refers to `auth` table) based on the `process_column` (default value being `process_correlation_id`) values in the input `DataFrame`. What this means is that `process_column` values are taken from the input `DataFrame`, effectively a SELECT * FROM `target_table` where `target_table.process_correlation_id` = `DataFrame.process_column`  is executed, then whatever is returned from that query is merged into the input `DataFrame` and that is then returned (as a brand new `DataFrame`). Any columns in the returned `DataFrame` that come from the `target_table` are prefixed with `target_table`. 
+
+Example is below: 
+
+    >>> import pandas as pd
+    >>> # Here df is the input DataFrame
+    >>> df = pd.DataFrame({"process_correlation_id": ["host123:1234:56789", 1, "host123:1234:56789"]})
+    >>> df
+       process_correlation_id
+    0      host123:1234:56789
+    1                       1
+    2      host123:1234:56789
+    >>> result = df.pipe(process_correlate_{target_table}, region="us1", tenant_id="12345")
+    >>> result
+       process_correlation_id  target_table.host_id  target_table.processcorrelationid.pid  target_table.processcorrelationid.timewindow  target_table.process_correlation_id  ...
+    0      host123:1234:56789          host123                        1234:56789                                      NaN              host123:1234:56789  ...
+    1                       1              NaN                               NaN                                      NaN                             NaN  ...
+    2      host123:1234:56789          host123                              1234                                    56789              host123:1234:56789  ...
+
+
+
+#### process_correlate_auth
+
+Correlation function to correlate process data with `auth` data (`auth` is the `target_table` here). Effectively does a left join between `process` and `auth` table based on `process_correlation_id`. Function first does a SELECT * from `auth` table where `process_correlation_id` is equal to the `process_correlation_id` values in input `DataFrame`, then merges those results into the input `DataFrame` and returns the result as a new `DataFrame`.
+
+#### process_correlate_http
+
+Correlation function to correlate process data with `http` data (`http` is the `target_table` here). Effectively does a left join between `process` and `http` table based on `process_correlation_id`. Function first does a SELECT * from `http` table where `process_correlation_id` is equal to the `process_correlation_id` values in input `DataFrame`, then merges those results into the input `DataFrame` and returns the result as a new `DataFrame`.
+
+#### process_correlate_netflow
+
+Correlation function to correlate `process` data with `netflow` data (netflow is the `target_table` here). Effectively does a left join between `process` and `netflow` table based on `process_correlation_id`. Function first does a SELECT * from `netflow` table where `process_correlation_id` is equal to the `process_correlation_id` values in input `DataFrame`, then merges those results into the input `DataFrame` and returns the result as a new `DataFrame`.
+
+The correlation function for `netflow` events is a unique case. This is because there is not an equivalent `process_correlation_id` column
+in the `netflow` table. 
+
+A `process_correlation_id` has the structure: `{host_id}:{pid}:{id.time_window}`. `netflow` events do not have a full `process_correlation_id` as `process` events do but do have the original components, `host_id`, `processcorrelationid.pid`, and `processcorrelation.timewindow`. `netflow` events can sometimes have different structures for `processcorrelationid` as shown below. The pipe function takes these differences into account.
+ 
 
 ```json
 // pid has structure of {pid}:{id.time_window}, no value for timewindow
@@ -294,7 +335,7 @@ WHERE
 EARLIEST=-1d
 ```
 
-Notice how in `input_df` the name of the column was `sensor_type` but in the where clauses it got remapped to `t_sensor`. In addition, ONLY columns specified in the `pivot_map` will be included in the WHERE clauses. 
+Notice how in `input_df` the name of the column was `sensor_type` but in the where clauses it got remapped to `t_sensor`. It is important to note that ONLY columns specified in the `pivot_map` will be included in the WHERE clauses. 
 
 
 #### process_pivot_auth
