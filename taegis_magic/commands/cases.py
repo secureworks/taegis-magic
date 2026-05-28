@@ -413,6 +413,7 @@ def evidence_stage(
     """
     Stage evidence prior to linking to an investigation.
     """
+    arguments = inspect.currentframe().f_locals
     df = find_dataframe(dataframe)
     db = find_database(database)
 
@@ -455,7 +456,7 @@ def evidence_stage(
         service="investigations",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
 
@@ -477,6 +478,8 @@ def evidence_unstage(
     """
     Remove staged evidence prior to linking to an investigation.
     """
+
+    arguments = inspect.currentframe().f_locals
 
     df = find_dataframe(dataframe)
     db = find_database(database)
@@ -524,7 +527,7 @@ def evidence_unstage(
         service="investigations",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
 
@@ -545,6 +548,7 @@ def evidence_clear(
     """
     Clear all currently staged evidence.
     """
+    arguments = inspect.currentframe().f_locals
     db = find_database(database)
 
     for evidence_type in InvestigationEvidenceType:
@@ -572,7 +576,7 @@ def evidence_clear(
         service="investigations",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
 
@@ -587,6 +591,7 @@ def evidence_show(
     """
     Show currently staged evidence.
     """
+    arguments = inspect.currentframe().f_locals
     db = find_database(database)
     df = read_database(
         db,
@@ -600,7 +605,7 @@ def evidence_show(
         service="investigations",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
 
@@ -644,6 +649,7 @@ def create(
     """
     Create a new Investigation.
     """
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     alerts = None
@@ -694,7 +700,7 @@ def create(
         tenant_id=service.tenant_id,
         region=service.environment,
         dry_run=dry_run,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return results
@@ -719,6 +725,7 @@ def evidence_append(
     """
     Append evidence an existing investigation.
     """
+    arguments = inspect.currentframe().f_locals
     if not database:
         raise ValueError("Database must be provided to append evidence.")
 
@@ -756,7 +763,7 @@ def evidence_append(
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
 
@@ -779,6 +786,7 @@ def evidence_remove(
     """
     Remove evidence an existing investigation.
     """
+    arguments = inspect.currentframe().f_locals
     if not database:
         raise ValueError("Database must be provided to remove evidence.")
 
@@ -817,7 +825,7 @@ def evidence_remove(
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
 
@@ -831,6 +839,7 @@ def search(
     tenant: Optional[str] = None,
 ):
     """Taegis Investigations search."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     page = 1
@@ -911,7 +920,7 @@ def search(
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -932,6 +941,7 @@ def investigations_merge(
     region: Annotated[Optional[str], typer.Option(help="Taegis Region ID.")] = None,
 ):
     """Merge investigations evidence and close the source investigation."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     source_investigation = service.investigations2.query.investigation_v2(
@@ -1055,7 +1065,7 @@ def investigations_merge(
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1072,6 +1082,7 @@ def investigations_search_queries_add(
     database: Annotated[str, typer.Option()] = ":memory:",
 ):
     """Add a Taegis investigations search query."""
+    arguments = inspect.currentframe().f_locals
     normalized_results = InsertSearchQueryNormalizer(
         query_identifier=query_id,
         tenant_id=tenant_id,
@@ -1089,7 +1100,7 @@ def investigations_search_queries_add(
         service="investigations",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1102,6 +1113,7 @@ def investigations_search_queries_remove(
     database: Annotated[str, typer.Option()] = ":memory:",
 ):
     """Remove a Taegis investigations search query."""
+    arguments = inspect.currentframe().f_locals
     delete_search_query(database, query_id)
 
     results = list_search_queries(database)
@@ -1111,7 +1123,7 @@ def investigations_search_queries_remove(
         service="investigations",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1123,6 +1135,7 @@ def investigations_search_queries_clear(
     database: Annotated[str, typer.Option()] = ":memory:",
 ):
     """Remove all Taegis investigations search queries."""
+    arguments = inspect.currentframe().f_locals
     clear_search_queries(database)
 
     results = list_search_queries(database)
@@ -1132,7 +1145,7 @@ def investigations_search_queries_clear(
         service="investigations",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1144,6 +1157,7 @@ def investigations_search_queries_list(
     database: str = ":memory:",
 ):
     """List tracked Taegis investigations search queries."""
+    arguments = inspect.currentframe().f_locals
     results = list_search_queries(database)
 
     normalized_results = DataFrameNormalizer(
@@ -1151,7 +1165,7 @@ def investigations_search_queries_list(
         service="investigations",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1164,6 +1178,7 @@ def investigations_search_queries_stage(
     investigation_id: Annotated[str, typer.Option()] = "NEW",
 ):
     """Stage Taegis investigations search queries to attach to investigation."""
+    arguments = inspect.currentframe().f_locals
     results = list_search_queries(database)
 
     db = find_database(database)
@@ -1179,7 +1194,7 @@ def investigations_search_queries_stage(
         service="investigations",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1193,6 +1208,7 @@ def investigations_attachment_list(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """List file attachments for a given investigation."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     page = 1
@@ -1227,7 +1243,7 @@ def investigations_attachment_list(
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1241,6 +1257,7 @@ def investigations_attachment_get(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Get a file attachment."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.investigations2.query.investigation_file_v2(
@@ -1254,7 +1271,7 @@ def investigations_attachment_get(
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1268,6 +1285,7 @@ def investigations_attachment_remove(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Delete file attachment."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.investigations2.mutation.delete_investigation_file(
@@ -1281,7 +1299,7 @@ def investigations_attachment_remove(
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1306,6 +1324,7 @@ def investigations_attachment_upload(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Upload file attachment."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     file_input = InitInvestigationFileUploadInput(
@@ -1346,7 +1365,7 @@ def investigations_attachment_upload(
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1364,6 +1383,7 @@ def investigations_attachment_download(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Get a file attachment."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.investigations2.query.investigation_file_v2(
@@ -1395,7 +1415,7 @@ def investigations_attachment_download(
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1409,6 +1429,7 @@ def investigations_comments_list(
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
 ):
     """List comments for an investigation."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     page = 1
@@ -1441,7 +1462,7 @@ def investigations_comments_list(
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1465,6 +1486,7 @@ def investigations_comments_add(
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
 ):
     """Add a comment to an investigation."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     for m in mention or []:
@@ -1485,7 +1507,7 @@ def investigations_comments_add(
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1509,6 +1531,7 @@ def investigations_comments_update(
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
 ):
     """Update a comment to an investigation."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     for m in mention or []:
@@ -1529,7 +1552,7 @@ def investigations_comments_update(
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -1543,6 +1566,7 @@ def investigations_comments_remove(
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
 ):
     """Remove a comment to an investigation."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.investigations2.mutation.delete_investigation_comment(
@@ -1556,7 +1580,7 @@ def investigations_comments_remove(
         service="investigations",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results

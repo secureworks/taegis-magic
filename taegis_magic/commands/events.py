@@ -305,6 +305,7 @@ def events(
     region: Optional[str] = None,
 ):
     """Get events by resource id."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.events.query.events(ids=resource_id)
@@ -314,7 +315,7 @@ def events(
         service="events",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results

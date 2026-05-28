@@ -1,8 +1,8 @@
 """Taegis Magic Command callback utilities."""
 
+import logging
 from pathlib import Path
 
-import logging
 import typer
 
 log = logging.getLogger(__name__)

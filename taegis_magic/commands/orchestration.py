@@ -5,20 +5,21 @@ from typing import Any, Dict, List, Optional
 
 import typer
 from dataclasses_json import dataclass_json
+from taegis_magic.core.log import tracing
+from taegis_magic.core.normalizer import TaegisResult, TaegisResultsNormalizer
+from taegis_magic.core.service import get_service
+from typing_extensions import Annotated
+
 from taegis_sdk_python.services.trigger_action.types import (
     ExecuteActionInput,
     PlaybookActions,
     PlaybookActionsV2Arguments,
 )
-from typing_extensions import Annotated
-
-from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResult, TaegisResultsNormalizer
-from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 
 app = typer.Typer(help="Taegis Orchestration Commands.")
+
 
 @dataclass_json
 @dataclass
@@ -37,7 +38,9 @@ class PlaybookActionsNormalizer(TaegisResultsNormalizer):
 @dataclass
 class PlaybookExecutionWrapper:
     """Playbook Execution Wrapper."""
+
     id: str
+
 
 @dataclass_json
 @dataclass
@@ -84,6 +87,7 @@ def list_playbook_actions(
     """
     List Playbook Actions
     """
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
     all_playbooks = []
 
@@ -111,7 +115,7 @@ def list_playbook_actions(
         tenant_id=service.tenant_id,
         region=service.environment,
         raw_results=all_playbooks,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return results
@@ -120,18 +124,27 @@ def list_playbook_actions(
 @app.command("execute")
 @tracing
 def execute_playbook_action(
-    playbook_action_id: Annotated[str, typer.Option(help="Playbook Action ID to execute.")],
-    target_resource_id: Annotated[str, typer.Option(help="Target resource ID for the action.")],
-    investigation_id: Annotated[Optional[str], typer.Option(help="Investigation ID to associate with the action.")] = None,
-    additional_inputs: Annotated[Optional[str], typer.Option(help="Additional inputs for the action.")] = None,
+    playbook_action_id: Annotated[
+        str, typer.Option(help="Playbook Action ID to execute.")
+    ],
+    target_resource_id: Annotated[
+        str, typer.Option(help="Target resource ID for the action.")
+    ],
+    investigation_id: Annotated[
+        Optional[str],
+        typer.Option(help="Investigation ID to associate with the action."),
+    ] = None,
+    additional_inputs: Annotated[
+        Optional[str], typer.Option(help="Additional inputs for the action.")
+    ] = None,
     reason: Annotated[Optional[str], typer.Option(help="Reason for action.")] = None,
     region: Annotated[Optional[str], typer.Option(help="Taegis region")] = None,
     tenant: Annotated[Optional[str], typer.Option(help="Taegis tenant ID")] = None,
-
 ):
     """
     Execute a Playbook Action
     """
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     input_data = ExecuteActionInput(
@@ -139,7 +152,7 @@ def execute_playbook_action(
         target_resource_id=target_resource_id,
         reason=reason,
         investigation_id=investigation_id,
-        additional_inputs=additional_inputs
+        additional_inputs=additional_inputs,
     )
 
     execution = service.trigger_action.mutation.execute_action(input_data)
@@ -151,7 +164,7 @@ def execute_playbook_action(
         tenant_id=service.tenant_id,
         region=service.environment,
         raw_result=execution_wrapper,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return result
@@ -160,13 +173,16 @@ def execute_playbook_action(
 @app.command("logs")
 @tracing
 def get_playbook_execution_logs(
-    playbook_execution_id: Annotated[str, typer.Option(help="Playbook Execution ID to retrieve logs for.")],
+    playbook_execution_id: Annotated[
+        str, typer.Option(help="Playbook Execution ID to retrieve logs for.")
+    ],
     region: Annotated[Optional[str], typer.Option(help="Taegis region")] = None,
     tenant: Annotated[Optional[str], typer.Option(help="Taegis tenant ID")] = None,
 ):
     """
     Get Playbook Execution Logs.
     """
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     endpoint = "playbookExecutionLogs"
@@ -193,7 +209,7 @@ def get_playbook_execution_logs(
         tenant_id=service.tenant_id,
         region=service.environment,
         raw_results=results_json,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results

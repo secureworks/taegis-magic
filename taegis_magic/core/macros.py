@@ -10,19 +10,21 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-
 from taegis_magic.core.service import get_service
+
 from taegis_sdk_python.config import get_config
 from taegis_sdk_python.services.tenants4.types import (
     SubscriptionMatcher,
-    TenantsQuery,
     TenantLabelMatcher,
+    TenantsQuery,
 )
 
 log = logging.getLogger(__name__)
 
 MACROS_SECTION = "magics.macros"
-DEFAULT_MACROS_RESOURCE = files("taegis_magic.resources").joinpath("default_macros.yaml")
+DEFAULT_MACROS_RESOURCE = files("taegis_magic.resources").joinpath(
+    "default_macros.yaml"
+)
 
 
 def _get_custom_macros_path() -> Optional[Path]:
@@ -88,7 +90,6 @@ def _build_tenants_queries(macro_def: Dict[str, Any]) -> List[TenantsQuery]:
     """
     base_kwargs: Dict[str, Any] = {}
 
-
     services = macro_def.get("services")
     if not services:
         return [TenantsQuery(**base_kwargs)]
@@ -142,8 +143,11 @@ def _fetch_tenant_ids(
     for query in queries:
         tenant_ids.update(_fetch_tenant_ids_single(service, query))
 
-    log.info("Macro resolved to %d unique tenant(s) from %d query(ies)",
-             len(tenant_ids), len(queries))
+    log.info(
+        "Macro resolved to %d unique tenant(s) from %d query(ies)",
+        len(tenant_ids),
+        len(queries),
+    )
 
     return list(tenant_ids)
 
@@ -184,8 +188,7 @@ def resolve_tenants(
     if macro_name not in macros:
         available = ", ".join(f"@{m}" for m in macros) or "(none defined)"
         raise ValueError(
-            f"Unknown tenant macro '@{macro_name}'. "
-            f"Available macros: {available}"
+            f"Unknown tenant macro '@{macro_name}'. " f"Available macros: {available}"
         )
 
     macro_def = macros[macro_name]

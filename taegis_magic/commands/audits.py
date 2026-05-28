@@ -135,6 +135,7 @@ def audits_audit(
     region: Optional[str] = None,
 ):
     """Taegis audits get a single audit record."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.audits.query.audit(audit_id=audit_id)
@@ -144,7 +145,7 @@ def audits_audit(
         service="audits",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -161,6 +162,7 @@ def audits_all(
     region: Optional[str] = None,
 ):
     """Get all audits."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.audits.query.all_audits(
@@ -179,7 +181,7 @@ def audits_all(
         service="audits",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -210,6 +212,7 @@ def audits_search(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Search for audits."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.audits.query.search_audits(
@@ -242,7 +245,7 @@ def audits_search(
         service="audits",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -256,6 +259,7 @@ def audits_application_events(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Get event name list."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.audits.query.list_application_events(application=event_type)
@@ -265,7 +269,7 @@ def audits_application_events(
         service="audits",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results

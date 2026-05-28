@@ -91,6 +91,8 @@ def nl_search_list(
     database: str = ":memory:",
 ):
     """List previous natural language search queries."""
+    arguments = inspect.currentframe().f_locals
+
     df = list_nl_search_queries(database)
 
     return DataFrameNormalizer(
@@ -98,7 +100,7 @@ def nl_search_list(
         service="search",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
 
@@ -109,6 +111,7 @@ def nl_search_delete(
     database: str = ":memory:",
 ):
     """Remove a Taegis search query by id."""
+    arguments = inspect.currentframe().f_locals
     delete_nl_search_query(database, query_id)
 
     results = list_nl_search_queries(database)
@@ -118,7 +121,7 @@ def nl_search_delete(
         service="investigations",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -130,6 +133,7 @@ def nl_search_clear(
     database: Annotated[str, typer.Option()] = ":memory:",
 ):
     """Remove all Taegis search queries."""
+    arguments = inspect.currentframe().f_locals
     clear_nl_search_queries(database)
 
     results = list_nl_search_queries(database)
@@ -139,7 +143,7 @@ def nl_search_clear(
         service="investigations",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -169,6 +173,7 @@ def nl_search_feedback(
 ):
     """Provide feedback about a Taegis search query."""
 
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region)
 
     if query_id == "@last":
@@ -191,7 +196,7 @@ def nl_search_feedback(
         service="investigations",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -203,6 +208,7 @@ def nl_search_prompt_categories(
     region: Annotated[Optional[str], typer.Option(help="Taegis Region")] = None,
 ):
     """List example prompt categories for Taegis Search."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region)
 
     results = service.llm_service.query.example_prompt_catalog()
@@ -212,7 +218,7 @@ def nl_search_prompt_categories(
         service="search",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
 
@@ -222,6 +228,7 @@ def nl_search_prompts(
     region: Annotated[Optional[str], typer.Option(help="Taegis Region")] = None,
 ):
     """List example prompts for Taegis Search."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region)
 
     results = service.llm_service.query.example_prompts()
@@ -231,5 +238,5 @@ def nl_search_prompts(
         service="search",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )

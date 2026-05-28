@@ -49,7 +49,12 @@ def _resolve_show_progress(show_progress: Optional[bool]) -> bool:
 
 
 def _fetch_concurrently(
-    df, fetch_fn, *, region, tenant_id, max_workers,
+    df,
+    fetch_fn,
+    *,
+    region,
+    tenant_id,
+    max_workers,
     max_failure_rate: Optional[float] = 0.05,
     show_progress: Optional[bool] = None,
 ):
@@ -79,9 +84,7 @@ def _fetch_concurrently(
         .itertuples(index=False, name=None)
     )
     # Normalise NaN → None so tuples are hashable and consistent.
-    unique_keys = [
-        tuple(None if pd.isna(v) else v for v in key) for key in unique_keys
-    ]
+    unique_keys = [tuple(None if pd.isna(v) else v for v in key) for key in unique_keys]
     # Deduplicate after NaN normalisation.
     unique_keys = list(dict.fromkeys(unique_keys))
 
@@ -106,9 +109,11 @@ def _fetch_concurrently(
                 tenant_id=tenant_id,
                 host_id=key[col_to_idx["host_id"]],
                 process_correlation_id=key[col_to_idx["process_correlation_id"]],
-                resource_id=key[col_to_idx["resource_id"]]
-                if "resource_id" in col_to_idx
-                else None,
+                resource_id=(
+                    key[col_to_idx["resource_id"]]
+                    if "resource_id" in col_to_idx
+                    else None
+                ),
             ): key
             for key in unique_keys
         }
@@ -214,8 +219,13 @@ def lookup_lineage(
     key_cols = _build_key_cols(df)
 
     results_map = _fetch_concurrently(
-        df, process_lineage, region=region, tenant_id=tenant_id, max_workers=max_workers,
-        max_failure_rate=max_failure_rate, show_progress=show_progress,
+        df,
+        process_lineage,
+        region=region,
+        tenant_id=tenant_id,
+        max_workers=max_workers,
+        max_failure_rate=max_failure_rate,
+        show_progress=show_progress,
     )
 
     df["process_info.process_lineage"] = df.apply(
@@ -289,8 +299,13 @@ def lookup_children(
     key_cols = _build_key_cols(df)
 
     results_map = _fetch_concurrently(
-        df, process_children, region=region, tenant_id=tenant_id, max_workers=max_workers,
-        max_failure_rate=max_failure_rate, show_progress=show_progress,
+        df,
+        process_children,
+        region=region,
+        tenant_id=tenant_id,
+        max_workers=max_workers,
+        max_failure_rate=max_failure_rate,
+        show_progress=show_progress,
     )
 
     df["process_info.process_children"] = df.apply(
