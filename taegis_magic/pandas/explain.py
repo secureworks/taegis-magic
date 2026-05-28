@@ -22,7 +22,7 @@ def get_command_line_explanation(
     """
     Takes in a DataFrame where a column (the event_id_column) contains event_ids. This function will then send those event_ids
     to an API to get a LLM generated explanation of those commmandline commands. A new DataFrame will be returned that contains
-    3 columns: command (the command being explanation), explanation (explanation of command), and event (the event_ids actually
+    3 columns: command (the command being explained), explanation (explanation of command), and event (the event_ids actually
     passed in). If invalid event_ids are passed in then the returned DataFrame will contain the same 3 columns, but will
     have a message indicating that no explanation could be found. 
 
