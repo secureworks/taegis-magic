@@ -1,15 +1,23 @@
 """Magics Configuration tool."""
 
-from configparser import SectionProxy
 import logging
+from configparser import SectionProxy
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
 import typer
 from dataclasses_json import dataclass_json
-from taegis_magic.core.log import tracing, TRACE_LOG_LEVEL, get_module_logger, get_sdk_logger
-from taegis_magic.core.normalizer import TaegisResultsNormalizer, TaegisResultWithMessage
+from taegis_magic.core.log import (
+    TRACE_LOG_LEVEL,
+    get_module_logger,
+    get_sdk_logger,
+    tracing,
+)
+from taegis_magic.core.normalizer import (
+    TaegisResultsNormalizer,
+    TaegisResultWithMessage,
+)
 from typing_extensions import Annotated
 
 from taegis_sdk_python.config import get_config, write_config, write_to_config
@@ -67,7 +75,7 @@ class LoggingOptions(str, Enum):
     sdk_debug = "sdk_debug"
     sdk_verbose = "sdk_verbose"
     sdk_warning = "sdk_warning"
-   
+
 
 class ConfigureLogging(str, Enum):
     """Configure default logging options."""
@@ -189,17 +197,16 @@ def set_defaults():  # pragma: no cover
     if not config.has_option(QUERIES_SECTION, "track"):
         config[QUERIES_SECTION]["track"] = "no"
 
+    if not config.has_option(QUERIES_SECTION, "cache"):
+        config[QUERIES_SECTION]["cache"] = "no"
+
     ###
     # Logging Defaults
     ###
     if not config.has_option(LOGGING_SECTION, MAGIC_LOG_LEVEL_KEY):
-        config[LOGGING_SECTION][MAGIC_LOG_LEVEL_KEY] = (
-            MagicLoggerLevel.warning.value
-        )
+        config[LOGGING_SECTION][MAGIC_LOG_LEVEL_KEY] = MagicLoggerLevel.warning.value
     if not config.has_option(LOGGING_SECTION, SDK_LOG_LEVEL_KEY):
-        config[LOGGING_SECTION][SDK_LOG_LEVEL_KEY] = (
-            SdkLoggerLevel.warning.value
-        )
+        config[LOGGING_SECTION][SDK_LOG_LEVEL_KEY] = SdkLoggerLevel.warning.value
 
     ###
     # Middleware Defaults
@@ -344,6 +351,25 @@ def queries_track(status: QueriesTrack = QueriesTrack.no):
     return results
 
 
+@queries.command(name="cache")
+@tracing
+def queries_cache(status: QueriesTrack = QueriesTrack.no):
+    """Configure Alert/Event query caching by default."""
+    write_to_config(
+        QUERIES_SECTION,
+        "cache",
+        status.value,
+    )
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[dict(status=status.value)],
+    )
+    return results
+
+
 @queries.command(name="list")
 @tracing
 def queries_list():
@@ -426,7 +452,7 @@ def logging_defaults(
         raw_results=[
             dict(
                 deprecated=True,
-                message="This command is deprecated and does nothing. Use `configure logging levels` instead.",               
+                message="This command is deprecated and does nothing. Use `configure logging levels` instead.",
             )
         ],
     )
@@ -435,7 +461,7 @@ def logging_defaults(
 
 @configure_logging.command(name="list")
 @tracing
-def list_current_config(): 
+def list_current_config():
     """List current logging config"""
     config = get_config()
 
@@ -443,9 +469,7 @@ def list_current_config():
         service="configure",
         tenant_id="None",
         region="None",
-        raw_results=[
-            dict(config[LOGGING_SECTION])
-        ],
+        raw_results=[dict(config[LOGGING_SECTION])],
     )
 
 
@@ -481,9 +505,7 @@ def logging_levels(
         service="configure",
         tenant_id="None",
         region="None",
-        raw_results=[
-            dict(config[LOGGING_SECTION])
-        ],
+        raw_results=[dict(config[LOGGING_SECTION])],
     )
     return results
 

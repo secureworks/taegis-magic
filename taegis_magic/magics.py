@@ -15,26 +15,25 @@ from IPython.core.magic_arguments import argument, magic_arguments, parse_argstr
 from IPython.display import display, display_markdown
 from jinja2 import TemplateSyntaxError
 from taegis_magic.cli import app
-from taegis_magic.commands.configure import set_defaults
-from taegis_magic.core.log import (
-    TRACE_LOG_LEVEL,
-    get_module_logger,
-    get_sdk_logger,
+from taegis_magic.commands.configure import (
+    QUERIES_SECTION,
+    DisableReturnDisplay,
+    set_defaults,
 )
 from taegis_magic.core.cache import (
     decode_base64_obj_as_pickle,
     display_cache,
     get_cache_item,
 )
+from taegis_magic.core.log import TRACE_LOG_LEVEL, get_module_logger, get_sdk_logger
 from taegis_magic.core.notebook import (
     find_notebook_name,
     generate_report,
     save_notebook,
 )
 
-from taegis_sdk_python.templates import load_jinja2_template_environment
 from taegis_sdk_python.config import get_config
-from taegis_magic.commands.configure import QUERIES_SECTION, DisableReturnDisplay
+from taegis_sdk_python.templates import load_jinja2_template_environment
 
 TAEGIS_MAGIC_NOTEBOOK_FILENAME = "TAEGIS_MAGIC_NOTEBOOK_FILENAME"
 
@@ -189,6 +188,8 @@ class TaegisMagics(Magics):
         args = shlex.split(line)
         parser = taegis_magics_command_parser()
 
+        config = get_config()
+
         try:
             magic_args, command_args = parser.parse_known_args(args)
         except SystemExit:
@@ -213,7 +214,9 @@ class TaegisMagics(Magics):
                 template_environment = load_jinja2_template_environment()
                 try:
                     if magic_args.cell_template_file:
-                        log.debug(f"Loading template file: {magic_args.cell_template_file}")
+                        log.debug(
+                            f"Loading template file: {magic_args.cell_template_file}"
+                        )
                         template = template_environment.get_template(
                             magic_args.cell_template_file
                         )
@@ -228,6 +231,11 @@ class TaegisMagics(Magics):
                 cell = template.render(**self.shell.user_ns)
                 log.debug("Template rendered successfully")
 
+            if magic_args and not magic_args.cache:
+                magic_args.cache = config[QUERIES_SECTION].getboolean(
+                    "cache", fallback=False
+                )
+
             if magic_args and magic_args.cache:
                 if not magic_args.assign:
                     raise ValueError("--assign must be set with cache...")
@@ -236,9 +244,13 @@ class TaegisMagics(Magics):
                     TAEGIS_MAGIC_NOTEBOOK_FILENAME in self.shell.user_ns
                     and self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME]
                 ):
-                    notebook_filename = self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME]
+                    notebook_filename = self.shell.user_ns[
+                        TAEGIS_MAGIC_NOTEBOOK_FILENAME
+                    ]
                 else:
-                    log.warning(f"{TAEGIS_MAGIC_NOTEBOOK_FILENAME} not set, prompting for input...")
+                    log.warning(
+                        f"{TAEGIS_MAGIC_NOTEBOOK_FILENAME} not set, prompting for input..."
+                    )
                     notebook_filename = input("Notebook Filename:")
 
                 if not notebook_filename:
@@ -247,7 +259,9 @@ class TaegisMagics(Magics):
                 notebook_fp = Path(notebook_filename)
 
                 if notebook_fp.exists():
-                    self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME] = notebook_filename
+                    self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME] = (
+                        notebook_filename
+                    )
                 else:
                     raise ValueError(
                         f"Notebook {notebook_filename} does not exist on disk, save notebook to disk before caching or "
@@ -269,7 +283,9 @@ class TaegisMagics(Magics):
                         data.results, max_level=3
                     ).dropna(axis=1, how="all")
 
-                    log.info(f"Resetting {magic_args.assign}:{cache_digest} to cache...")
+                    log.info(
+                        f"Resetting {magic_args.assign}:{cache_digest} to cache..."
+                    )
                     display_cache(magic_args.assign, cache_digest, data)
                     save_notebook()
 
