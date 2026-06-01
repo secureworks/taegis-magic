@@ -69,6 +69,7 @@ def search(
     region: Optional[str] = None,
 ):
     """Search for users."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     if email:
@@ -118,7 +119,7 @@ def search(
         service="users",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -128,6 +129,7 @@ def search(
 @tracing
 def support_pin(region: Optional[str] = None):
     """Get a PIN for Taegis support calls."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region)
 
     results = service.users.query.get_support_pin()
@@ -137,7 +139,7 @@ def support_pin(region: Optional[str] = None):
         service="users",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -147,6 +149,7 @@ def support_pin(region: Optional[str] = None):
 @tracing
 def verify_support_pin(pin: str, region: Optional[str] = None):
     """Verify users associated with PIN for Taegis support calls."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region)
 
     results = service.users.query.get_support_pin_verification(pin)
@@ -156,7 +159,7 @@ def verify_support_pin(pin: str, region: Optional[str] = None):
         service="users",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -166,6 +169,7 @@ def verify_support_pin(pin: str, region: Optional[str] = None):
 @tracing
 def current_user(region: Optional[str] = None):
     """Get current user information."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region)
 
     results = service.users.query.current_tdruser()
@@ -175,7 +179,7 @@ def current_user(region: Optional[str] = None):
         service="users",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -191,6 +195,7 @@ def invite_users(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Invite users to Taegis."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.users.mutation.invite_tdr_users(
@@ -205,7 +210,7 @@ def invite_users(
         service="users",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -221,6 +226,7 @@ def invite_trial_user(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Invite users to Taegis."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.users.mutation.invite_trial_tdr_user(
@@ -236,7 +242,7 @@ def invite_trial_user(
         service="users",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -246,6 +252,7 @@ def invite_trial_user(
 @tracing
 def validate_support_pin(email: str, pin: str, region: Optional[str] = None):
     """Validate a user's support pin."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region)
 
     results = service.users.mutation.validate_support_pin(
@@ -258,7 +265,7 @@ def validate_support_pin(email: str, pin: str, region: Optional[str] = None):
         service="users",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results

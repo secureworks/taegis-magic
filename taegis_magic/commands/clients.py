@@ -74,6 +74,7 @@ def create(
     role: Optional[List[Roles]] = None,
 ):
     """Create an OAuth2 client_id and client_secret for non-interactive login."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
     roles = [ROLE_MAP[r.value] for r in role or [Roles.analyst]]
 
@@ -84,7 +85,7 @@ def create(
         tenant_id=service.tenant_id,
         region=service.environment,
         service="clients",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -98,6 +99,7 @@ def remove(
     tenant: Optional[str] = None,
 ):
     """Delete an OAuth2 client_id."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.clients.mutation.delete_client(client_id)
@@ -107,7 +109,7 @@ def remove(
         tenant_id=service.tenant_id,
         region=service.environment,
         service="clients",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -123,6 +125,7 @@ def search(
     tenant: Optional[str] = None,
 ):
     """Search OAuth2 clients."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
     if role:
         roles = [ROLE_MAP[r.value] for r in role]
@@ -138,7 +141,7 @@ def search(
         tenant_id=service.tenant_id,
         region=service.environment,
         service="clients",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -152,6 +155,7 @@ def rotate_secret(
     tenant: Optional[str] = None,
 ):
     """Rotate secret value for an OAuth2 client."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.clients.mutation.rotate_client_secret(client_id)
@@ -161,7 +165,7 @@ def rotate_secret(
         tenant_id=service.tenant_id,
         region=service.environment,
         service="clients",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -176,6 +180,7 @@ def role_append(
     region: Optional[str] = None,
 ):
     """Add/Append a role to an OAuth2 client."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
     roles = [ROLE_MAP[r.value] for r in role]
 
@@ -191,7 +196,7 @@ def role_append(
         tenant_id=service.tenant_id,
         region=service.environment,
         service="clients",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -206,6 +211,7 @@ def role_remove(
     region: Optional[str] = None,
 ):
     """Remove a role for an OAuth2 client."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
     roles = [ROLE_MAP[r.value] for r in role]
 
@@ -219,7 +225,7 @@ def role_remove(
         tenant_id=service.tenant_id,
         region=service.environment,
         service="clients",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results

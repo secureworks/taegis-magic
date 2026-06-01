@@ -66,6 +66,7 @@ def process_lineage(
     ] = None,
 ):
     """Get process lineage for a given region & tenant, based on the resource_id, host_id, and process_correlation_id."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant_id)
 
     results = service.process_trees.query.process_lineage(
@@ -81,7 +82,7 @@ def process_lineage(
         service="process_lineage",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -99,6 +100,7 @@ def process_children(
     resource_id: Annotated[str, typer.Option(help="Taegis Event resource ID")] = None,
 ):
     """Get process children for a given region & tenant, based on the resource_id, host_id, and process_correlation_id."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant_id)
     all_results = []
     next_token = None
@@ -123,7 +125,7 @@ def process_children(
         service="process_children",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -141,6 +143,7 @@ def process_parent(
     resource_id: Annotated[str, typer.Option(help="Taegis Event resource ID")] = None,
 ):
     """Gets the processes' parent based on the parent_correlation_id for a given region & tenant, based on the resource_id, host_id, and parent_process_correlation_id."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant_id)
     results = service.process_trees.query.process_parent(
         host_id=host_id,
@@ -155,7 +158,7 @@ def process_parent(
         service="process_parent",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results

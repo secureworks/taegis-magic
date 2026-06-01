@@ -13,6 +13,7 @@ normalizer_jina_env = jinja2.Environment(
     autoescape=jinja2.select_autoescape(["html", "xml"]),
 )
 
+
 @dataclass_json
 @dataclass
 class TaegisResultsNormalizer:
@@ -72,6 +73,7 @@ class TaegisResultsNormalizer:
         template = normalizer_jina_env.get_template(template_name)
         return template.render(obj=self)
 
+
 class TaegisResultWithMessage(TaegisResultsNormalizer):
     """Shows a message in output"""
 
@@ -83,6 +85,7 @@ class TaegisResultWithMessage(TaegisResultsNormalizer):
         template = normalizer_jina_env.get_template(template_name)
         return template.render(obj=self)
 
+
 class TaegisResult(TaegisResultsNormalizer):
     """Generic single result normalizer."""
 
@@ -91,7 +94,7 @@ class TaegisResult(TaegisResultsNormalizer):
     @property
     def results(self):
         return [asdict(self.raw_results)]
-    
+
 
 class TaegisResults(TaegisResultsNormalizer):
     """Generic multiple results normalizer."""

@@ -28,9 +28,9 @@ from taegis_magic.commands import (
     tenants,
     threat,
     users,
-    configure,
 )
 from taegis_magic.core.normalizer import TaegisResult
+
 
 @dataclass_json
 @dataclass
@@ -63,6 +63,7 @@ app.add_typer(users.app, name="users")
 app.add_typer(process_trees.app, name="process-trees")
 app.add_typer(orchestration.app, name="orchestration")
 CONFIG = configure.set_defaults()
+
 
 @app.callback()
 def main(

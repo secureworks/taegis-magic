@@ -39,6 +39,8 @@ def login(
     ] = CONFIG[AUTH_SECTION].getboolean("use_universal_authentication", fallback=False),
 ):
     """Log into Taegis environments.  Use '--region all' authenticate each of Taegis environments."""
+    arguments = inspect.currentframe().f_locals
+
     service = get_service(use_universal_authentication=use_universal_authentication)
 
     config = get_config()
@@ -85,7 +87,7 @@ def login(
         service="authentication",
         tenant_id=None,
         region=region,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
 
@@ -101,6 +103,8 @@ def logout(
     ] = CONFIG[AUTH_SECTION].getboolean("use_universal_authentication", fallback=False),
 ):
     """Logout of Taegis environments.  Use '--region all' fully logout of Taegis."""
+    arguments = inspect.currentframe().f_locals
+
     service = get_service(use_universal_authentication=use_universal_authentication)
 
     config = get_config()
@@ -147,5 +151,5 @@ def logout(
         service="authentication",
         tenant_id=None,
         region=region,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )

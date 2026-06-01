@@ -93,6 +93,8 @@ def search(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Search Taegis tenants."""
+    arguments = inspect.currentframe().f_locals
+
     if filter_by_label_value and not filter_by_label_name:
         raise BadOptionUsage(
             ..., "--filter-by-label-value requires --filter-by-label-name to be set..."
@@ -207,7 +209,7 @@ def search(
         service="tenants",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results

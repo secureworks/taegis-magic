@@ -122,6 +122,8 @@ def rules_type(
     region: Optional[str] = None,
 ):
     """Taegis rules by type."""
+    arguments = inspect.currentframe().f_locals
+
     service = get_service(environment=region, tenant_id=tenant)
 
     page = 1
@@ -157,7 +159,7 @@ def rules_type(
         service="rules",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -170,6 +172,8 @@ def rules_all(
     region: Optional[str] = None,
 ):
     """Taegis all rules."""
+    arguments = inspect.currentframe().f_locals
+
     service = get_service(environment=region, tenant_id=tenant)
 
     page = 1
@@ -201,7 +205,7 @@ def rules_all(
         service="rules",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -215,6 +219,8 @@ def rules_suppression(
     region: Optional[str] = None,
 ):
     """Taegis suppression rules."""
+    arguments = inspect.currentframe().f_locals
+
     service = get_service(environment=region, tenant_id=tenant)
 
     page = 1
@@ -252,7 +258,7 @@ def rules_suppression(
         service="rules",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -266,6 +272,8 @@ def rules_deleted(
     region: Optional[str] = None,
 ):
     """Taegis deleted rules."""
+    arguments = inspect.currentframe().f_locals
+
     service = get_service(environment=region, tenant_id=tenant)
 
     page = 1
@@ -305,7 +313,7 @@ def rules_deleted(
         service="rules",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -320,6 +328,8 @@ def rules_event_type(
     region: Optional[str] = None,
 ):
     """Taegis all rules."""
+    arguments = inspect.currentframe().f_locals
+
     service = get_service(environment=region, tenant_id=tenant)
 
     page = 1
@@ -358,7 +368,7 @@ def rules_event_type(
         service="rules",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -372,6 +382,8 @@ def rules_rule(
     region: Optional[str] = None,
 ):
     """Taegis rule by id."""
+    arguments = inspect.currentframe().f_locals
+
     service = get_service(environment=region, tenant_id=tenant)
 
     try:
@@ -384,7 +396,7 @@ def rules_rule(
         service="rules",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -400,6 +412,8 @@ def rules_changes_since(
     region: Optional[str] = None,
 ):
     """Taegis rule changed by timestamp."""
+    arguments = inspect.currentframe().f_locals
+
     service = get_service(environment=region, tenant_id=tenant)
 
     try:
@@ -416,7 +430,7 @@ def rules_changes_since(
         service="rules",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -430,6 +444,8 @@ def rules_search(
     region: Optional[str] = None,
 ):
     """Taegis rule changed by timestamp."""
+    arguments = inspect.currentframe().f_locals
+
     service = get_service(environment=region, tenant_id=tenant)
 
     page = 1
@@ -477,7 +493,7 @@ def rules_search(
         service="rules",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -491,6 +507,7 @@ def rules_enable(
     region: Optional[str] = None,
 ):
     """Enable a Taegis rule."""
+    arguments = inspect.currentframe().f_locals
 
     service = get_service(environment=region, tenant_id=tenant)
 
@@ -501,7 +518,7 @@ def rules_enable(
         service="rules",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -515,6 +532,7 @@ def rules_disable(
     region: Optional[str] = None,
 ):
     """Disable a Taegis rule."""
+    arguments = inspect.currentframe().f_locals
 
     service = get_service(environment=region, tenant_id=tenant)
 
@@ -525,7 +543,7 @@ def rules_disable(
         service="rules",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -543,6 +561,8 @@ def rules_create_custom_rule(
     region: Optional[str] = None,
 ):
     """Taegis Create Custom QL Rule."""
+    arguments = inspect.currentframe().f_locals
+
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.rules.mutation.create_custom_ql_rule(
@@ -561,7 +581,7 @@ def rules_create_custom_rule(
         service="rules",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -587,6 +607,8 @@ def rules_create_suppression_rule(
     region: Optional[str] = None,
 ):
     """Taegis Create Suppression Rule."""
+    arguments = inspect.currentframe().f_locals
+
     service = get_service(environment=region, tenant_id=tenant)
 
     if len(key) != len(pattern):  # pragma: no cover
@@ -638,7 +660,7 @@ def rules_create_suppression_rule(
         service="rules",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results

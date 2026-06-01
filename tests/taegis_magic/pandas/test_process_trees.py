@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
-
 from taegis_magic.pandas.process_trees import lookup_children, lookup_lineage
 
 
@@ -118,7 +117,6 @@ class TestLookupLineage:
         # 1 row with 2 lineage results -> 2 rows after explode
         assert len(result) == 2
         assert result["process_info.process_lineage.index"].tolist() == [0, 1]
-
 
     @patch("taegis_magic.pandas.process_trees.process_lineage")
     def test_no_resource_id_column(self, mock_lineage, lineage_result):

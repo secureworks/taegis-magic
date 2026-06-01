@@ -19,6 +19,8 @@ def current_subject(
     region: Annotated[Optional[str], typer.Option(help="Taegis region")] = None,
 ):
     """Get current subject [TDRUser|Client] information."""
+    arguments = inspect.currentframe().f_locals
+
     service = get_service(environment=region)
 
     results = service.subjects.query.current_subject()
@@ -28,7 +30,7 @@ def current_subject(
         service="users",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results

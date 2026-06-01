@@ -90,6 +90,7 @@ def tenant_profile_list(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """List a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.query.managed_tenant_profile()
@@ -99,7 +100,7 @@ def tenant_profile_list(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -112,6 +113,7 @@ def network_list(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """List network ranges in a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.query.network_ranges_mtp()
@@ -121,7 +123,7 @@ def network_list(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -138,6 +140,7 @@ def network_add(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Add a network range to tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.mutation.create_network_range_mtp(
@@ -154,7 +157,7 @@ def network_add(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -172,6 +175,7 @@ def network_update(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Update a network range in a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.mutation.update_network_range_mtp(
@@ -189,7 +193,7 @@ def network_update(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -203,6 +207,7 @@ def network_remove(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Remove a network range in a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     try:
@@ -215,7 +220,7 @@ def network_remove(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -228,6 +233,7 @@ def note_list(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """List the note in a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.query.note_mtp()
@@ -237,7 +243,7 @@ def note_list(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -251,6 +257,7 @@ def note_update(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Update the note in a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.mutation.update_note_mtp(contents=contents)
@@ -260,7 +267,7 @@ def note_update(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -273,6 +280,7 @@ def security_controls_list(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """List security controls in a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.query.security_controls_mtp()
@@ -282,7 +290,7 @@ def security_controls_list(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -299,6 +307,7 @@ def security_controls_add(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Add a security control in a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.mutation.create_security_control_mtp(
@@ -315,7 +324,7 @@ def security_controls_add(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -333,6 +342,7 @@ def security_controls_update(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Update a security control in a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.mutation.update_security_control_mtp(
@@ -350,7 +360,7 @@ def security_controls_update(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -364,6 +374,7 @@ def security_controls_remove(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Remove a security control in a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     try:
@@ -376,7 +387,7 @@ def security_controls_remove(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -389,6 +400,7 @@ def mfa_list(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """List MFA access in a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.query.mfa_accesses_mtp()
@@ -398,7 +410,7 @@ def mfa_list(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -416,6 +428,7 @@ def mfa_add(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Add a MFA access in a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.mutation.create_mfa_access_mtp(
@@ -433,7 +446,7 @@ def mfa_add(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -452,6 +465,7 @@ def mfa_update(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Update a MFA access in a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.mutation.update_mfa_access_mtp(
@@ -470,7 +484,7 @@ def mfa_update(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -484,6 +498,7 @@ def mfa_remove(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Remove a MFA access in a tenant profile."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     try:
@@ -498,7 +513,7 @@ def mfa_remove(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -522,6 +537,7 @@ def network_template_generate(
 ):
     """Generate a template file for tenant profiles network ranges."""
 
+    arguments = inspect.currentframe().f_locals
     input_ = NetworkRangeCreateMtpInput(
         cidr="192.0.2.0/24",
         description="RFC 5737 TEST-NET-1",
@@ -541,7 +557,7 @@ def network_template_generate(
         service="tenant_profiles",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -566,6 +582,7 @@ def network_template_export(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Export tenant profiles network ranges to a file."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     results = service.tenant_profiles.query.network_ranges_mtp()
@@ -582,7 +599,7 @@ def network_template_export(
         service="tenant_profiles",
         tenant_id="N/A",
         region="N/A",
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
@@ -606,6 +623,7 @@ def network_template_upload(
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
     """Create/Update Tenant Profile Network Ranges."""
+    arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     try:
@@ -686,7 +704,7 @@ def network_template_upload(
         service="tenant_profiles",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results

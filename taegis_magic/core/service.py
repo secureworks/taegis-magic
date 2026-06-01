@@ -3,16 +3,15 @@
 from taegis_magic._version import __version__
 from taegis_magic.commands.configure import (
     AUTH_SECTION,
-    REGIONS_SECTION,
     MIDDLEWARES_SECTION,
+    REGIONS_SECTION,
 )
+from taegis_magic.core.log import magics_headers_logging_middleware
 
 from taegis_sdk_python import GraphQLService
 from taegis_sdk_python._consts import TAEGIS_ENVIRONMENT_URLS
 from taegis_sdk_python.config import get_config
 from taegis_sdk_python.middlewares import retry_middleware
-
-from taegis_magic.core.log import magics_headers_logging_middleware
 
 
 def get_service(*args, **kwargs) -> GraphQLService:

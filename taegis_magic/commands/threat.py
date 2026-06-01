@@ -14,10 +14,7 @@ from taegis_magic.core.service import get_service
 from typing_extensions import Annotated
 
 from taegis_sdk_python.services.threat.types import ThreatParentType
-
-from taegis_sdk_python.services.threat_publications.types import (
-    ThreatPublication,
-)
+from taegis_sdk_python.services.threat_publications.types import ThreatPublication
 
 log = logging.getLogger(__name__)
 
@@ -118,6 +115,7 @@ def watchlist(
     """
     Retrieve CTU watchlist by indicator type.
     """
+    arguments = inspect.currentframe().f_locals
     service = get_service(tenant_id=tenant, environment=region)
     results = service.threat.query.threat_watchlist(type_)
 
@@ -126,7 +124,7 @@ def watchlist(
         tenant_id=service.tenant_id,
         region=service.environment,
         raw_results=results,
-        arguments=inspect.currentframe().f_locals,
+        arguments=arguments,
     )
 
     return normalized_results
