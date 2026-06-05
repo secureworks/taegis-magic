@@ -59,13 +59,10 @@ def get_command_line_explanation(
     explanations_df = pd.DataFrame(explanations)
 
     explanations_df.replace("", pd.NA, inplace=True)
-
-
     
     if explanations_df["command"].isna().all() and explanations_df["explanation"].isna().all():
         log.warning("Could not generate explanation for commands. Please make sure supplied DataFrame contains valid events.")
     
-
     ret_df = pd.merge(
         left=df,
         right=explanations_df,
@@ -73,6 +70,5 @@ def get_command_line_explanation(
         right_on="event",
         suffixes=(None, ".explain")
     )
-
 
     return ret_df
