@@ -165,17 +165,30 @@ $ taegis configure queries list
 
 #### Logging
 
-Taegis Magic is built on top of the Taegis SDK for Python.  There are two logging modules that we can configure to increase or descrease the verbosity of the logs: `taegis_magic` and `taegis_sdk_python`.  The SDK-specific logging options are prepended with `sdk_`, the magic logging options are not.
+Taegis Magic is built on top of the Taegis SDK for Python. Therefore, there are two logging modules that we can configure to increase or decrease the verbosity of the logs: `taegis_magic` and `taegis_sdk_python`. There are 5 separate logging levels that can be configured:
 
-* `trace` (for tracing function calls with inputs/outputs; extremely verbose) 
+* `trace` (for tracing function calls with inputs/outputs; extremely verbose; only available for `taegis_magic` logger) 
 * `debug` (turns on debug log messages)
-* `verbose` (turns on informational logging)
+* `info` (turns on informational logging)
 * `warning` (turns on warning logging)
+* `error` (turns on error logging)
 
-By default, Taegis Magic sets the log level to warning and above.  Configuration sets the logging level to the lowest level configured (e.g., setting both warning and debug to `true`  results in debug logging)
+By default, Taegis Magic sets the log level to `warning` for both loggers. Typical logging behavior is implemented such that the level the logger is set and the logging levels above it will be logged and levels below will be ignored. For example, if the level is set to `info` then only `info`, `warning`, and `error` logs will be logged whereas `debug` and `trace` logs won't be. 
 
+To set the logging level for either logger, the following command can be executed:
 ```bash
-$ taegis configure logging defaults [option] --status [true/false]
+%taegis configure logging levels {logger} {log_level}
+```
+Where `{logger}` is either `--magic-log-level` (for `taegis_magic`) or `--sdk-log-level` (for `taegis_sdk_python`) logger and `{log_level}` is one of the options previous mentioned. 
+
+For example, to set the `taegis_magic` log level to info one would do: 
+```bash
+%taegis configure logging levels --magic-log-level info
+```
+
+To view what each logger's logging level is set to the following command can be executed:
+```bash
+%taegis configure logging list
 ```
 
 ### Formatting
