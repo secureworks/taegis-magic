@@ -25,11 +25,11 @@ EARLIEST=-1h | head 5
 ret = get_command_line_explanation(events, region=region, tenant_id=tenant)
 ```
 
-`ret`, a `DataFrame`, contains 3 columns, `command`, `explanation`, `event`. It would look like the following: 
+`ret`, a `DataFrame`, is a new DataFrame that contains the input DataFrame in addition to 3 new columns, `command`, `explanation`, `event`. The 3 new columns would look like the following: 
 
 ```python
 command | explanation | event
 C:\Windows\system32\WerFault.exe -u -p 5576 | - Most likely CLI environment: Windows Command... |  event://priv:scwx.process:11063:1779911715105
 ```
 
-If invalid event_ids are included in the input `DataFrame` then a message in the returned `DataFrame` will indicate that the commands and explanations could not be genreated. 
+If invalid event_ids (e.g. they aren't real event_ids, they don't exist, etc.) are included in the input `DataFrame`, the 3 new columns will still be added but instead a message in the returned `DataFrame` will indicate that the commands and explanations could not be generated. 

@@ -21,10 +21,10 @@ def get_command_line_explanation(
     
     """
     Takes in a DataFrame where a column (the event_id_column) contains event_ids. This function will then send those event_ids
-    to an API to get a LLM generated explanation of those commmandline commands. A new DataFrame will be returned that contains
-    3 columns: command (the command being explained), explanation (explanation of command), and event (the event_ids actually
-    passed in). If invalid event_ids are passed in then the returned DataFrame will contain the same 3 columns, but will
-    have a message indicating that no explanation could be found. 
+    to an API to get a LLM generated explanation of those commmandline commands. A new DataFrame will be returned that adds
+    3 columns to the input DataFrame: command (the command being explained), explanation (explanation of command), and
+    event (the event_ids actually passed in). If invalid event_ids are passed in then the returned DataFrame will still contain 
+    the same 3 columns, but will have a message indicating that no explanation could be found. 
 
     Parameters
     ----------
@@ -56,11 +56,23 @@ def get_command_line_explanation(
     
     explanations = service.context_summarizer.query.explain_command_lines(explanation_input)
     
-    ret_df = pd.DataFrame(explanations)
+    explanations_df = pd.DataFrame(explanations)
 
-    ret_df.replace("", pd.NA, inplace=True)
+    explanations_df.replace("", pd.NA, inplace=True)
+
+
     
-    if ret_df["command"].isna().all() and ret_df["explanation"].isna().all():
+    if explanations_df["command"].isna().all() and explanations_df["explanation"].isna().all():
         log.warning("Could not generate explanation for commands. Please make sure supplied DataFrame contains valid events.")
+    
+
+    ret_df = pd.merge(
+        left=df,
+        right=explanations_df,
+        left_on=event_id_column,
+        right_on="event",
+        suffixes=(None, ".explain")
+    )
+
 
     return ret_df
