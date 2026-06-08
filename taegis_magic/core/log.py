@@ -5,7 +5,6 @@ import logging
 from typing import Callable
 
 from aiohttp import ClientHandlerType, ClientRequest, ClientResponse
-
 from taegis_sdk_python.middlewares.utils import scrub_dict
 
 TRACE_LOG_LEVEL = 5

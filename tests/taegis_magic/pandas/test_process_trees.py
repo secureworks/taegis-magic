@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
+
 from taegis_magic.pandas.process_trees import lookup_children, lookup_lineage
 
 

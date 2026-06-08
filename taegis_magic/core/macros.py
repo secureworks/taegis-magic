@@ -10,14 +10,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-from taegis_magic.core.service import get_service
-
 from taegis_sdk_python.config import get_config
 from taegis_sdk_python.services.tenants4.types import (
     SubscriptionMatcher,
     TenantLabelMatcher,
     TenantsQuery,
 )
+
+from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 

@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 import typer
 from dataclasses_json import dataclass_json
+
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
 from taegis_magic.core.service import get_service

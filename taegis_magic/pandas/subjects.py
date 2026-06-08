@@ -5,6 +5,7 @@ from dataclasses import asdict
 from typing import List, Optional
 
 import pandas as pd
+
 from taegis_magic.core.service import get_service
 from taegis_magic.core.utils import to_dataframe
 from taegis_magic.pandas.utils import chunk_list

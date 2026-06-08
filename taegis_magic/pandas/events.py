@@ -3,9 +3,10 @@
 import contextlib
 import json
 import logging
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import pandas as pd
+
 from taegis_magic.pandas.utils import coalesce_columns
 
 log = logging.getLogger(__name__)

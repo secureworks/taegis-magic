@@ -5,16 +5,16 @@ from dataclasses import asdict
 from typing import List, Optional
 
 import pandas as pd
-from taegis_magic.core.service import get_service
-from taegis_magic.core.utils import to_dataframe
-from taegis_magic.pandas.utils import chunk_list, get_tenant_id
-
 from taegis_sdk_python import GraphQLService
 from taegis_sdk_python.services.assets2.types import (
     AssetFilter,
     AssetV2,
     AssetWhereInputV2,
 )
+
+from taegis_magic.core.service import get_service
+from taegis_magic.core.utils import to_dataframe
+from taegis_magic.pandas.utils import chunk_list, get_tenant_id
 
 log = logging.getLogger(__name__)
 

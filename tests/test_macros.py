@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
+
 from taegis_magic.core.macros import (
     DEFAULT_MACROS_RESOURCE,
     MACROS_SECTION,

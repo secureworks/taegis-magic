@@ -8,11 +8,6 @@ from typing import Any, Dict, List, Optional
 
 import typer
 from dataclasses_json import config, dataclass_json
-from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
-from taegis_magic.core.service import get_service
-from typing_extensions import Annotated
-
 from taegis_sdk_python.services.audits.types import (
     AllAuditsInput,
     Audit,
@@ -23,6 +18,11 @@ from taegis_sdk_python.services.audits.types import (
     SortBy,
     SortOrder,
 )
+from typing_extensions import Annotated
+
+from taegis_magic.core.log import tracing
+from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 
