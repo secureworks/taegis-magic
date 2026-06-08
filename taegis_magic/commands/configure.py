@@ -452,7 +452,7 @@ def logging_defaults(
         raw_results=[
             dict(
                 deprecated=True,
-                message="This command is deprecated and does nothing. Use `configure logging levels` instead.",
+                message="This command is deprecated and does nothing. Please use `configure logging levels` instead.",
             )
         ],
     )
