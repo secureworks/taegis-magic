@@ -143,7 +143,7 @@ def get_event_explanation(
     event_ids = df[event_id_column].tolist()
 
     if not event_ids:
-        log.error(f"No valid event IDs found in column '{event_id_column}'. Ensure that the column contains valid event IDs starting with 'event://priv:scwx.process:'.")
+        log.error(f"No valid event IDs found in column '{event_id_column}'.")
         return pd.DataFrame()
 
     explanation_input = EventExplanationInput(events=event_ids)
@@ -152,12 +152,11 @@ def get_event_explanation(
         explanation_input
     )
 
-    explanations_df = to_dataframe([asdict(explanation) for explanation in explanations])
-
     if not explanations:
         log.error("No explanations were returned from the service. Please check if the event IDs are valid and if the service is functioning correctly.")
         return pd.DataFrame()
 
+    explanations_df = to_dataframe([asdict(explanation) for explanation in explanations])
     explanations_df.replace("", pd.NA, inplace=True)
 
     if explanations_df["event"].isna().all() and explanations_df["explanation"].isna().all():
