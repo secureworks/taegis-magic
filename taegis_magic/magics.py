@@ -14,6 +14,9 @@ from IPython.core.magic import Magics, line_cell_magic, line_magic, magics_class
 from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 from IPython.display import display, display_markdown
 from jinja2 import TemplateSyntaxError
+from taegis_sdk_python.config import get_config
+from taegis_sdk_python.templates import load_jinja2_template_environment
+
 from taegis_magic.cli import app
 from taegis_magic.commands.configure import (
     QUERIES_SECTION,
@@ -31,9 +34,6 @@ from taegis_magic.core.notebook import (
     generate_report,
     save_notebook,
 )
-
-from taegis_sdk_python.config import get_config
-from taegis_sdk_python.templates import load_jinja2_template_environment
 
 TAEGIS_MAGIC_NOTEBOOK_FILENAME = "TAEGIS_MAGIC_NOTEBOOK_FILENAME"
 

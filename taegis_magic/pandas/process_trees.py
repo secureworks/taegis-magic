@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
 import pandas as pd
+
 from taegis_magic.commands.process_trees import process_children, process_lineage
 
 log = logging.getLogger(__name__)

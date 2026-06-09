@@ -8,13 +8,13 @@ from urllib.parse import quote
 
 import typer
 from dataclasses_json import dataclass_json
+from taegis_sdk_python.services.threat.types import ThreatParentType
+from taegis_sdk_python.services.threat_publications.types import ThreatPublication
+from typing_extensions import Annotated
+
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResults, TaegisResultsNormalizer
 from taegis_magic.core.service import get_service
-from typing_extensions import Annotated
-
-from taegis_sdk_python.services.threat.types import ThreatParentType
-from taegis_sdk_python.services.threat_publications.types import ThreatPublication
 
 log = logging.getLogger(__name__)
 

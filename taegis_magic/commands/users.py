@@ -8,12 +8,6 @@ from pprint import pprint
 from typing import Any, List, Optional
 
 import typer
-from taegis_magic.commands.clients import ROLE_MAP, Roles
-from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
-from taegis_magic.core.service import get_service
-from typing_extensions import Annotated
-
 from taegis_sdk_python.services.users.types import (
     InviteUsersResponse,
     SupportPinDetails,
@@ -25,6 +19,12 @@ from taegis_sdk_python.services.users.types import (
     TDRUserSupportPin,
     TDRUserTrialInviteInput,
 )
+from typing_extensions import Annotated
+
+from taegis_magic.commands.clients import ROLE_MAP, Roles
+from taegis_magic.core.log import tracing
+from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_magic.core.service import get_service
 
 app = typer.Typer(help="Taegis User Commands.")
 

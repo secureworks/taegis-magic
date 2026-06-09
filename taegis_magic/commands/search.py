@@ -6,6 +6,14 @@ from dataclasses import asdict
 from typing import Optional
 
 import typer
+from taegis_sdk_python.services.llm_service.types import (
+    ExamplePromptCatalog,
+    NLSearchFeedbackV2,
+    NLSearchInputsV2,
+    NLSearchRating,
+)
+from typing_extensions import Annotated
+
 from taegis_magic.commands.utils.nl_queries import (
     clear_nl_search_queries,
     delete_nl_search_query,
@@ -19,14 +27,6 @@ from taegis_magic.core.normalizer import (
     TaegisResults,
 )
 from taegis_magic.core.service import get_service
-from typing_extensions import Annotated
-
-from taegis_sdk_python.services.llm_service.types import (
-    ExamplePromptCatalog,
-    NLSearchFeedbackV2,
-    NLSearchInputsV2,
-    NLSearchRating,
-)
 
 log = logging.getLogger(__name__)
 

@@ -5,10 +5,10 @@ from dataclasses import asdict
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
+from taegis_sdk_python.services.tenants.types import TenantsQuery
+
 from taegis_magic.core.service import get_service
 from taegis_magic.core.utils import get_tenant_id_column, to_dataframe
-
-from taegis_sdk_python.services.tenants.types import TenantsQuery
 
 log = logging.getLogger(__name__)
 

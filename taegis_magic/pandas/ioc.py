@@ -7,10 +7,6 @@ from ipaddress import ip_address
 from typing import Callable, List, Optional
 
 import pandas as pd
-from taegis_magic.core.log import tracing
-from taegis_magic.core.utils import get_first_tenant_id
-from taegis_magic.pandas.tenants import lookup_first_environment
-
 from taegis_sdk_python import GraphQLService
 from taegis_sdk_python.services.multi_tenant_ioc.types import (
     EventAggregationArguments,
@@ -20,6 +16,10 @@ from taegis_sdk_python.services.multi_tenant_ioc.types import (
     Operator,
     TenantsInput,
 )
+
+from taegis_magic.core.log import tracing
+from taegis_magic.core.utils import get_first_tenant_id
+from taegis_magic.pandas.tenants import lookup_first_environment
 
 log = logging.getLogger(__name__)
 

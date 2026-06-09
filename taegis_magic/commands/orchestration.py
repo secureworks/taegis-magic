@@ -5,16 +5,16 @@ from typing import Any, Dict, List, Optional
 
 import typer
 from dataclasses_json import dataclass_json
-from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResult, TaegisResultsNormalizer
-from taegis_magic.core.service import get_service
-from typing_extensions import Annotated
-
 from taegis_sdk_python.services.trigger_action.types import (
     ExecuteActionInput,
     PlaybookActions,
     PlaybookActionsV2Arguments,
 )
+from typing_extensions import Annotated
+
+from taegis_magic.core.log import tracing
+from taegis_magic.core.normalizer import TaegisResult, TaegisResultsNormalizer
+from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 
