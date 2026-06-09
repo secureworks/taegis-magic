@@ -26,7 +26,7 @@ def get_command_line_explanation(
     """
     Takes in a DataFrame where a column (the event_id_column) contains event_ids. This function will then send those event_ids
     to an API to get a LLM generated explanation of those commmandline commands. A new DataFrame will be returned that adds
-    3 additionalcolumns to the input DataFrame: command (the command being explained), explanation (explanation of command), and
+    3 additional columns to the input DataFrame: command (the command being explained), explanation (explanation of command), and
     event (the event_ids actually passed in). If invalid event_ids are passed in then the returned DataFrame will still contain
     the same 3 columns, but will have a message indicating that no explanation could be found.
 
@@ -54,7 +54,12 @@ def get_command_line_explanation(
 
     if event_id_column not in df:
         log.warning(f"{event_id_column} not found in dataframe")
-        return pd.DataFrame()
+
+        if f'event_data.{event_id_column}' in df:
+            log.info(f"Found '{event_id_column}' column with 'event_data.' prefix. Using that column for event IDs.")
+            event_id_column = f'event_data.{event_id_column}'
+        else:
+            return pd.DataFrame()
 
     service = get_service(environment=region, tenant_id=tenant_id)
     event_ids = [
@@ -78,6 +83,10 @@ def get_command_line_explanation(
     explanations_df = to_dataframe([asdict(explanation) for explanation in explanations])
 
     explanations_df.replace("", pd.NA, inplace=True)
+
+    if 'event' not in explanations_df.columns or 'explanation' not in explanations_df.columns:
+        log.error("The expected columns 'event' and 'explanation' were not found in the explanations DataFrame. Please check the service response and ensure it returns the correct data.")
+        return pd.DataFrame()
 
     if (
         explanations_df["command"].isna().all()
@@ -137,7 +146,12 @@ def get_event_explanation(
 
     if event_id_column not in df:
         log.error(f"{event_id_column} not found in dataframe")
-        return pd.DataFrame()
+
+        if f'event_data.{event_id_column}' in df:
+            log.info(f"Found '{event_id_column}' column with 'event_data.' prefix. Using that column for event IDs.")
+            event_id_column = f'event_data.{event_id_column}'
+        else:
+            return pd.DataFrame()
 
     service = get_service(environment=region, tenant_id=tenant_id)
     event_ids = df[event_id_column].tolist()
@@ -157,7 +171,12 @@ def get_event_explanation(
         return pd.DataFrame()
 
     explanations_df = to_dataframe([asdict(explanation) for explanation in explanations])
+
     explanations_df.replace("", pd.NA, inplace=True)
+
+    if 'event' not in explanations_df.columns or 'explanation' not in explanations_df.columns:
+        log.error("The expected columns 'event' and 'explanation' were not found in the explanations DataFrame. Please check the service response and ensure it returns the correct data.")
+        return pd.DataFrame()
 
     if explanations_df["event"].isna().all() and explanations_df["explanation"].isna().all():
         log.error(
