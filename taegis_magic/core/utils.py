@@ -2,7 +2,6 @@ import logging
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-
 from taegis_sdk_python import GraphQLService
 
 log = logging.getLogger(__name__)

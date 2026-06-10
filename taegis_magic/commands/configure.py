@@ -8,6 +8,10 @@ from pathlib import Path
 
 import typer
 from dataclasses_json import dataclass_json
+from taegis_sdk_python.config import get_config, write_config, write_to_config
+from taegis_sdk_python.middlewares.retry._default import SECTION as RETRY_SECTION
+from typing_extensions import Annotated
+
 from taegis_magic.core.log import (
     TRACE_LOG_LEVEL,
     get_module_logger,
@@ -18,10 +22,6 @@ from taegis_magic.core.normalizer import (
     TaegisResultsNormalizer,
     TaegisResultWithMessage,
 )
-from typing_extensions import Annotated
-
-from taegis_sdk_python.config import get_config, write_config, write_to_config
-from taegis_sdk_python.middlewares.retry._default import SECTION as RETRY_SECTION
 
 log = logging.getLogger(__name__)
 

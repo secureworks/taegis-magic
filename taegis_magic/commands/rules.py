@@ -9,12 +9,6 @@ from typing import List, Optional
 import typer
 from click.exceptions import BadOptionUsage
 from dataclasses_json import dataclass_json
-from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
-from taegis_magic.core.service import get_service
-from taegis_magic.core.utils import remove_output_node
-from typing_extensions import Annotated
-
 from taegis_sdk_python import GraphQLNoRowsInResultSetError, build_output_string
 from taegis_sdk_python.services.rules.types import (
     Rule,
@@ -27,6 +21,12 @@ from taegis_sdk_python.services.rules.types import (
     SearchRulesInput,
     SearchRulesOutput,
 )
+from typing_extensions import Annotated
+
+from taegis_magic.core.log import tracing
+from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_magic.core.service import get_service
+from taegis_magic.core.utils import remove_output_node
 
 log = logging.getLogger(__name__)
 

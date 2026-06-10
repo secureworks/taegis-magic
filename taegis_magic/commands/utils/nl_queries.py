@@ -6,9 +6,9 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 import pandas as pd
-from taegis_magic.commands.utils._database import find_database
-
 from taegis_sdk_python.services.llm_service.types import NLSearchOutputV2
+
+from taegis_magic.commands.utils._database import find_database
 
 
 def read_database(

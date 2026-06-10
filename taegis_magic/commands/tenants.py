@@ -9,11 +9,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import typer
 from click.exceptions import BadOptionUsage
 from dataclasses_json import config, dataclass_json
-from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
-from taegis_magic.core.service import get_service
-from typing_extensions import Annotated
-
 from taegis_sdk_python.services.tenants.types import (
     OrderDir,
     TenantEnvironmentFilter,
@@ -23,6 +18,11 @@ from taegis_sdk_python.services.tenants.types import (
     TenantsQuery,
     TimeFilter,
 )
+from typing_extensions import Annotated
+
+from taegis_magic.core.log import tracing
+from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 
