@@ -445,7 +445,6 @@ def queries_disable_return_display(
 def logging_defaults(
     option: LoggingOptions, status: Annotated[ConfigureLogging, typer.Option()]
 ):
-    """**Command now deprecated. Please use `levels` instead."""
     results = TaegisResultWithMessage(
         service="configure",
         tenant_id="None",
@@ -482,27 +481,19 @@ def logging_levels(
         typer.Option(
             help="Set taegis_magic logger level (trace/debug/info/warning/error).",
         ),
-    ] = None,
+    ] = MagicLoggerLevel.warning,
     sdk_log_level: Annotated[
         SdkLoggerLevel,
         typer.Option(
             help="Set taegis_sdk_python logger level (debug/info/warning/error).",
         ),
-    ] = None,
+    ] = SdkLoggerLevel.warning,
 ):
     """Configure logging levels for magic and SDK loggers."""
     config = get_config()
     if not config.has_section(LOGGING_SECTION):
         config.add_section(LOGGING_SECTION)
 
-    if not magic_log_level:
-        lvl = config[LOGGING_SECTION][MAGIC_LOG_LEVEL_KEY]
-        magic_log_level = MagicLoggerLevel[lvl] if lvl else MagicLoggerLevel.warning
-    if not sdk_log_level:
-        lvl = config[LOGGING_SECTION][SDK_LOG_LEVEL_KEY]
-        sdk_log_level = SdkLoggerLevel[lvl] if lvl else SdkLoggerLevel.warning
-
-    
     config[LOGGING_SECTION][MAGIC_LOG_LEVEL_KEY] = magic_log_level.value
     config[LOGGING_SECTION][SDK_LOG_LEVEL_KEY] = sdk_log_level.value
     write_config(config)
