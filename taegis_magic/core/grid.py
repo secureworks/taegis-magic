@@ -69,7 +69,7 @@ def data_grid(
 
     if validate_data:
         log.debug("Validating dataframe...")
-        df.map(validate_data_map, na_action="ignore")
+        df = df.map(validate_data_map, na_action="ignore")
 
     if "share_link" in df.columns:
         if "renderers" not in kwargs:
