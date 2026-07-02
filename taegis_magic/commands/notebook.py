@@ -15,15 +15,15 @@ import typer
 import yaml
 from gql.transport.exceptions import TransportQueryError
 from papermill.iorw import NoDatesSafeLoader, read_yaml_file
+from taegis_sdk_python import GraphQLService
+from taegis_sdk_python.services.notebooks.types import Notebook
+from typing_extensions import Annotated
+
 from taegis_magic.commands.utils.role_checker import has_role
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResult
 from taegis_magic.core.notebook import generate_report
 from taegis_magic.core.service import get_service
-from typing_extensions import Annotated
-
-from taegis_sdk_python import GraphQLService
-from taegis_sdk_python.services.notebooks.types import Notebook
 
 log = logging.getLogger(__name__)
 

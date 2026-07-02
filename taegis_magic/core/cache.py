@@ -10,6 +10,7 @@ import compress_pickle
 import nbformat
 import pandas as pd
 from IPython.display import display
+
 from taegis_magic.commands.alerts import AlertsResultsNormalizer
 from taegis_magic.commands.events import TaegisEventQueryNormalizer
 from taegis_magic.core.normalizer import TaegisResultsNormalizer

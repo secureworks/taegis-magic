@@ -8,6 +8,10 @@ from pathlib import Path
 
 import typer
 from dataclasses_json import dataclass_json
+from taegis_sdk_python.config import get_config, write_config, write_to_config
+from taegis_sdk_python.middlewares.retry._default import SECTION as RETRY_SECTION
+from typing_extensions import Annotated
+
 from taegis_magic.core.log import (
     TRACE_LOG_LEVEL,
     get_module_logger,
@@ -18,10 +22,6 @@ from taegis_magic.core.normalizer import (
     TaegisResultsNormalizer,
     TaegisResultWithMessage,
 )
-from typing_extensions import Annotated
-
-from taegis_sdk_python.config import get_config, write_config, write_to_config
-from taegis_sdk_python.middlewares.retry._default import SECTION as RETRY_SECTION
 
 log = logging.getLogger(__name__)
 
@@ -481,19 +481,27 @@ def logging_levels(
         typer.Option(
             help="Set taegis_magic logger level (trace/debug/info/warning/error).",
         ),
-    ] = MagicLoggerLevel.warning,
+    ] = None,
     sdk_log_level: Annotated[
         SdkLoggerLevel,
         typer.Option(
             help="Set taegis_sdk_python logger level (debug/info/warning/error).",
         ),
-    ] = SdkLoggerLevel.warning,
+    ] = None,
 ):
     """Configure logging levels for magic and SDK loggers."""
     config = get_config()
     if not config.has_section(LOGGING_SECTION):
         config.add_section(LOGGING_SECTION)
 
+    if not magic_log_level:
+        lvl = config[LOGGING_SECTION][MAGIC_LOG_LEVEL_KEY]
+        magic_log_level = MagicLoggerLevel[lvl] if lvl else MagicLoggerLevel.warning
+    if not sdk_log_level:
+        lvl = config[LOGGING_SECTION][SDK_LOG_LEVEL_KEY]
+        sdk_log_level = SdkLoggerLevel[lvl] if lvl else SdkLoggerLevel.warning
+
+    
     config[LOGGING_SECTION][MAGIC_LOG_LEVEL_KEY] = magic_log_level.value
     config[LOGGING_SECTION][SDK_LOG_LEVEL_KEY] = sdk_log_level.value
     write_config(config)

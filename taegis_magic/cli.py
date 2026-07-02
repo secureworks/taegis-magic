@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 from dataclasses_json import dataclass_json
 from gql.transport.exceptions import TransportQueryError
+
 from taegis_magic.commands import (
     alerts,
     audits,
@@ -130,9 +131,9 @@ def version():
     """Taegis Magic version information."""
     import sys
 
-    from taegis_magic._version import __version__ as magic_version
-
     from taegis_sdk_python._version import __version__ as sdk_version
+
+    from taegis_magic._version import __version__ as magic_version
 
     return TaegisResult(
         raw_results=MagicVersion(

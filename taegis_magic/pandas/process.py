@@ -1,20 +1,17 @@
 import logging
-from typing import Callable, Mapping, Optional
-from taegis_magic.core.service import get_service
-from taegis_magic.pandas.utils import chunk_list
 from dataclasses import dataclass
-from typing import Mapping, Optional
+from typing import Callable, Mapping, Optional
 
 import pandas as pd
 from jinja2 import Environment, PackageLoader
+from taegis_sdk_python.config import get_config
+from taegis_sdk_python.services.events.types import EventQueryOptions
+
 from taegis_magic.commands.configure import QUERIES_SECTION
 from taegis_magic.commands.events import get_next_page
 from taegis_magic.core.service import get_service
 from taegis_magic.core.utils import to_dataframe
 from taegis_magic.pandas.utils import chunk_list
-
-from taegis_sdk_python.config import get_config
-from taegis_sdk_python.services.events.types import EventQueryOptions
 
 log = logging.getLogger(__name__)
 
@@ -72,6 +69,7 @@ class NetflowCorrelationId:
         # PID can be in the form of `pid` only OR `pid:timewindow`
         return f"(host_id='{self.host_id}' AND ((processcorrelationid.pid='{self.pid+':'+self.time_window}') OR (processcorrelationid.pid='{self.pid}' AND processcorrelationid.timewindow='{self.time_window}'))) "
 
+
 @dataclass
 class BaseCorrelationId:
     process_correlation_id: str
@@ -88,12 +86,21 @@ def process_correlate_netflow(
     process_column: Optional[str] = "process_correlation_id",
     earliest: Optional[str] = "1d",
 ) -> pd.DataFrame:
-    """Correlate process data with netflow data. Effectively does a left join between process and netflow table based on process_correlation_id. Function first 
+    """Correlate process data with netflow data. Effectively does a left join between process and netflow table based on process_correlation_id. Function first
     does a SELECT * from netflow table where process_correlation_id is equal to the process_correlation_id values in input DataFrame, then merges those results
-    into the input DataFrame and returns the result as a new DataFrame. Note that for the netflow table there is no process_correlation_id column so the 
-    process_correlation_id values from the input DataFrame are parsed to create where clauses that search for data in the the netflow table that correlate with 
+    into the input DataFrame and returns the result as a new DataFrame. Note that for the netflow table there is no process_correlation_id column so the
+    process_correlation_id values from the input DataFrame are parsed to create where clauses that search for data in the the netflow table that correlate with
     the full process_correlation_id."""
-    return _process_correlate_base(df, region, tenant_id, NETFLOW, process_column, _create_netflow_correlation_ids, _process_correlate_netflow_helper, earliest)
+    return _process_correlate_base(
+        df,
+        region,
+        tenant_id,
+        NETFLOW,
+        process_column,
+        _create_netflow_correlation_ids,
+        _process_correlate_netflow_helper,
+        earliest,
+    )
 
 
 def process_correlate_http(
@@ -102,12 +109,14 @@ def process_correlate_http(
     region: str,
     tenant_id: str,
     process_column: Optional[str] = "process_correlation_id",
-    earliest: Optional[str] = "1d"
+    earliest: Optional[str] = "1d",
 ) -> pd.DataFrame:
-    """Correlate process data with http data. Effectively does a left join between process and http table based on process_correlation_id. Function first 
+    """Correlate process data with http data. Effectively does a left join between process and http table based on process_correlation_id. Function first
     does a SELECT * from http table where process_correlation_id is equal to the process_correlation_id values in input DataFrame, then merges those results
     into the input DataFrame and returns the result as a new DataFrame."""
-    return _process_correlate_base(df, region, tenant_id, HTTP, process_column, None, None, earliest)
+    return _process_correlate_base(
+        df, region, tenant_id, HTTP, process_column, None, None, earliest
+    )
 
 
 def process_correlate_auth(
@@ -116,12 +125,14 @@ def process_correlate_auth(
     region: str,
     tenant_id: str,
     process_column: Optional[str] = "process_correlation_id",
-    earliest: Optional[str] = "1d"
+    earliest: Optional[str] = "1d",
 ) -> pd.DataFrame:
-    """Correlate process data with auth data. Effectively does a left join between process and auth table based on process_correlation_id. Function first 
+    """Correlate process data with auth data. Effectively does a left join between process and auth table based on process_correlation_id. Function first
     does a SELECT * from auth table where process_correlation_id is equal to the process_correlation_id values in input DataFrame, then merges those results
     into the input DataFrame and returns the result as a new DataFrame."""
-    return _process_correlate_base(df, region, tenant_id, AUTH, process_column, None, None, earliest)
+    return _process_correlate_base(
+        df, region, tenant_id, AUTH, process_column, None, None, earliest
+    )
 
 
 def process_pivot_netflow(
@@ -542,6 +553,7 @@ def _process_pivot_with_map(
         earliest,
     )
 
+
 def _create_netflow_correlation_ids(chunk: list[str]) -> list[NetflowCorrelationId]:
     """Convert correlation ID strings to NetflowCorrelationId objects.
 
@@ -556,6 +568,7 @@ def _create_netflow_correlation_ids(chunk: list[str]) -> list[NetflowCorrelation
         List of NetflowCorrelationId objects.
     """
     return list(map(lambda pid: NetflowCorrelationId(*pid.split(":")), chunk))
+
 
 def _create_base_correlation_ids(chunk: list[str]) -> list[BaseCorrelationId]:
     """Convert correlation ID strings to BaseCorrelationId objects.
@@ -586,18 +599,24 @@ def _process_correlate_netflow_helper(
     -------
     pd.DataFrame
         New DataFrame that contains process_correlation_id column
-    
-    """  
 
-    
+    """
+
     table_df = df.copy()
 
-    has_colon = table_df['processcorrelationid.pid'].str.contains(':', na=False)
-    table_df[f'{PROCESS_CORRELATION_ID_COL}'] = table_df['host_id'] + ":" + table_df['processcorrelationid.pid']
-    table_df.loc[~has_colon, f'{PROCESS_CORRELATION_ID_COL}'] = (
-        table_df['host_id'] + ":" + table_df['processcorrelationid.pid'] + ":" + table_df['processcorrelationid.timewindow']
+    has_colon = table_df["processcorrelationid.pid"].str.contains(":", na=False)
+    table_df[f"{PROCESS_CORRELATION_ID_COL}"] = (
+        table_df["host_id"] + ":" + table_df["processcorrelationid.pid"]
+    )
+    table_df.loc[~has_colon, f"{PROCESS_CORRELATION_ID_COL}"] = (
+        table_df["host_id"]
+        + ":"
+        + table_df["processcorrelationid.pid"]
+        + ":"
+        + table_df["processcorrelationid.timewindow"]
     )
     return table_df
+
 
 def _process_correlate_base(
     df: pd.DataFrame,
@@ -607,32 +626,32 @@ def _process_correlate_base(
     process_column: Optional[str] = "process_correlation_id",
     correlation_id_func: Optional[Callable[[list[str]], list]] = None,
     table_df_post_process_func: Optional[Callable[[pd.DataFrame], pd.DataFrame]] = None,
-    earliest: Optional[str] = "1d"
+    earliest: Optional[str] = "1d",
 ) -> pd.DataFrame:
     """Correlate process data with data from the target_table.
 
-    This is effectively a left join between the input DataFrame and the target_table. Input DataFrame is expected to have a 
-    column whose row values contain process_correlation_ids that have the format of {host_id}:{process_id}:{time_window}. 
+    This is effectively a left join between the input DataFrame and the target_table. Input DataFrame is expected to have a
+    column whose row values contain process_correlation_ids that have the format of {host_id}:{process_id}:{time_window}.
     Typically, the input DataFrame contains columns data from the process table. This function will take the process_correlation_ids
     from the input DataFrame and search for those same process_correlation_ids that are present in the target_table by effectively
     doing a SELECT * FROM target_table WHERE process_correlation_id = pid1 OR process_correlation_id = pid2 OR process_correlation_id = pid3...
     The data returned from this query will then be merged into the input_dataframe where the process_correlation_ids match.
-    The columns in this new combined/merged DataFrame that are from the target_table query will be prefixed with target_table. 
+    The columns in this new combined/merged DataFrame that are from the target_table query will be prefixed with target_table.
 
     If the process_correlation_id values from the input DataFrame are not found in the target_table, the input DataFrame already has
     the been through this function, or process_column is not in the input DataFrame, then the input DataFrame will be returned.
 
     As for a real example, if the input DataFrame has columns [my_column, process_correlation_id], the name of the target_table
-    is my_target, my_target has columns [col0, col1, process_correlation_id] and the process_correlation_id values from the input 
-    DataFrame are found in the target_table, the resulting DataFrame would have columns 
+    is my_target, my_target has columns [col0, col1, process_correlation_id] and the process_correlation_id values from the input
+    DataFrame are found in the target_table, the resulting DataFrame would have columns
     [my_columns, process_correlation_id, my_target.col0, my_target.col1, my_target.process_correlation_id]
 
     In the event that the target_table doesn't have a process_correlation_id column but does have its constituent parts across
     multiple columns, different functions can be passed in to account for this. Please see parameter explanations below.
-    
+
     Parameters
     ----------
-    df : pd.DataFrame   
+    df : pd.DataFrame
         Dataframe containing process data.
     region : str
         Taegis Region.
@@ -644,21 +663,21 @@ def _process_correlate_base(
         Process column to lookup in input DataFrame, by default "process_correlation_id".
     correlation_id_func : Optional[Callable[[list[str]], list]], default None
         When searching for process_correlation_ids in the target_table, they are usually just passed as a list. A where clause is
-        then made using this list, e.g. `where process_correlation_id = pid1 or process_correlation_id = pid2`.... But in the case 
-        of target_tables that don't have this column the process_correlation_id column from the input df has to be parsed to generate a 
-        custom list. For example, since host_id, process_id, and time_window are in the process_correlation_id, this correlation_id_func 
-        might make it so that instead of the elements in the list being the full process_correlation_id as found in the input df, 
+        then made using this list, e.g. `where process_correlation_id = pid1 or process_correlation_id = pid2`.... But in the case
+        of target_tables that don't have this column the process_correlation_id column from the input df has to be parsed to generate a
+        custom list. For example, since host_id, process_id, and time_window are in the process_correlation_id, this correlation_id_func
+        might make it so that instead of the elements in the list being the full process_correlation_id as found in the input df,
         they look something like
         (target_table.host_id=host_id AND ((target_table=pid+time_window) OR (target_table.pid=pid AND target_table.timewindow=timewindow))
     table_df_post_process_func : Optional[Callable[[pd.DataFrame, str], pd.DataFrame]]
-        Typically used in conjunction with correlation_id_func. If the target_table does not have a process_correlation_id column, 
-        then this function will need to be defined. This base function (not table_df_post_process_func parameter) effectively does 
-        a left join between the input DataFrame and the target_table and the join is done on the process_correlation_id column. 
-        If the target_table doesn't have this column, it will need to be created. When the query against the target_table returns 
-        it is then turned into a DataFrame. This function will then take in that DataFrame and create a target_table.process_correlation_id 
-        column that will be used when joining the input DataFrame's process_correlation_id. 
+        Typically used in conjunction with correlation_id_func. If the target_table does not have a process_correlation_id column,
+        then this function will need to be defined. This base function (not table_df_post_process_func parameter) effectively does
+        a left join between the input DataFrame and the target_table and the join is done on the process_correlation_id column.
+        If the target_table doesn't have this column, it will need to be created. When the query against the target_table returns
+        it is then turned into a DataFrame. This function will then take in that DataFrame and create a target_table.process_correlation_id
+        column that will be used when joining the input DataFrame's process_correlation_id.
     earliest : Optional[str], default "1d"
-        Date filter to apply when querying against target_table events to correlate with process data. Based on Taegis Query language. A "-" will be prepended to whatever value is provided. 
+        Date filter to apply when querying against target_table events to correlate with process data. Based on Taegis Query language. A "-" will be prepended to whatever value is provided.
 
     Returns
     -------
@@ -684,12 +703,11 @@ def _process_correlate_base(
 
     if df.empty:
         return df
-    
+
     if process_column not in df.columns:
         log.error(f"Column {process_column} not found in dataframe")
         return df
-    
-    
+
     if f"{target_table}.{PROCESS_CORRELATION_ID_COL}" in df.columns:
         log.debug(f"{target_table} columns already exist in DataFrame")
         return df
@@ -708,14 +726,20 @@ def _process_correlate_base(
         max_rows=100000,
         aggregation_off=False,
     )
-            
-    # Retrieve target_table data that correlates with process data in batches. 
+
+    # Retrieve target_table data that correlates with process data in batches.
     template = jinja_env.get_template(PROCESS_PIPE_TEMPLATE)
     for chunk in chunk_list(pids, 40):
 
-        table_pids = correlation_id_func(chunk) if correlation_id_func else _create_base_correlation_ids(chunk)
-        
-        query = template.render(table=target_table, filters=table_pids, earliest=f"-{earliest}")
+        table_pids = (
+            correlation_id_func(chunk)
+            if correlation_id_func
+            else _create_base_correlation_ids(chunk)
+        )
+
+        query = template.render(
+            table=target_table, filters=table_pids, earliest=f"-{earliest}"
+        )
 
         log.trace(query)
 
@@ -725,14 +749,14 @@ def _process_correlate_base(
             metadata={
                 "callerName": CONFIG[QUERIES_SECTION].get(
                     "callername", fallback="Taegis Magic"
-                    ),
-                },
-            )
-        
+                ),
+            },
+        )
+
         # query_result is non-empty even if no rows are returned, so can't just do `if not query_result`
         if not query_result[0].result.rows:
             continue
-        
+
         results.extend(query_result)
         next_page = get_next_page(query_result)
 
@@ -740,30 +764,28 @@ def _process_correlate_base(
             query_result = service.events.subscription.event_page(next_page)
             results.extend(query_result)
             next_page = get_next_page(query_result)
-    
+
     if not results:
         log.debug("No results were returned from query.")
         return df
 
     table_df = to_dataframe(
-        row
-        for r in results
-        if r.result and r.result.rows
-        for row in r.result.rows
+        row for r in results if r.result and r.result.rows for row in r.result.rows
     )
 
-    table_df = table_df_post_process_func(table_df) if table_df_post_process_func else table_df
+    table_df = (
+        table_df_post_process_func(table_df) if table_df_post_process_func else table_df
+    )
 
     table_df_with_new_col = table_df.add_prefix(f"{target_table}.")
-        
+
     merge_df = pd.merge(
         left=df,
-        right=table_df_with_new_col,        
+        right=table_df_with_new_col,
         left_on=process_column,
         right_on=f"{target_table}.{PROCESS_CORRELATION_ID_COL}",
         how="left",
-        suffixes=(None, f".correlate_{target_table}")
+        suffixes=(None, f".correlate_{target_table}"),
     )
 
     return merge_df
-    

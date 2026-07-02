@@ -15,33 +15,6 @@ from typing import Any, Dict, List, Optional, Union
 import requests
 import typer
 from dataclasses_json import config, dataclass_json
-from taegis_magic.commands.utils._database import find_database, find_dataframe
-from taegis_magic.commands.utils.investigations import (
-    InvestigationEvidenceChanges,
-    InvestigationEvidenceNormalizer,
-    InvestigationEvidenceType,
-    clear_search_queries,
-    delete_search_query,
-    get_investigation_evidence,
-    insert_search_query,
-    list_search_queries,
-    lookup_assignee_id,
-    read_database,
-    stage_investigation_evidence,
-    unstage_investigation_evidence,
-)
-from taegis_magic.core.callbacks import verify_file
-from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import (
-    DataFrameNormalizer,
-    TaegisResult,
-    TaegisResults,
-    TaegisResultsNormalizer,
-)
-from taegis_magic.core.service import get_service
-from taegis_magic.core.utils import remove_output_node
-from typing_extensions import Annotated
-
 from taegis_sdk_python import (
     GraphQLNoRowsInResultSetError,
     GraphQLService,
@@ -72,6 +45,33 @@ from taegis_sdk_python.services.investigations2.types import (
 from taegis_sdk_python.services.queries.types import QLQueriesInput
 from taegis_sdk_python.services.sharelinks.types import ShareLinkCreateInput
 from taegis_sdk_python.services.subjects.types import Subject as FederatedSubject
+from typing_extensions import Annotated
+
+from taegis_magic.commands.utils._database import find_database, find_dataframe
+from taegis_magic.commands.utils.investigations import (
+    InvestigationEvidenceChanges,
+    InvestigationEvidenceNormalizer,
+    InvestigationEvidenceType,
+    clear_search_queries,
+    delete_search_query,
+    get_investigation_evidence,
+    insert_search_query,
+    list_search_queries,
+    lookup_assignee_id,
+    read_database,
+    stage_investigation_evidence,
+    unstage_investigation_evidence,
+)
+from taegis_magic.core.callbacks import verify_file
+from taegis_magic.core.log import tracing
+from taegis_magic.core.normalizer import (
+    DataFrameNormalizer,
+    TaegisResult,
+    TaegisResults,
+    TaegisResultsNormalizer,
+)
+from taegis_magic.core.service import get_service
+from taegis_magic.core.utils import remove_output_node
 
 log = logging.getLogger(__name__)
 

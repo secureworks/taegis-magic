@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 import panel as pn
 from IPython.core.display import display
-from taegis_magic.pandas.alerts import inflate_raw_events
-
 from taegis_sdk_python import GraphQLService
+
+from taegis_magic.pandas.alerts import inflate_raw_events
 
 pn.extension("tabulator")
 
