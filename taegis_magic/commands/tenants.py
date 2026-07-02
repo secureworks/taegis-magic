@@ -4,19 +4,21 @@ import inspect
 import json
 import logging
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional
 
 import typer
 from click.exceptions import BadOptionUsage
-from dataclasses_json import config, dataclass_json
-from taegis_sdk_python.services.tenants.types import (
+from dataclasses_json import dataclass_json
+from taegis_sdk_python.services.tenants4.types import (
+    TenantResultOrder,
     OrderDir,
-    TenantEnvironmentFilter,
-    TenantLabelFilter,
-    TenantOrderField,
+    SubscriptionMatcher,
     TenantResults,
     TenantsQuery,
-    TimeFilter,
+    TenantEnvironment,
+    LicenseLevel,
+    TenantLicenseCapability,
+    TenantLabelMatcher,
 )
 from typing_extensions import Annotated
 
@@ -34,12 +36,14 @@ app = typer.Typer(help="Taegis Tenant Commands.")
 class TaegisTenantsResultsNormalizer(TaegisResultsNormalizer):
     """Taegis TenantResults normalizer."""
 
-    raw_results: List[TenantResults] = field(default_factory=lambda: [TenantResults()])
+    raw_results: List[TenantResults] = field(
+        default_factory=lambda: [TenantResults()]
+    )
 
     @property
     def results(self):
         return [
-            asdict(tenant) for result in self.raw_results for tenant in result.results
+            asdict(tenant) for result in self.raw_results for tenant in result.tenants
         ]
 
     @property
@@ -56,38 +60,31 @@ class TaegisTenantsResultsNormalizer(TaegisResultsNormalizer):
 @tracing
 def search(
     filter_by_name: Annotated[
-        Optional[str], typer.Option(help="(supports wildcard %) or tenant id")
+        Optional[List[str]], typer.Option(help="(supports wildcard *) or tenant id")
     ] = None,
     filter_by_tenant: Annotated[Optional[List[str]], typer.Option()] = None,
-    filter_by_region: Annotated[Optional[str], typer.Option()] = None,
-    filter_by_service: Annotated[Optional[List[str]], typer.Option()] = None,
-    filter_by_label_name: Annotated[Optional[str], typer.Option()] = None,
+    filter_by_region: Annotated[Optional[TenantEnvironment], typer.Option()] = None,
+    filter_by_subscription: Annotated[Optional[List[str]], typer.Option()] = None,
+    filter_by_license_level: Annotated[Optional[LicenseLevel], typer.Option()] = None,
+    filter_by_label_name: Annotated[Optional[List[str]], typer.Option()] = None,
     filter_by_label_value: Annotated[
-        Optional[str], typer.Option(help="--filter-by-label-name is required for use")
+        Optional[List[str]],
+        typer.Option(help="--filter-by-label-name is required for use"),
     ] = None,
-    filter_by_partner_subscription: Annotated[
-        Optional[List[str]], typer.Option()
+    filter_by_partner: Annotated[Optional[List[str]], typer.Option()] = None,
+    filter_by_organization: Annotated[Optional[List[str]], typer.Option()] = None,
+    filter_by_mdr_provider: Annotated[Optional[List[str]], typer.Option()] = None,
+    filter_by_hierarchy: Annotated[Optional[List[str]], typer.Option()] = None,
+    filter_by_license_capability_any: Annotated[
+        Optional[List[TenantLicenseCapability]], typer.Option()
     ] = None,
-    filter_by_requested_service: Annotated[Optional[List[str]], typer.Option()] = None,
-    filter_by_created_start_time: Annotated[
-        Optional[str],
-        typer.Option(help="YYYY-MM-DDTHH:MM:SSZ"),
+    filter_by_license_capability_all: Annotated[
+        Optional[List[TenantLicenseCapability]], typer.Option()
     ] = None,
-    filter_by_created_end_time: Annotated[
-        Optional[str],
-        typer.Option(help="YYYY-MM-DDTHH:MM:SSZ"),
+    filter_by_license_capability_none: Annotated[
+        Optional[List[TenantLicenseCapability]], typer.Option()
     ] = None,
-    filter_by_modified_start_time: Annotated[
-        Optional[str],
-        typer.Option(help="YYYY-MM-DDTHH:MM:SSZ"),
-    ] = None,
-    filter_by_modified_end_time: Annotated[
-        Optional[str],
-        typer.Option(help="YYYY-MM-DDTHH:MM:SSZ"),
-    ] = None,
-    filter_by_tenant_hierarchy: Annotated[Optional[List[str]], typer.Option()] = None,
-    filter_by_enabled: Annotated[Optional[bool], typer.Option()] = None,
-    sort_by_field: Annotated[TenantOrderField, typer.Option()] = TenantOrderField.ID,
+    sort_by_field: Annotated[TenantResultOrder, typer.Option()] = TenantResultOrder.ID,
     sort_order: Annotated[OrderDir, typer.Option()] = OrderDir.ASC,
     tenant: Annotated[Optional[str], typer.Option()] = None,
     region: Annotated[Optional[str], typer.Option()] = None,
@@ -100,107 +97,87 @@ def search(
             ..., "--filter-by-label-value requires --filter-by-label-name to be set..."
         )
 
+    if len(filter_by_label_name or []) != len(filter_by_label_value or []):
+        raise BadOptionUsage(
+            ...,
+            "--filter-by-label-name and --filter-by-label-value must have the same number of elements",
+        )
+
     service = get_service(environment=region, tenant_id=tenant)
 
-    max_results = 1000
-    page_number = 1
+    max_results = 2500
 
-    log.info(f"Polling page: {page_number}")
+    log.info(f"Polling page: 1")
 
-    result = service.tenants.query.tenants(
+    result = service.tenants4.query.tenants(
         TenantsQuery(
-            max_results=max_results,
-            page_num=page_number,
-            name=filter_by_name,
+            count=max_results,
+            names=filter_by_name,
             ids=filter_by_tenant,
-            for_hierarchies=filter_by_tenant_hierarchy,
-            with_partner_subscriptions=filter_by_partner_subscription,
-            with_requested_services=filter_by_requested_service,
-            label_filter=(
-                TenantLabelFilter(
-                    label_name=filter_by_label_name, label_value=filter_by_label_value
-                )
-                if filter_by_label_name
+            hierarchies=filter_by_hierarchy,
+            partners=filter_by_partner,
+            organizations=filter_by_organization,
+            mdr_providers=filter_by_mdr_provider,
+            labels_match=(
+                [
+                    TenantLabelMatcher(name=name, value=value)
+                    for name, value in zip(filter_by_label_name, filter_by_label_value)
+                ]
+                if filter_by_label_name and filter_by_label_value
                 else None
             ),
-            environment_filter=(
-                TenantEnvironmentFilter(name=filter_by_region, enabled=True)
-                if filter_by_region
+            enabled_in_environments=filter_by_region,
+            subscriptions_match=(
+                [SubscriptionMatcher(name=name) for name in filter_by_subscription]
+                if filter_by_subscription
                 else None
             ),
-            created_time_filter=(
-                TimeFilter(
-                    start_time=filter_by_created_start_time,
-                    end_time=filter_by_created_end_time,
-                )
-                if (filter_by_created_start_time or filter_by_created_end_time)
-                else None
-            ),
-            modified_time_filter=(
-                TimeFilter(
-                    start_time=filter_by_modified_start_time,
-                    end_time=filter_by_modified_end_time,
-                )
-                if (filter_by_modified_start_time or filter_by_modified_end_time)
-                else None
-            ),
-            with_services=filter_by_service,
+            license_level=filter_by_license_level,
+            license_capabilities_any=filter_by_license_capability_any,
+            license_capabilities_all=filter_by_license_capability_all,
+            license_capabilities_none=filter_by_license_capability_none,
             order_by=sort_by_field,
             order_dir=sort_order,
-            enabled_in_production=filter_by_enabled,
         )
     )
 
     results = [result]
 
     while result.has_more:
-        page_number += 1
-        log.info(f"Polling page: {page_number}")
+        log.info(f"Polling cursor: {result.cursor_pos}")
 
-        result = service.tenants.query.tenants(
-            TenantsQuery(
-                max_results=max_results,
-                page_num=page_number,
-                name=filter_by_name,
-                ids=filter_by_tenant,
-                for_hierarchies=filter_by_tenant_hierarchy,
-                with_partner_subscriptions=filter_by_partner_subscription,
-                with_requested_services=filter_by_requested_service,
-                label_filter=(
-                    TenantLabelFilter(
-                        label_name=filter_by_label_name,
-                        label_value=filter_by_label_value,
-                    )
-                    if filter_by_label_name
-                    else None
-                ),
-                environment_filter=(
-                    TenantEnvironmentFilter(name=filter_by_region, enabled=True)
-                    if filter_by_region
-                    else None
-                ),
-                created_time_filter=(
-                    TimeFilter(
-                        start_time=filter_by_created_start_time,
-                        end_time=filter_by_created_end_time,
-                    )
-                    if (filter_by_created_start_time or filter_by_created_end_time)
-                    else None
-                ),
-                modified_time_filter=(
-                    TimeFilter(
-                        start_time=filter_by_modified_start_time,
-                        end_time=filter_by_modified_end_time,
-                    )
-                    if (filter_by_modified_start_time or filter_by_modified_end_time)
-                    else None
-                ),
-                with_services=filter_by_service,
-                order_by=sort_by_field,
-                order_dir=sort_order,
-                enabled_in_production=filter_by_enabled,
-            )
+        result = service.tenants4.query.tenants(
+        TenantsQuery(
+            after_cursor=result.cursor_pos,
+            count=max_results,
+            names=filter_by_name,
+            ids=filter_by_tenant,
+            hierarchies=filter_by_hierarchy,
+            partners=filter_by_partner,
+            organizations=filter_by_organization,
+            mdr_providers=filter_by_mdr_provider,
+            labels_match=(
+                [
+                    TenantLabelMatcher(name=name, value=value)
+                    for name, value in zip(filter_by_label_name, filter_by_label_value)
+                ]
+                if filter_by_label_name and filter_by_label_value
+                else None
+            ),
+            enabled_in_environments=filter_by_region,
+            subscriptions_match=(
+                [SubscriptionMatcher(name=name) for name in filter_by_subscription]
+                if filter_by_subscription
+                else None
+            ),
+            license_level=filter_by_license_level,
+            license_capabilities_any=filter_by_license_capability_any,
+            license_capabilities_all=filter_by_license_capability_all,
+            license_capabilities_none=filter_by_license_capability_none,
+            order_by=sort_by_field,
+            order_dir=sort_order,
         )
+    )
 
         results.append(result)
 
