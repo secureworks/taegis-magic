@@ -54,7 +54,7 @@ class TaegisQueryRelayNormalizer(TaegisResultsNormalizer):
         return self.raw_results
 
 
-@app.callback(invoke_without_command=True)
+@app.command()
 @tracing
 def search(
     cell: Annotated[str, typer.Option(help="SQL query to execute")],
