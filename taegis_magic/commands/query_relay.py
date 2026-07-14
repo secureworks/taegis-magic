@@ -10,7 +10,7 @@ from dataclasses_json import dataclass_json
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
 from taegis_magic.core.service import get_service
-from taegis_sdk_python import GraphQLNoRowsInResultSetError
+from taegis_sdk_python import ServiceCoreException
 from taegis_sdk_python.services.query_relay.types import (
     ExecuteQueryRelayInput,
     FetchQueryRelayResultsInput,
@@ -86,11 +86,12 @@ def search(
     token = response.token
     if response.error:
         error = response.error
-        log.error(
+        message = (
             f"Query Relay execution failed to start: {response.status} "
             f"error={error.error} message={error.message} code={error.code}"
         )
-        raise GraphQLNoRowsInResultSetError("for mutation executeQueryRelay")
+        log.error(message)
+        raise ServiceCoreException(message)
     log.info(f"Query submitted, token: {token}")
 
     # Phase 1: Poll until execution completes
@@ -117,13 +118,14 @@ def search(
 
     if poll_response.result != QueryRelayResult.SUCCEEDED:
         error = poll_response.error
-        log.error(
+        message = (
             f"Query Relay execution did not succeed: {poll_response.result} "
             f"error={error.error if error else None} "
             f"message={error.message if error else None} "
             f"code={error.code if error else None}"
         )
-        raise GraphQLNoRowsInResultSetError("for mutation executeQueryRelay")
+        log.error(message)
+        raise ServiceCoreException(message)
 
     # Phase 2: Fetch all pages with progress
     total_rows = poll_response.pages.total if poll_response.pages else None
