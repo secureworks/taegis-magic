@@ -14,6 +14,7 @@ from IPython.core.magic import Magics, line_cell_magic, line_magic, magics_class
 from IPython.core.magic_arguments import argument, magic_arguments, parse_argstring
 from IPython.display import display, display_markdown
 from jinja2 import TemplateSyntaxError
+from taegis_sdk_python import ServiceCoreException
 from taegis_sdk_python.config import get_config
 from taegis_sdk_python.templates import load_jinja2_template_environment
 
@@ -301,6 +302,8 @@ class TaegisMagics(Magics):
                 result = app(command_args, prog_name="taegis", standalone_mode=False)
             except (SystemExit, TransportQueryError) as e:
                 log.exception(f"Command execution failed: {type(e).__name__}: {e}")
+                result = None
+            except ServiceCoreException:
                 result = None
             # os.environ["TAEGIS_MAGIC_OUTPUT"] = "False"
 
