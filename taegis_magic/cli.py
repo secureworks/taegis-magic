@@ -21,6 +21,7 @@ from taegis_magic.commands import (
     orchestration,
     preferences,
     process_trees,
+    query_relay,
     rules,
     search,
     sharelinks,
@@ -63,6 +64,7 @@ app.add_typer(tenants.app, name="tenants")
 app.add_typer(threat.app, name="threat")
 app.add_typer(users.app, name="users")
 app.add_typer(process_trees.app, name="process-trees")
+app.add_typer(query_relay.app, name="query")
 app.add_typer(orchestration.app, name="orchestration")
 CONFIG = configure.set_defaults()
 
