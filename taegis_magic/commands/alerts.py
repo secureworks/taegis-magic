@@ -7,6 +7,19 @@ from typing import Any, Dict, List, Optional
 
 import typer
 from dataclasses_json import config, dataclass_json
+from taegis_magic.commands.configure import QUERIES_SECTION
+from taegis_magic.commands.utils.investigations import insert_search_query
+from taegis_magic.commands.utils.nl_queries import insert_nl_search_query
+from taegis_magic.core.log import tracing
+from taegis_magic.core.macros import resolve_tenants
+from taegis_magic.core.normalizer import (
+    TaegisResults,
+    TaegisResultsNormalizer,
+    merge_normalizer_results,
+)
+from taegis_magic.core.service import get_service
+from typing_extensions import Annotated
+
 from taegis_sdk_python import (
     GraphQLNoRowsInResultSetError,
     GraphQLService,
@@ -27,19 +40,6 @@ from taegis_sdk_python.services.sharelinks.types import (
     ExtraParamCreateInput,
     ShareLinkCreateInput,
 )
-from typing_extensions import Annotated
-
-from taegis_magic.commands.configure import QUERIES_SECTION
-from taegis_magic.commands.utils.investigations import insert_search_query
-from taegis_magic.commands.utils.nl_queries import insert_nl_search_query
-from taegis_magic.core.log import tracing
-from taegis_magic.core.macros import resolve_tenants
-from taegis_magic.core.normalizer import (
-    TaegisResults,
-    TaegisResultsNormalizer,
-    merge_normalizer_results,
-)
-from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class AlertsResultsNormalizer(TaegisResultsNormalizer):
             return self.aggregate
 
         return [
-            asdict(alert) for result in self.raw_results for alert in result.alerts.list
+            asdict(alert) for result in self.raw_results for alert in result.alerts.list_
         ]
 
     @property
@@ -111,7 +111,7 @@ class AlertsResultsNormalizer(TaegisResultsNormalizer):
         """
         log.debug("Calling AlertsResultsNormalizer.total_returned...")
         return (
-            sum([len(result.alerts.list) for result in self.raw_results])
+            sum([len(result.alerts.list_) for result in self.raw_results])
             if self.raw_results
             else -1
         )
@@ -181,7 +181,7 @@ class AlertsResultsNormalizer(TaegisResultsNormalizer):
         )
 
         self._shareable_url = (
-            f'{service.core.sync_url.replace("api.", "")}/share/{result.id}'
+            f'{service.core.sync_url.replace("api.", "")}/share/{result.id_}'
         )
         return self._shareable_url
 
@@ -340,7 +340,7 @@ def _search_single_tenant(
             if isinstance(response, AlertsResponse) and response.alerts is not None:
                 poll_responses.append(response)
                 # CX-92571 work around
-                if sum(len(response.alerts.list) for response in poll_responses) >= int(
+                if sum(len(response.alerts.list_) for response in poll_responses) >= int(
                     limit
                 ):
                     break

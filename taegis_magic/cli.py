@@ -8,11 +8,11 @@ from typing import Annotated
 import typer
 from dataclasses_json import dataclass_json
 from gql.transport.exceptions import TransportQueryError
-
 from taegis_magic.commands import (
     alerts,
     audits,
     authentication,
+    cases,
     clients,
     configure,
     events,
@@ -47,6 +47,7 @@ app = typer.Typer(context_settings=CONTEXT_SETTINGS)
 app.add_typer(alerts.app, name="alerts")
 app.add_typer(authentication.app, name="auth")
 app.add_typer(audits.app, name="audits")
+app.add_typer(cases.app, name="cases")
 app.add_typer(clients.app, name="clients")
 app.add_typer(configure.app, name="configure")
 app.add_typer(events.app, name="events")
@@ -131,9 +132,9 @@ def version():
     """Taegis Magic version information."""
     import sys
 
-    from taegis_sdk_python._version import __version__ as sdk_version
-
     from taegis_magic._version import __version__ as magic_version
+
+    from taegis_sdk_python._version import __version__ as sdk_version
 
     return TaegisResult(
         raw_results=MagicVersion(

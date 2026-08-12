@@ -7,6 +7,14 @@ from typing import Any, Dict, List, Optional
 
 import typer
 from dataclasses_json import dataclass_json
+from taegis_magic.commands.configure import QUERIES_SECTION
+from taegis_magic.commands.utils.investigations import insert_search_query
+from taegis_magic.commands.utils.nl_queries import insert_nl_search_query
+from taegis_magic.core.log import tracing
+from taegis_magic.core.normalizer import TaegisResults, TaegisResultsNormalizer
+from taegis_magic.core.service import get_service
+from typing_extensions import Annotated
+
 from taegis_sdk_python.config import get_config
 from taegis_sdk_python.services.events.types import (
     Event,
@@ -19,14 +27,6 @@ from taegis_sdk_python.services.sharelinks.types import (
     ExtraParamCreateInput,
     ShareLinkCreateInput,
 )
-from typing_extensions import Annotated
-
-from taegis_magic.commands.configure import QUERIES_SECTION
-from taegis_magic.commands.utils.investigations import insert_search_query
-from taegis_magic.commands.utils.nl_queries import insert_nl_search_query
-from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResults, TaegisResultsNormalizer
-from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 
@@ -190,7 +190,7 @@ class TaegisEventQueryNormalizer(TaegisResultsNormalizer):
         )
 
         self._shareable_url = (
-            f'{service.core.sync_url.replace("api.", "")}/share/{result.id}'
+            f'{service.core.sync_url.replace("api.", "")}/share/{result.id_}'
         )
         return self._shareable_url
 
@@ -201,7 +201,7 @@ def get_next_page(events_results: List[EventQueryResults]) -> Optional[str]:
         # the next page could be found in any of the result pages,
         # but we cannot garuntee which result it will be found in
         return next(
-            iter({result.next for result in events_results if result.next is not None})
+            iter({result.next_ for result in events_results if result.next_ is not None})
         )
     except StopIteration:
         return None

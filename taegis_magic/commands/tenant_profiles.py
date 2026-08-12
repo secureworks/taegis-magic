@@ -11,6 +11,12 @@ from typing import Any, List, Optional
 import numpy as np
 import pandas as pd
 import typer
+from taegis_magic.core.callbacks import verify_file
+from taegis_magic.core.log import tracing
+from taegis_magic.core.normalizer import TaegisResultsNormalizer
+from taegis_magic.core.service import get_service
+from typing_extensions import Annotated
+
 from taegis_sdk_python import GraphQLNoRowsInResultSetError
 from taegis_sdk_python.services.tenant_profiles.types import (
     MfaAccessCreateMtpInput,
@@ -27,12 +33,6 @@ from taegis_sdk_python.services.tenant_profiles.types import (
     SecurityControlSourceMtp,
     SecurityControlUpdateMtpInput,
 )
-from typing_extensions import Annotated
-
-from taegis_magic.core.callbacks import verify_file
-from taegis_magic.core.log import tracing
-from taegis_magic.core.normalizer import TaegisResultsNormalizer
-from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 
@@ -686,7 +686,7 @@ def network_template_upload(
 
     for network in update_networks:
         try:
-            id_ = next(iter([n.id for n in networks if n.cidr == network.cidr]))
+            id_ = next(iter([n.id_ for n in networks if n.cidr == network.cidr]))
         except StopIteration:
             log.error(f"Could not find `id` for network: {network.cidr}")
             continue

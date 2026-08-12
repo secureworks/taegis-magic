@@ -11,12 +11,12 @@ from typing import List, Optional
 
 import pandas as pd
 from dataclasses_json import dataclass_json
-from taegis_sdk_python import GraphQLService
-
-from taegis_magic.commands.utils._database import find_database
+from taegis_magic.commands.utils._database import find_database, find_dataframe
 from taegis_magic.core.graphql.subjects import lookup_federated_subject
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
 from taegis_magic.core.utils import get_tenant_id_column
+
+from taegis_sdk_python import GraphQLService
 
 log = logging.getLogger(__name__)
 
@@ -477,8 +477,8 @@ def lookup_assignee_id(service: GraphQLService, assignee_id: str) -> str:
             users = service.users.query.tdrusers(email=assignee_id)
 
         if users:
-            log.debug(f"User {assignee_id} found. Using ID: {users[0].id}")
-            assignee_id = users[0].id
+            log.debug(f"User {assignee_id} found. Using ID: {users[0].id_}")
+            assignee_id = users[0].id_
 
             if not assignee_id:
                 raise ValueError(f"Could not determine User ID: {users}")
