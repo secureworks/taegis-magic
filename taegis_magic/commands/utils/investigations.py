@@ -19,7 +19,7 @@ from taegis_sdk_python.services.investigations2.types import (
 )
 from taegis_sdk_python.utils import remove_output_node
 
-from taegis_magic.commands.utils._database import find_database
+from taegis_magic.commands.utils._database import find_database, find_dataframe
 from taegis_magic.core.graphql.subjects import lookup_federated_subject
 from taegis_magic.core.normalizer import TaegisResultsNormalizer
 from taegis_magic.core.utils import get_tenant_id_column
