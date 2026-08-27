@@ -10,7 +10,7 @@ from enum import Enum
 from itertools import product
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict, List, Optional, Union
+from typing import Annotated, Any, Optional
 
 import requests
 import typer
@@ -22,30 +22,33 @@ from taegis_sdk_python import (
     prepare_input,
 )
 from taegis_sdk_python.services.investigations2.types import (
-    AddCommentToInvestigationInput,
-    AddEvidenceToInvestigationInput,
-    ArchiveInvestigationInput,
-    CommentsV2Arguments,
-    CreateInvestigationInput,
-    DeleteInvestigationCommentInput,
-    DeleteInvestigationFileInput,
-    InitInvestigationFileUploadInput,
-    InvestigationFilesV2Arguments,
-    InvestigationFileV2Arguments,
-    InvestigationStatus,
-    InvestigationsV2,
-    InvestigationsV2Arguments,
-    InvestigationType,
-    InvestigationV2,
-    InvestigationV2Arguments,
-    RemoveEvidenceFromInvestigationInput,
-    UpdateInvestigationCommentInput,
-    UpdateInvestigationV2Input,
+    AddCaseComment,
+    AddEvidenceToCaseInput,
+    Case,
+    CaseArguments,
+    CaseCommentsArguments,
+    CaseFileArguments,
+    CaseFilesArguments,
+    Cases,
+    CasesArguments,
+    CaseSecondaryStatusesArguments,
+    CasesPagination,
+    CaseTypes,
+    CaseTypesArguments,
+    CreateCaseInput,
+    CreateKeyFindingsDocumentInput,
+    DeleteCaseCommentInput,
+    DeleteCaseFileInput,
+    DocumentType,
+    MergeCaseInput,
+    OffsetPagination,
+    RemoveEvidenceFromCaseInput,
+    StartCaseFileUploadInput,
+    UpdateCaseCommentInput,
 )
 from taegis_sdk_python.services.queries.types import QLQueriesInput
 from taegis_sdk_python.services.sharelinks.types import ShareLinkCreateInput
 from taegis_sdk_python.services.subjects.types import Subject as FederatedSubject
-from typing_extensions import Annotated
 
 from taegis_magic.commands.utils.investigations import (
     InvestigationEvidenceChanges,
@@ -59,7 +62,10 @@ from taegis_magic.commands.utils.investigations import (
     insert_search_query,
     list_search_queries,
     lookup_assignee_id,
+    lookup_case_types,
     read_database,
+    seek_case_status,
+    seek_case_type,
     stage_investigation_evidence,
     unstage_investigation_evidence,
 )
@@ -77,42 +83,44 @@ from taegis_magic.core.utils import remove_output_node
 log = logging.getLogger(__name__)
 
 
-app = typer.Typer(help="Taegis Investigation Commands.")
-investigations_attachment = typer.Typer(help="Investigation File Attachment commands.")
-investigations_comment = typer.Typer(help="Investigation Comment commands.")
-investigations_evidence = typer.Typer(help="Investigation Evidence commands.")
-investigations_search_queries = typer.Typer(help="Investigation Search Query commands.")
+app = typer.Typer(help="Taegis Case Commands.")
+cases_attachment = typer.Typer(help="Case File Attachment commands.")
+cases_comment = typer.Typer(help="Case Comment commands.")
+cases_evidence = typer.Typer(help="Case Evidence commands.")
+cases_search_queries = typer.Typer(help="Case Search Query commands.")
 
 app.add_typer(
-    investigations_attachment,
+    cases_attachment,
     name="attachment",
 )
 app.add_typer(
-    investigations_comment,
+    cases_comment,
     name="comment",
 )
 app.add_typer(
-    investigations_evidence,
+    cases_evidence,
     name="evidence",
 )
 app.add_typer(
-    investigations_search_queries,
+    cases_search_queries,
     name="search-queries",
 )
 
 
-class InvestigationPriority(str, Enum):
+class CasePriority(str, Enum):
+    INFORMATIONAL = "INFORMATIONAL"
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
 
 
-INVESTIGATION_PRIORITY_MAP = {
-    InvestigationPriority.LOW: 1,
-    InvestigationPriority.MEDIUM: 2,
-    InvestigationPriority.HIGH: 3,
-    InvestigationPriority.CRITICAL: 4,
+CASE_PRIORITY_MAP = {
+    CasePriority.INFORMATIONAL: 2,
+    CasePriority.LOW: 4,
+    CasePriority.MEDIUM: 6,
+    CasePriority.HIGH: 8,
+    CasePriority.CRITICAL: 10,
 }
 
 
@@ -130,29 +138,23 @@ class InsertSearchQueryNormalizer:
 
 @dataclass_json
 @dataclass
-class InvestigationsSearchResultsNormalizer(TaegisResultsNormalizer):
-    """Investigations Results Normalizer."""
+class CasesSearchResultsNormalizer(TaegisResultsNormalizer):
+    """Case search results normalizer."""
 
-    raw_results: Optional[List[InvestigationsV2]] = None
-    _shareable_url: List[str] = field(default_factory=list)
+    raw_results: Optional[Any] = None
+    _shareable_url: Optional[list[str]] = field(default_factory=list)
 
     def __post_init__(self):
         self._shareable_url = [None for _ in range(self.results_returned)]
 
     @property
-    def results(self) -> List[Dict[str, Any]]:
-        """Query results from Investigations search.
-
-        Returns
-        -------
-        List[Dict[str, Any]]
-            List of results.
-        """
+    def results(self) -> list[dict[str, Any]]:
+        """Query results from case search."""
         return (
             [
-                asdict(investigation)
+                asdict(case)
                 for result in self.raw_results
-                for investigation in result.investigations
+                for case in (result.cases or [])
             ]
             if self.raw_results
             else []
@@ -160,49 +162,28 @@ class InvestigationsSearchResultsNormalizer(TaegisResultsNormalizer):
 
     @property
     def status(self) -> str:
-        """Status of query.
-
-        Returns
-        -------
-        str
-            Status message of query.
-        """
+        """Status of query."""
         return "ERROR" if self.raw_results is None else "SUCCESS"
 
     @property
     def total_results(self) -> int:
-        """Total number found by API.
-
-        Returns
-        -------
-        int
-            Total number found by API.
-        """
-        return -1 if self.raw_results is None else self.raw_results[0].total_count
+        """Total number found by API."""
+        return -1 if self.raw_results is None else self.raw_results[0].total_count or 0
 
     @property
     def results_returned(self) -> int:
-        """Total number returned by API.
+        """Total number returned by API."""
+        if self.raw_results is None:
+            return -1
 
-        Returns
-        -------
-        int
-            Total number returned by API.
-        """
-        return -1 if self.raw_results is None else len(self.results)
+        return sum(len(result.cases or []) for result in self.raw_results)
 
     def get_shareable_url(self, index: int = 0) -> str:
-        """Query Shareable Link.
-
-        Returns
-        -------
-        str
-            Returns a link created by the Preferences API.
-        """
+        """Query Shareable Link."""
         if self.raw_results is None:
             return "No share link producible"
 
-        investigation = self.results[index]
+        case = self.results[index]
 
         if self._shareable_url[index]:
             return self._shareable_url[index]
@@ -211,26 +192,24 @@ class InvestigationsSearchResultsNormalizer(TaegisResultsNormalizer):
 
         result = service.sharelinks.mutation.create_share_link(
             ShareLinkCreateInput(
-                link_ref=investigation.get("id"),
-                link_type="investigationId",
+                link_ref=case.get("id"),
+                link_type="caseId",
                 tenant_id=self.tenant_id,
             )
         )
 
         self._shareable_url[index] = (
-            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id_}"
         )
         return self._shareable_url[index]
 
 
 @dataclass_json
 @dataclass
-class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
-    """Investigations Results Normalizer."""
+class CasesCreatedResultsNormalizer(TaegisResultsNormalizer):
+    """Case Results Normalizer."""
 
-    raw_results: Union[InvestigationV2, CreateInvestigationInput] = field(
-        default_factory=lambda: InvestigationV2()
-    )
+    raw_results: Any = field(default_factory=lambda: Case())
     dry_run: bool = False
 
     _shareable_url: Optional[str] = None
@@ -241,13 +220,7 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
 
     @property
     def status(self) -> str:
-        """Status of query.
-
-        Returns
-        -------
-        str
-            Status message of query.
-        """
+        """Status of query."""
         if self.dry_run:
             return "DRY_RUN"
 
@@ -258,75 +231,66 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
 
     @property
     def total_results(self) -> int:
-        """Total number found by API.
-
-        Returns
-        -------
-        int
-            Total number found by API.
-        """
+        """Total number found by API."""
         return 0 if self.raw_results is None else 1
 
     @property
     def results_returned(self) -> int:
-        """Total number returned by API.
-
-        Returns
-        -------
-        int
-            Total number returned by API.
-        """
+        """Total number returned by API."""
         return -1 if self.raw_results is None else len(self.results)
 
     def _repr_markdown_(self):
         if self.dry_run:
+            payload = (
+                self.raw_results.to_json()
+                if hasattr(self.raw_results, "to_json")
+                else str(self.raw_results)
+            )
             return dedent(
                 f"""
                 Dry Run:
 
                 ```json
-                {self.raw_results.to_json()}
+                {payload}
                 ```
                 """
             )
         else:
+            case_id = getattr(self.raw_results, "id_", None)
+            short_id = getattr(self.raw_results, "short_id", None)
+            title = getattr(self.raw_results, "title", None)
+            case_type = getattr(self.raw_results, "type_", None)
             return dedent(
                 f"""
-                | Investigation ID  | Short ID                | Title                | Type                | Share Link           |
-                | ----------------- | ----------------------- | -------------------- | ------------------- | -------------------- |
-                | {self.raw_results.id} | {self.raw_results.short_id} | {self.raw_results.title} | {self.raw_results.type} | {self.shareable_url} |
+                | Case ID  | Short ID                | Title                | Type                | Share Link           |
+                | -------- | ----------------------- | -------------------- | ------------------- | -------------------- |
+                | {case_id} | {short_id} | {title} | {case_type.title} | {self.shareable_url} |
                 """
             )
 
     @property
     def shareable_url(self) -> str:
-        """Create a Shareable URL.
-
-        Returns
-        -------
-        str
-            Returns a link created by the Sharelinks API.
-        """
+        """Create a Shareable URL."""
         if self._shareable_url:
             return self._shareable_url
 
-        if not isinstance(self.raw_results, InvestigationV2):
+        if not isinstance(self.raw_results, Case):
             return "Not Available"
 
-        investigation = self.raw_results
+        case = self.raw_results
 
         service = get_service(environment=self.region, tenant_id=self.tenant_id)
 
         result = service.sharelinks.mutation.create_share_link(
             ShareLinkCreateInput(
-                link_ref=investigation.id,
+                link_ref=case.id_,
                 link_type="investigationId",
                 tenant_id=self.tenant_id,
             )
         )
 
         self._shareable_url = (
-            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id_}"
         )
 
         return self._shareable_url
@@ -334,8 +298,8 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
 
 @dataclass_json
 @dataclass(order=True, eq=True, frozen=True)
-class TaegisMagicInvestigationV2(InvestigationV2):
-    contributor_subjects: Optional[List[FederatedSubject]] = field(
+class TaegisMagicCase(Case):
+    contributor_subjects: Optional[list[FederatedSubject]] = field(
         default=None, metadata=config(field_name="contributorSubjects")
     )
     assignee_subject: Optional[FederatedSubject] = field(
@@ -349,51 +313,171 @@ class TaegisMagicInvestigationV2(InvestigationV2):
     )
 
 
+
 @dataclass_json
 @dataclass(order=True, eq=True, frozen=True)
-class TaegisMagicInvestigationsV2(InvestigationsV2):
-    investigations: List[TaegisMagicInvestigationV2] = field(
-        default_factory=list, metadata=config(field_name="investigations")
+class TaegisMagicCases(Cases):
+    cases: Optional[list[TaegisMagicCase]]  = field(
+        default=None, metadata=config(field_name="cases")
     )
 
 
-def federated_investigation_create(
-    service: GraphQLService, input_: CreateInvestigationInput
-) -> TaegisMagicInvestigationV2:
-    """createInvestigationV2 creates new investigation with the provided arguments.."""
-    endpoint = "createInvestigationV2"
+def build_create_case_input(
+    *,
+    title: str,
+    key_findings: Path,
+    severity: CasePriority,
+    type_id: Optional[str],
+    primary_status_id: Optional[str],
+    assignee_id: str,
+    alerts: Optional[list[str]],
+    events: Optional[list[str]],
+    search_queries: Optional[list[str]],
+) -> CreateCaseInput:
+    """Build a Taegis SDK CreateCaseInput from the CLI arguments."""
+    return CreateCaseInput(
+        title=title,
+        severity=CASE_PRIORITY_MAP[severity],
+        type_id=type_id,
+        primary_status_id=primary_status_id,
+        assignee_id=assignee_id,
+        detection_ids=[alert for alert in (alerts or []) if alert],
+        event_ids=[event for event in (events or []) if event],
+        search_queries=[query for query in (search_queries or []) if query],
+        key_findings=CreateKeyFindingsDocumentInput(
+            content=key_findings.read_text(),
+            document_type=DocumentType.MARKDOWN,
+            document_version="1.0",
+        ),
+    )
+
+
+def federated_case_create(
+    service: GraphQLService, input_: CreateCaseInput
+) -> TaegisMagicCase:
+    """createCase creates a new case with the provided arguments."""
+    endpoint = "createCase"
+
+    output = build_output_string(TaegisMagicCase)
+    output = remove_output_node(output, "allowedNextTypes")
+    output = remove_output_node(output, "allowedNextSources")
 
     result = service.investigations2.execute_mutation(
         endpoint=endpoint,
         variables={
             "input": prepare_input(input_),
         },
-        output=build_output_string(TaegisMagicInvestigationV2),
+        output=output,
     )
     if result.get(endpoint) is not None:
-        return TaegisMagicInvestigationV2.from_dict(result.get(endpoint))
-    raise GraphQLNoRowsInResultSetError("for mutation createInvestigationV2")
+        return TaegisMagicCase.from_dict(result.get(endpoint))
+    raise GraphQLNoRowsInResultSetError("for mutation createCase")
 
 
-def federated_investigations_search(
-    service, arguments: InvestigationsV2Arguments
-) -> TaegisMagicInvestigationsV2:
-    """investigationsV2 returns a list of investigations matching the provided arguments."""
-    endpoint = "investigationsV2"
+def federated_cases_search(
+    service, arguments: CasesArguments
+) -> TaegisMagicCases:
+    """cases returns a list of cases matching the provided arguments."""
+    endpoint = "cases"
 
     result = service.investigations2.execute_query(
         endpoint=endpoint,
         variables={
             "arguments": prepare_input(arguments),
         },
-        output=build_output_string(TaegisMagicInvestigationsV2),
+        output=build_output_string(TaegisMagicCases),
     )
     if result.get(endpoint) is not None:
-        return TaegisMagicInvestigationsV2.from_dict(result.get(endpoint))
-    raise GraphQLNoRowsInResultSetError("for query investigationsV2")
+        return TaegisMagicCases.from_dict(result.get(endpoint))
+    raise GraphQLNoRowsInResultSetError("for query cases")
 
 
-@investigations_evidence.command(name="stage")
+@app.command(name="types")
+@tracing
+def case_types(
+    transition_from_id: Annotated[
+        Optional[str], typer.Option(help="Filter types by transition source.")
+    ] = None,
+    case_id: Annotated[
+        Optional[str], typer.Option(help="Filter types for a case.")
+    ] = None,
+    tenant: Annotated[
+        Optional[str], typer.Option(help="Taegis Tenant Identifier.")
+    ] = None,
+    region: Annotated[
+        Optional[str], typer.Option(help="Taegis Region Identifier.")
+    ] = None,
+) -> TaegisResults:
+    """List available case types."""
+    arguments = inspect.currentframe().f_locals
+    service = get_service(environment=region, tenant_id=tenant)
+
+    output = build_output_string(CaseTypes)
+    output = remove_output_node(output, "allowedNextTypes")
+    output = remove_output_node(output, "allowedNextSources")
+
+    with service(output=output):
+        results = service.investigations2.query.case_types(
+            CaseTypesArguments(
+                transition_from_id=transition_from_id,
+                case_id=case_id,
+            )
+        )
+
+    return TaegisResults(
+        raw_results=results.types or [],
+        service="cases",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=arguments,
+    )
+
+
+@app.command(name="secondary-statuses")
+@tracing
+def case_secondary_statuses(
+    type_id: Annotated[
+        Optional[str], typer.Option(help="Filter statuses by case type.")
+    ] = None,
+    primary_status_id: Annotated[
+        Optional[str], typer.Option(help="Filter statuses by primary status.")
+    ] = None,
+    case_id: Annotated[
+        Optional[str], typer.Option(help="Filter statuses for a case.")
+    ] = None,
+    include_automation_statuses: Annotated[
+        bool, typer.Option(help="Include automation-only statuses.")
+    ] = False,
+    tenant: Annotated[
+        Optional[str], typer.Option(help="Taegis Tenant Identifier.")
+    ] = None,
+    region: Annotated[
+        Optional[str], typer.Option(help="Taegis Region Identifier.")
+    ] = None,
+) -> TaegisResults:
+    """List available secondary case statuses."""
+    arguments = inspect.currentframe().f_locals
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.investigations2.query.case_secondary_statuses(
+        CaseSecondaryStatusesArguments(
+            type_id=type_id,
+            primary_status_id=primary_status_id,
+            case_id=case_id,
+            include_automation_statuses=include_automation_statuses,
+        )
+    )
+
+    return TaegisResults(
+        raw_results=results.secondary_statuses or [],
+        service="cases",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=arguments,
+    )
+
+
+@cases_evidence.command(name="stage")
 @tracing
 def evidence_stage(
     evidence_type: Annotated[
@@ -406,12 +490,12 @@ def evidence_stage(
     database: Annotated[
         str, typer.Option(help="Database reference.  Provide a file path or :memory:")
     ] = ":memory:",
-    investigation_id: Annotated[
-        str, typer.Option(help="Taegis Investigation Identifier.")
+    case_id: Annotated[
+        str, typer.Option(help="Taegis Case Identifier.")
     ] = "NEW",
 ):
     """
-    Stage evidence prior to linking to an investigation.
+    Stage evidence prior to linking to a case.
     """
     arguments = inspect.currentframe().f_locals
     df = find_dataframe(dataframe)
@@ -424,43 +508,43 @@ def evidence_stage(
             )
 
         changes = InvestigationEvidenceChanges(
-            action="stage", evidence_type="All", investigation_id=investigation_id
+            action="stage", evidence_type="All", investigation_id=case_id
         )
 
-        for evidence_type, investigation_id in product(
-            df["taegis_magic.evidence_type"].unique(), df["investigation_id"].unique()
+        for type_, id_ in product(
+            df["taegis_magic.evidence_type"].unique(), df["case_id"].unique()
         ):
             stage_df = df[
                 (
-                    (df["taegis_magic.evidence_type"] == evidence_type)
-                    & (df["investigation_id"] == investigation_id)
+                    (df["taegis_magic.evidence_type"] == type_)
+                    & (df["case_id"] == id_)
                 )
             ]
 
             type_changes = stage_investigation_evidence(
                 stage_df,
                 db,
-                evidence_type,
-                investigation_id,
+                type_,
+                id_,
             )
 
             changes.before += type_changes.before
             changes.after += type_changes.after
             changes.difference += type_changes.difference
-            log.debug(f"Staged evidence type ({evidence_type}): {changes.to_json()}")
+            log.debug(f"Staged evidence type ({type_}): {changes.to_json()}")
     else:
-        changes = stage_investigation_evidence(df, db, evidence_type, investigation_id)
+        changes = stage_investigation_evidence(df, db, evidence_type, case_id)
 
     return InvestigationEvidenceNormalizer(
         raw_results=changes,
-        service="investigations",
+        service="cases",
         tenant_id="N/A",
         region="N/A",
         arguments=arguments,
     )
 
 
-@investigations_evidence.command(name="unstage")
+@cases_evidence.command(name="unstage")
 @tracing
 def evidence_unstage(
     evidence_type: Annotated[
@@ -471,12 +555,12 @@ def evidence_unstage(
         str,
         typer.Option(help="Local database file.  Use :memory: for in-memory database."),
     ] = ":memory:",
-    investigation_id: Annotated[
-        str, typer.Option(help="Investigation Identifier.")
+    case_id: Annotated[
+        str, typer.Option(help="Case Identifier.")
     ] = "NEW",
 ):
     """
-    Remove staged evidence prior to linking to an investigation.
+    Remove staged evidence prior to linking to a case.
     """
 
     arguments = inspect.currentframe().f_locals
@@ -484,7 +568,7 @@ def evidence_unstage(
     df = find_dataframe(dataframe)
     db = find_database(database)
 
-    df["investigation_id"].fillna(investigation_id, inplace=True)
+    df["case_id"].fillna(case_id, inplace=True)
 
     if evidence_type == evidence_type.All:
         if "taegis_magic.evidence_type" not in df.columns:
@@ -493,53 +577,53 @@ def evidence_unstage(
             )
 
         changes = InvestigationEvidenceChanges(
-            action="unstage", evidence_type="All", investigation_id=investigation_id
+            action="unstage", evidence_type="All", investigation_id=case_id
         )
 
-        for evidence_type, investigation_id in product(
-            df["taegis_magic.evidence_type"].unique(), df["investigation_id"].unique()
+        for type_, id_ in product(
+            df["taegis_magic.evidence_type"].unique(), df["case_id"].unique()
         ):
             stage_df = df[
                 (
-                    (df["taegis_magic.evidence_type"] == evidence_type)
-                    & (df["investigation_id"] == investigation_id)
+                    (df["taegis_magic.evidence_type"] == type_)
+                    & (df["case_id"] == id_)
                 )
             ]
 
             type_changes = unstage_investigation_evidence(
                 stage_df,
                 db,
-                evidence_type,
-                investigation_id,
+                type_,
+                id_,
             )
 
             changes.before += type_changes.before
             changes.after += type_changes.after
             changes.difference += type_changes.difference
-            log.debug(f"Staged evidence type ({evidence_type}): {changes.to_json()}")
+            log.debug(f"Staged evidence type ({type_}): {changes.to_json()}")
     else:
         changes = unstage_investigation_evidence(
-            df, db, evidence_type, investigation_id
+            df, db, evidence_type, case_id
         )
 
     return InvestigationEvidenceNormalizer(
         raw_results=changes,
-        service="investigations",
+        service="cases",
         tenant_id="N/A",
         region="N/A",
         arguments=arguments,
     )
 
 
-@investigations_evidence.command(name="clear")
+@cases_evidence.command(name="clear")
 @tracing
 def evidence_clear(
     database: Annotated[
         str,
         typer.Option(help="Local database file.  Use :memory: for in-memory database."),
     ] = ":memory:",
-    investigation_id: Annotated[
-        str, typer.Option(help="Investigation Identifier.")
+    case_id: Annotated[
+        str, typer.Option(help="Case Identifier.")
     ] = "NEW",
     tenant: Annotated[
         Optional[str], typer.Option(help="Taegis Tenant Identifier.")
@@ -556,11 +640,11 @@ def evidence_clear(
             db,
             evidence_type=evidence_type,
             tenant_id=tenant,
-            investigation_id=investigation_id,
+            investigation_id=case_id,
         )
         log.debug(f"Found evidence type ({evidence_type}): {df.to_markdown()}")
         changes = unstage_investigation_evidence(
-            df, db, evidence_type, investigation_id
+            df, db, evidence_type, case_id
         )
         log.debug(f"Unstaged evidence: {changes.to_json()}")
 
@@ -568,24 +652,24 @@ def evidence_clear(
         db,
         evidence_type=None,
         tenant_id=tenant,
-        investigation_id=investigation_id,
+        investigation_id=case_id,
     )
 
     return DataFrameNormalizer(
         raw_results=df,
-        service="investigations",
+        service="cases",
         tenant_id="N/A",
         region="N/A",
         arguments=arguments,
     )
 
 
-@investigations_evidence.command(name="show")
+@cases_evidence.command(name="show")
 @tracing
 def evidence_show(
     evidence_type: Optional[InvestigationEvidenceType] = None,
     database: str = ":memory:",
-    investigation_id: Optional[str] = None,
+    case_id: Optional[str] = None,
     tenant: Optional[str] = None,
 ):
     """
@@ -597,12 +681,12 @@ def evidence_show(
         db,
         evidence_type=evidence_type,
         tenant_id=tenant,
-        investigation_id=investigation_id,
+        investigation_id=case_id,
     )
 
     return DataFrameNormalizer(
         raw_results=df,
-        service="investigations",
+        service="cases",
         tenant_id="N/A",
         region="N/A",
         arguments=arguments,
@@ -612,43 +696,41 @@ def evidence_show(
 @app.command()
 @tracing
 def create(
-    title: Annotated[str, typer.Option(help="Title for the Investigation.")],
+    title: Annotated[str, typer.Option(help="Title for the Case.")],
     key_findings: Annotated[
         Path, typer.Option(help="Markdown file with key findings.")
     ],
+    type_id: Annotated[
+        str, typer.Option("--type-id", help="Case Type Identifier.")
+    ] = "security_case",
+    primary_status_id: Annotated[
+        str, typer.Option(help="Case Primary Status Identifier.")
+    ] = 'open',
     priority: Annotated[
-        InvestigationPriority, typer.Option(help="Investigation Priority.")
-    ] = InvestigationPriority.MEDIUM,
-    type_: Annotated[
-        InvestigationType, typer.Option("--type", help="Investigation Type.")
-    ] = InvestigationType.SECURITY_INVESTIGATION,
-    status: Annotated[
-        InvestigationStatus, typer.Option(help="Investigation Status.")
-    ] = InvestigationStatus.OPEN,
+        CasePriority, typer.Option(help="Case Priority.")
+    ] = CasePriority.MEDIUM,
     assignee_id: Annotated[
         str,
         typer.Option(
-            help="ID for Investigation assignment, may use @me, @partner or @tenant for quick reference."
+            help="ID for case assignment, may use @me, @partner or @tenant for quick reference."
         ),
     ] = "@tenant",
     database: Annotated[
         str,
         typer.Option(
-            help="Investigation Evidence database location.  Can be a file path or ':memory:'."
+            help="Investigation Evidence database location. Can be a file path or ':memory:'."
         ),
     ] = ":memory:",
     dry_run: Annotated[
         bool,
         typer.Option(
-            help="Setting to true only prints parameters.  API call is not submitted."
+            help="Setting to true only prints parameters. API call is not submitted."
         ),
     ] = False,
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
     tenant: Annotated[Optional[str], typer.Option(help="Tenant Context ID.")] = None,
 ):
-    """
-    Create a new Investigation.
-    """
+    """Create a new case."""
     arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
@@ -656,47 +738,51 @@ def create(
     events = None
     search_queries = None
 
+    case_types = lookup_case_types(service)
+    case_type = seek_case_type(case_types, type_id)
+    case_status = seek_case_status(case_type, primary_status_id)
+
+    type_id = case_type.id_
+    primary_status_id = case_status.id_
+
+
     if database:
         evidence = get_investigation_evidence(database, service.tenant_id, "NEW")
         alerts = evidence.alerts
         events = evidence.events
         search_queries = evidence.search_queries
 
-    # verify and save valid search queries
     if not dry_run:
         if search_queries:
             queries = service.queries.query.ql_queries(
                 QLQueriesInput(rns=search_queries)
             )
-
             search_queries = [query.rn for query in queries.queries or []]
         else:
             search_queries = []
 
         assignee_id = lookup_assignee_id(service, assignee_id)
 
-    create_investigation_input = CreateInvestigationInput(
-        alerts=alerts,
-        assignee_id=assignee_id,
-        events=events,
-        key_findings=key_findings.read_text(),
-        priority=INVESTIGATION_PRIORITY_MAP[priority],
-        search_queries=search_queries,
-        status=status,
+    create_case_input = build_create_case_input(
         title=title,
-        type=type_,
+        key_findings=key_findings,
+        severity=priority,
+        type_id=type_id,
+        primary_status_id=primary_status_id,
+        assignee_id=assignee_id,
+        alerts=alerts,
+        events=events,
+        search_queries=search_queries,
     )
 
     if dry_run:
-        created_investigation = None
+        created_case = None
     else:
-        created_investigation = federated_investigation_create(
-            service=service, input_=create_investigation_input
-        )
+        created_case = federated_case_create(service=service, input_=create_case_input)
 
-    results = InvestigationsCreatedResultsNormalizer(
-        raw_results=create_investigation_input if dry_run else created_investigation,
-        service="investigations",
+    results = CasesCreatedResultsNormalizer(
+        raw_results=create_case_input if dry_run else created_case,
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         dry_run=dry_run,
@@ -706,25 +792,23 @@ def create(
     return results
 
 
-@investigations_evidence.command(name="append")
+@cases_evidence.command(name="append")
 @tracing
 def evidence_append(
-    investigation_id: Annotated[str, typer.Option(help="Investigation Identifier.")],
+    case_id: Annotated[str, typer.Option(help="Case Identifier.")],
     database: Annotated[
         str,
         typer.Option(
-            help="Investigation Evidence database location.  Can be a file path or ':memory:'."
+            help="Investigation Evidence database location. Can be a file path or ':memory:'."
         ),
     ] = ":memory:",
     use_new: Annotated[
-        bool, typer.Option(help="Use NEW investigation id for evidence.")
+        bool, typer.Option(help="Use NEW case id for evidence.")
     ] = False,
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
     tenant: Annotated[Optional[str], typer.Option(help="Tenant Context ID.")] = None,
 ):
-    """
-    Append evidence an existing investigation.
-    """
+    """Append evidence to an existing case."""
     arguments = inspect.currentframe().f_locals
     if not database:
         raise ValueError("Database must be provided to append evidence.")
@@ -736,56 +820,54 @@ def evidence_append(
     search_queries = None
 
     evidence = get_investigation_evidence(
-        database, service.tenant_id, "NEW" if use_new else investigation_id
+        database, service.tenant_id, "NEW" if use_new else case_id
     )
     alerts = evidence.alerts
     events = evidence.events
     search_queries = evidence.search_queries
 
-    results = service.investigations2.mutation.add_evidence_to_investigation(
-        AddEvidenceToInvestigationInput(
-            investigation_id=investigation_id,
-            alerts=alerts,
-            events=events,
+    results = service.investigations2.mutation.add_evidence_to_case(
+        AddEvidenceToCaseInput(
+            case_id=case_id,
+            detection_ids=alerts,
+            event_ids=events,
             search_queries=search_queries,
         )
     )
     log.debug(f"Add evidence API results: {results}")
 
-    results = service.investigations2.query.investigation_v2(
-        InvestigationV2Arguments(
-            id=investigation_id,
+    results = service.investigations2.query.case(
+        CaseArguments(
+            id_=case_id,
         )
     )
 
-    return InvestigationsCreatedResultsNormalizer(
+    return CasesCreatedResultsNormalizer(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         arguments=arguments,
     )
 
 
-@investigations_evidence.command(name="remove")
+@cases_evidence.command(name="remove")
 @tracing
 def evidence_remove(
-    investigation_id: Annotated[str, typer.Option(help="Investigation Identifier.")],
+    case_id: Annotated[str, typer.Option(help="Case Identifier.")],
     database: Annotated[
         str,
         typer.Option(
-            help="Investigation Evidence database location.  Can be a file path or ':memory:'."
+            help="Case Evidence database location. Can be a file path or ':memory:'."
         ),
     ] = ":memory:",
     use_new: Annotated[
-        bool, typer.Option(help="Use NEW investigation id for evidence.")
+        bool, typer.Option(help="Use NEW case id for evidence.")
     ] = False,
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
     tenant: Annotated[Optional[str], typer.Option(help="Tenant Context ID.")] = None,
 ):
-    """
-    Remove evidence an existing investigation.
-    """
+    """Remove evidence from an existing case."""
     arguments = inspect.currentframe().f_locals
     if not database:
         raise ValueError("Database must be provided to remove evidence.")
@@ -797,32 +879,32 @@ def evidence_remove(
     search_queries = None
 
     evidence = get_investigation_evidence(
-        database, service.tenant_id, "NEW" if use_new else investigation_id
+        database, service.tenant_id, "NEW" if use_new else case_id
     )
-    log.debug(f"Retrieved evidence for investigation: {evidence}")
+    log.debug(f"Retrieved evidence for case: {evidence}")
     alerts = evidence.alerts
     events = evidence.events
     search_queries = evidence.search_queries
 
-    results = service.investigations2.mutation.remove_evidence_from_investigation(
-        RemoveEvidenceFromInvestigationInput(
-            investigation_id=investigation_id,
-            alerts=alerts,
-            events=events,
+    results = service.investigations2.mutation.remove_evidence_from_case(
+        RemoveEvidenceFromCaseInput(
+            case_id=case_id,
+            detection_ids=alerts,
+            event_ids=events,
             search_queries=search_queries,
         )
     )
     log.debug(f"Remove evidence API results: {results}")
 
-    results = service.investigations2.query.investigation_v2(
-        InvestigationV2Arguments(
-            id=investigation_id,
+    results = service.investigations2.query.case(
+        CaseArguments(
+            id_=case_id,
         )
     )
 
-    return InvestigationsCreatedResultsNormalizer(
+    return CasesCreatedResultsNormalizer(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         arguments=arguments,
@@ -833,12 +915,11 @@ def evidence_remove(
 @tracing
 def search(
     cell: Optional[str] = None,
-    # search_children_tenants: bool = False,
     limit: Optional[int] = None,
     region: Optional[str] = None,
     tenant: Optional[str] = None,
 ):
-    """Taegis Investigations search."""
+    """Taegis case search."""
     arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
@@ -847,9 +928,8 @@ def search(
 
     results = []
 
-    # fix for CX-99036
     pattern = r"\|\s*(head|tail)\s*([0-9]+)"
-    match = re.search(pattern, cell)
+    match = re.search(pattern, cell or "")
 
     if not limit:
         if match and match.group(1) == "tail":  # pragma: no cover
@@ -864,205 +944,124 @@ def search(
             f"limit and {match.group(1)} both provided, only limit will be honored..."
         )
 
-    cell = re.sub(pattern, "", cell)
+    cell = re.sub(pattern, "", cell or "")
 
     if limit and limit < per_page:
         per_page = limit
-    # endfix
 
-    # fix for CX-103490
-    output = build_output_string(TaegisMagicInvestigationsV2)
-
-    output = remove_output_node(output, "metric")
-    output = remove_output_node(output, "metrics")
-    # endfix
+    output = build_output_string(TaegisMagicCases)
+    output = remove_output_node(output, "allowedNextTypes")
+    output = remove_output_node(output, "allowedNextSources")
 
     with service(output=output):
-        investigations_results = federated_investigations_search(
+        cases_results = federated_cases_search(
             service=service,
-            arguments=InvestigationsV2Arguments(
-                page=page,
-                per_page=per_page,
-                cql=cell,
+            arguments=CasesArguments(
+                query=cell,
+                pagination=CasesPagination(
+                    offset=OffsetPagination(page=page, per_page=per_page)
+                ),
             ),
         )
 
-    results.append(investigations_results)
+    results.append(cases_results)
 
-    # fix for CX-99036
-    if not limit or investigations_results.total_count < limit:
-        limit = investigations_results.total_count
-    # endfix
+    if not limit or cases_results.total_count < limit:
+        limit = cases_results.total_count or 0
 
-    while (
-        sum_results := sum(len(result.investigations) for result in results)
-    ) < limit:
+    while (sum_results := sum(len(result.cases or []) for result in results)) < limit:
         page += 1
 
-        # fix for CX-99036
         if (per_page * page) > limit:
             per_page = limit - sum_results
-        # endfix
 
         with service(output=output):
-            investigations_results = federated_investigations_search(
+            cases_results = federated_cases_search(
                 service=service,
-                arguments=InvestigationsV2Arguments(
-                    page=page,
-                    per_page=per_page,
-                    cql=cell,
+                arguments=CasesArguments(
+                    query=cell,
+                    pagination=CasesPagination(
+                        offset=OffsetPagination(page=page, per_page=per_page)
+                    ),
                 ),
             )
-        results.append(investigations_results)
+        results.append(cases_results)
 
-    normalized_results = InvestigationsSearchResultsNormalizer(
+    normalized_results = CasesSearchResultsNormalizer(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         arguments=arguments,
     )
 
     return normalized_results
+
+
+
 
 
 @app.command(name="merge")
 @tracing
-def investigations_merge(
-    source: Annotated[str, typer.Option(help="Source Investigation ID.")],
-    target: Annotated[str, typer.Option(help="Target Investigation ID.")],
-    close_status: Annotated[
-        InvestigationStatus,
-        typer.Option(
-            help="Investigation Status to set for the source investigation.",
-        ),
-    ] = InvestigationStatus.CLOSED_INFORMATIONAL,
+def cases_merge(
+    source: Annotated[str, typer.Option(help="Source Case ID.")],
+    target: Annotated[str, typer.Option(help="Target Case ID.")],
     tenant: Annotated[Optional[str], typer.Option(help="Taegis Tenant ID.")] = None,
     region: Annotated[Optional[str], typer.Option(help="Taegis Region ID.")] = None,
 ):
-    """Merge investigations evidence and close the source investigation."""
+    """Merge evidence from one case into another."""
     arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
-    source_investigation = service.investigations2.query.investigation_v2(
-        InvestigationV2Arguments(
-            id=source,
+    source_case = service.investigations2.query.case(
+        CaseArguments(
+            id_=source,
         )
     )
 
-    if not source_investigation:
-        raise ValueError("Source Investigation not found.")
+    if not source_case:
+        raise ValueError("Source case not found.")
 
-    if source_investigation.status not in (
-        InvestigationStatus.OPEN,
-        InvestigationStatus.DRAFT,
-    ):
-        raise ValueError("Source Investigation status must be OPEN or DRAFT to merge.")
+    if not source_case.id_:
+        raise ValueError("Source case id is missing.")
 
-    if source_investigation.archived_at is not None:
-        raise ValueError("Source Investigation must not be archived to merge.")
+    if source_case.archived_at is not None:
+        raise ValueError("Source case must not be archived to merge.")
 
-    if "Merged Investigation" in source_investigation.title:
-        raise ValueError("Source Investigation has already been merged.")
-
-    target_investigation = service.investigations2.query.investigation_v2(
-        InvestigationV2Arguments(
-            id=target,
+    target_case = service.investigations2.query.case(
+        CaseArguments(
+            id_=target,
         )
     )
 
-    if not target_investigation:
-        raise ValueError("Target Investigation not found.")
+    if not target_case:
+        raise ValueError("Target case not found.")
 
-    if target_investigation.status not in (
-        InvestigationStatus.OPEN,
-        InvestigationStatus.DRAFT,
-    ):
-        raise ValueError("Target Investigation status must be OPEN or DRAFT to merge.")
+    if not target_case.id_:
+        raise ValueError("Target case id is missing.")
 
-    if target_investigation.archived_at is not None:
-        raise ValueError("Target Investigation must not be archived to merge.")
+    if target_case.archived_at is not None:
+        raise ValueError("Target case must not be archived to merge.")
 
-    result = service.sharelinks.mutation.create_share_link(
-        ShareLinkCreateInput(
-            link_ref=source_investigation.id,
-            link_type="investigationId",
-            tenant_id=tenant,
+    result = service.investigations2.mutation.merge_case(
+        MergeCaseInput(
+            target_case_id=target_case.id_,
+            source_case_ids=[source_case.id_],
+            archive_sources=True,
+        )
+    )
+    log.debug(f"Merge case API results: {result}")
+
+    time.sleep(3)
+    target_case = service.investigations2.query.case(
+        CaseArguments(
+            id_=target,
         )
     )
 
-    source_shareable_url = (
-        service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
-    )
-
-    result = service.sharelinks.mutation.create_share_link(
-        ShareLinkCreateInput(
-            link_ref=target_investigation.id,
-            link_type="investigationId",
-            tenant_id=tenant,
-        )
-    )
-
-    target_shareable_url = (
-        service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
-    )
-
-    results = service.investigations2.mutation.add_comment_to_investigation(
-        AddCommentToInvestigationInput(
-            investigation_id=source_investigation.id,
-            comment=f"Investigation evidence moved into {target_investigation.id} ({target_shareable_url}).",
-        )
-    )
-    log.debug(f"Add comment to investigation: {results}")
-
-    results = service.investigations2.mutation.add_comment_to_investigation(
-        AddCommentToInvestigationInput(
-            investigation_id=target_investigation.id,
-            comment=f"Investigation evidence moved from {source_investigation.id} ({source_shareable_url}).",
-        )
-    )
-    log.debug(f"Add comment to investigation: {results}")
-
-    results = service.investigations2.mutation.update_investigation_v2(
-        UpdateInvestigationV2Input(
-            id=source_investigation.id,
-            status=close_status,
-            title=f"Merged Investigation: {source_investigation.title}",
-        )
-    )
-    log.debug(f"Close source investigation: {results}")
-    results = service.investigations2.mutation.archive_investigation_v2(
-        ArchiveInvestigationInput(id=source_investigation.id)
-    )
-    log.debug(f"Archive source investigation: {results}")
-
-    results = service.investigations2.mutation.add_evidence_to_investigation(
-        AddEvidenceToInvestigationInput(
-            investigation_id=target_investigation.id,
-            alerts=[
-                evidence.alert_id for evidence in source_investigation.alerts_evidence
-            ],
-            events=[
-                evidence.event_id for evidence in source_investigation.events_evidence
-            ],
-            search_queries=[
-                evidence.search_query
-                for evidence in source_investigation.search_queries_evidence
-            ],
-        )
-    )
-    log.debug(f"Add evidence to target investigation: {results}")
-
-    time.sleep(3)  # allow background workers to process
-    target_investigation = service.investigations2.query.investigation_v2(
-        InvestigationV2Arguments(
-            id=target,
-        )
-    )
-
-    normalized_results = InvestigationsCreatedResultsNormalizer(
-        raw_results=target_investigation,
-        service="investigations",
+    normalized_results = CasesCreatedResultsNormalizer(
+        raw_results=target_case,
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         arguments=arguments,
@@ -1071,15 +1070,15 @@ def investigations_merge(
     return normalized_results
 
 
-@investigations_search_queries.command(name="add")
+@cases_search_queries.command(name="add")
 @tracing
-def investigations_search_queries_add(
-    query_id: Annotated[str, typer.Option()],
-    tenant_id: Annotated[str, typer.Option()],
-    query: Annotated[str, typer.Option()],
-    results_returned: Annotated[int, typer.Option()] = 0,
-    total_results: Annotated[int, typer.Option()] = 0,
-    database: Annotated[str, typer.Option()] = ":memory:",
+def cases_search_queries_add(
+    query_id: Annotated[Optional[str], typer.Option()],
+    tenant_id: Annotated[Optional[str], typer.Option()],
+    query: Annotated[Optional[str], typer.Option()],
+    results_returned: Annotated[Optional[int], typer.Option()] = 0,
+    total_results: Annotated[Optional[int], typer.Option()] = 0,
+    database: Annotated[Optional[str], typer.Option()] = ":memory:",
 ):
     """Add a Taegis investigations search query."""
     arguments = inspect.currentframe().f_locals
@@ -1097,7 +1096,7 @@ def investigations_search_queries_add(
 
     normalized_results = DataFrameNormalizer(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id="N/A",
         region="N/A",
         arguments=arguments,
@@ -1106,9 +1105,9 @@ def investigations_search_queries_add(
     return normalized_results
 
 
-@investigations_search_queries.command(name="remove")
+@cases_search_queries.command(name="remove")
 @tracing
-def investigations_search_queries_remove(
+def cases_search_queries_remove(
     query_id: Annotated[str, typer.Option()],
     database: Annotated[str, typer.Option()] = ":memory:",
 ):
@@ -1120,7 +1119,7 @@ def investigations_search_queries_remove(
 
     normalized_results = DataFrameNormalizer(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id="N/A",
         region="N/A",
         arguments=arguments,
@@ -1129,9 +1128,9 @@ def investigations_search_queries_remove(
     return normalized_results
 
 
-@investigations_search_queries.command(name="clear")
+@cases_search_queries.command(name="clear")
 @tracing
-def investigations_search_queries_clear(
+def cases_search_queries_clear(
     database: Annotated[str, typer.Option()] = ":memory:",
 ):
     """Remove all Taegis investigations search queries."""
@@ -1142,7 +1141,7 @@ def investigations_search_queries_clear(
 
     normalized_results = DataFrameNormalizer(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id="N/A",
         region="N/A",
         arguments=arguments,
@@ -1151,9 +1150,9 @@ def investigations_search_queries_clear(
     return normalized_results
 
 
-@investigations_search_queries.command(name="list")
+@cases_search_queries.command(name="list")
 @tracing
-def investigations_search_queries_list(
+def cases_search_queries_list(
     database: str = ":memory:",
 ):
     """List tracked Taegis investigations search queries."""
@@ -1162,7 +1161,7 @@ def investigations_search_queries_list(
 
     normalized_results = DataFrameNormalizer(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id="N/A",
         region="N/A",
         arguments=arguments,
@@ -1171,27 +1170,27 @@ def investigations_search_queries_list(
     return normalized_results
 
 
-@investigations_search_queries.command(name="stage")
+@cases_search_queries.command(name="stage")
 @tracing
-def investigations_search_queries_stage(
+def cases_search_queries_stage(
     database: Annotated[str, typer.Option()] = ":memory:",
-    investigation_id: Annotated[str, typer.Option()] = "NEW",
+    case_id: Annotated[str, typer.Option()] = "NEW",
 ):
-    """Stage Taegis investigations search queries to attach to investigation."""
+    """Stage Taegis case search queries to attach to a case."""
     arguments = inspect.currentframe().f_locals
     results = list_search_queries(database)
 
     db = find_database(database)
 
     stage_investigation_evidence(
-        results, db, InvestigationEvidenceType.Query, investigation_id
+        results, db, InvestigationEvidenceType.Query, case_id
     )
 
     clear_search_queries(database)
 
     normalized_results = DataFrameNormalizer(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id="N/A",
         region="N/A",
         arguments=arguments,
@@ -1200,14 +1199,14 @@ def investigations_search_queries_stage(
     return normalized_results
 
 
-@investigations_attachment.command(name="list")
+@cases_attachment.command(name="list")
 @tracing
-def investigations_attachment_list(
-    investigation_id: Annotated[str, typer.Option()],
+def cases_attachment_list(
+    case_id: Annotated[str, typer.Option()],
     tenant: Annotated[Optional[str], typer.Option()] = None,
     region: Annotated[Optional[str], typer.Option()] = None,
 ):
-    """List file attachments for a given investigation."""
+    """List file attachments for a given case."""
     arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
@@ -1216,31 +1215,31 @@ def investigations_attachment_list(
 
     files = []
 
-    results = service.investigations2.query.investigation_files_v2(
-        InvestigationFilesV2Arguments(
-            investigation_id=investigation_id,
+    results = service.investigations2.query.case_files(
+        CaseFilesArguments(
+            query=f"caseId:{case_id}",
             page=page,
             per_page=per_page,
         )
     )
-    total_count = results.total_count
-    files.extend(results.files)
+    total_count = results.total_count or 0
+    files.extend(results.files or [])
 
     remaining_pages = -(-(total_count - per_page) // per_page)
 
     for page in range(2, remaining_pages + 2):
-        results = service.investigations2.query.investigation_files_v2(
-            InvestigationFilesV2Arguments(
-                investigation_id=investigation_id,
+        results = service.investigations2.query.case_files(
+            CaseFilesArguments(
+                query=f"caseId:{case_id}",
                 page=page,
                 per_page=per_page,
             )
         )
-        files.extend(results.files)
+        files.extend(results.files or [])
 
     normalized_results = TaegisResults(
         raw_results=files,
-        service="investigations",
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         arguments=arguments,
@@ -1249,9 +1248,9 @@ def investigations_attachment_list(
     return normalized_results
 
 
-@investigations_attachment.command(name="get")
+@cases_attachment.command(name="get")
 @tracing
-def investigations_attachment_get(
+def cases_attachment_get(
     file_id: Annotated[str, typer.Option()],
     tenant: Annotated[Optional[str], typer.Option()] = None,
     region: Annotated[Optional[str], typer.Option()] = None,
@@ -1260,15 +1259,15 @@ def investigations_attachment_get(
     arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
-    results = service.investigations2.query.investigation_file_v2(
-        InvestigationFileV2Arguments(
+    results = service.investigations2.query.case_file(
+        CaseFileArguments(
             file_id=file_id,
         )
     )
 
     normalized_results = TaegisResult(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         arguments=arguments,
@@ -1277,9 +1276,9 @@ def investigations_attachment_get(
     return normalized_results
 
 
-@investigations_attachment.command(name="remove")
+@cases_attachment.command(name="remove")
 @tracing
-def investigations_attachment_remove(
+def cases_attachment_remove(
     file_id: Annotated[str, typer.Option()],
     tenant: Annotated[Optional[str], typer.Option()] = None,
     region: Annotated[Optional[str], typer.Option()] = None,
@@ -1288,15 +1287,15 @@ def investigations_attachment_remove(
     arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
-    results = service.investigations2.mutation.delete_investigation_file(
-        DeleteInvestigationFileInput(
+    results = service.investigations2.mutation.delete_case_file(
+        DeleteCaseFileInput(
             file_id=file_id,
         )
     )
 
     normalized_results = TaegisResult(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         arguments=arguments,
@@ -1305,10 +1304,10 @@ def investigations_attachment_remove(
     return normalized_results
 
 
-@investigations_attachment.command(name="upload")
+@cases_attachment.command(name="upload")
 @tracing
-def investigations_attachment_upload(
-    investigation_id: Annotated[str, typer.Option()],
+def cases_attachment_upload(
+    case_id: Annotated[str, typer.Option()],
     file: Annotated[
         Path,
         typer.Option(
@@ -1327,15 +1326,15 @@ def investigations_attachment_upload(
     arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
-    file_input = InitInvestigationFileUploadInput(
-        investigation_id=investigation_id,
+    file_input = StartCaseFileUploadInput(
+        case_id=case_id,
         name=file.name,
         content_type=str(mimetypes.guess_type(file)[0]),
         size=file.stat().st_size,
     )
     log.debug(file_input)
 
-    results = service.investigations2.mutation.init_investigation_file_upload(
+    results = service.investigations2.mutation.start_case_file_upload(
         input_=file_input
     )
     log.debug(results)
@@ -1353,16 +1352,16 @@ def investigations_attachment_upload(
     log.debug(upload_response)
     time.sleep(3)
 
-    verify_upload = service.investigations2.query.investigation_file_v2(
-        InvestigationFileV2Arguments(
-            file_id=results.file.id,
+    verify_upload = service.investigations2.query.case_file(
+        CaseFileArguments(
+            file_id=results.file.id_,
         )
     )
     log.debug(verify_upload)
 
     normalized_results = TaegisResult(
         raw_results=verify_upload,
-        service="investigations",
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         arguments=arguments,
@@ -1371,9 +1370,9 @@ def investigations_attachment_upload(
     return normalized_results
 
 
-@investigations_attachment.command("download")
+@cases_attachment.command("download")
 @tracing
-def investigations_attachment_download(
+def cases_attachment_download(
     file_id: Annotated[
         str,
         typer.Option(),
@@ -1386,8 +1385,8 @@ def investigations_attachment_download(
     arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
-    results = service.investigations2.query.investigation_file_v2(
-        InvestigationFileV2Arguments(
+    results = service.investigations2.query.case_file(
+        CaseFileArguments(
             file_id=file_id,
         )
     )
@@ -1412,7 +1411,7 @@ def investigations_attachment_download(
 
     normalized_results = TaegisResult(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         arguments=arguments,
@@ -1421,45 +1420,45 @@ def investigations_attachment_download(
     return normalized_results
 
 
-@investigations_comment.command(name="list")
+@cases_comment.command(name="list")
 @tracing
-def investigations_comments_list(
-    investigation_id: Annotated[str, typer.Option(help="Investigation Identifier.")],
+def cases_comments_list(
+    case_id: Annotated[str, typer.Option(help="Case Identifier.")],
     tenant: Annotated[Optional[str], typer.Option(help="Tenant Identifier.")] = None,
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
 ):
-    """List comments for an investigation."""
+    """List comments for a case."""
     arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
     page = 1
 
-    results = service.investigations2.query.comments_v2(
-        CommentsV2Arguments(
-            investigation_id=investigation_id,
+    results = service.investigations2.query.case_comments(
+        CaseCommentsArguments(
+            case_id=case_id,
             page=page,
             per_page=100,
         )
     )
 
-    comments = results.comments
-    total_count = results.total_count
+    comments = results.comments or []
+    total_count = results.total_count or 0
 
     while len(comments) < total_count:
         page += 1
-        results = service.investigations2.query.comments_v2(
-            CommentsV2Arguments(
-                investigation_id=investigation_id,
+        results = service.investigations2.query.case_comments(
+            CaseCommentsArguments(
+                case_id=case_id,
                 page=page,
                 per_page=100,
             )
         )
 
-        comments.extend(results.comments)
+        comments.extend(results.comments or [])
 
     normalized_results = TaegisResults(
         raw_results=comments,
-        service="investigations",
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         arguments=arguments,
@@ -1468,16 +1467,16 @@ def investigations_comments_list(
     return normalized_results
 
 
-@investigations_comment.command(name="add")
+@cases_comment.command(name="add")
 @tracing
-def investigations_comments_add(
-    investigation_id: Annotated[str, typer.Option(help="Investigation Identifier.")],
+def cases_comments_add(
+    case_id: Annotated[str, typer.Option(help="Case Identifier.")],
     cell: Annotated[str, typer.Option(help="Comment text.")],
     is_internal: Annotated[
         bool, typer.Option(help="Mark comment as internal. For partner use only.")
     ] = False,
     mention: Annotated[
-        Optional[List[str]],
+        Optional[list[str]],
         typer.Option(
             help="Mention a user, may use @me, @partner or @tenant for quick reference.  May be used multiple times."
         ),
@@ -1485,7 +1484,7 @@ def investigations_comments_add(
     tenant: Annotated[Optional[str], typer.Option(help="Tenant Identifier.")] = None,
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
 ):
-    """Add a comment to an investigation."""
+    """Add a comment to a case."""
     arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
@@ -1494,9 +1493,9 @@ def investigations_comments_add(
             m = lookup_assignee_id(service, m)
         cell += f"\n\n@{m}"
 
-    results = service.investigations2.mutation.add_comment_to_investigation(
-        AddCommentToInvestigationInput(
-            investigation_id=investigation_id,
+    results = service.investigations2.mutation.add_case_comment(
+        AddCaseComment(
+            case_id=case_id,
             comment=cell,
             is_internal=is_internal,
         )
@@ -1504,7 +1503,7 @@ def investigations_comments_add(
 
     normalized_results = TaegisResult(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         arguments=arguments,
@@ -1513,16 +1512,16 @@ def investigations_comments_add(
     return normalized_results
 
 
-@investigations_comment.command(name="update")
+@cases_comment.command(name="update")
 @tracing
-def investigations_comments_update(
+def cases_comments_update(
     comment_id: Annotated[str, typer.Option(help="Comment Identifier.")],
     cell: Annotated[str, typer.Option(help="Comment text.")],
     mark_as_read: Annotated[
         bool, typer.Option(help="Mark comment as read. For partner use only.")
     ] = False,
     mention: Annotated[
-        Optional[List[str]],
+        Optional[list[str]],
         typer.Option(
             help="Mention a user, may use @me, @partner or @tenant for quick reference.  May be used multiple times."
         ),
@@ -1530,7 +1529,7 @@ def investigations_comments_update(
     tenant: Annotated[Optional[str], typer.Option(help="Tenant Identifier.")] = None,
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
 ):
-    """Update a comment to an investigation."""
+    """Update a comment on a case."""
     arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
@@ -1539,8 +1538,8 @@ def investigations_comments_update(
             m = lookup_assignee_id(service, m)
         cell += f"\n{m}"
 
-    results = service.investigations2.mutation.update_investigation_comment(
-        UpdateInvestigationCommentInput(
+    results = service.investigations2.mutation.update_case_comment(
+        UpdateCaseCommentInput(
             comment_id=comment_id,
             comment=cell,
             mark_as_read=mark_as_read,
@@ -1549,7 +1548,7 @@ def investigations_comments_update(
 
     normalized_results = TaegisResult(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         arguments=arguments,
@@ -1558,26 +1557,26 @@ def investigations_comments_update(
     return normalized_results
 
 
-@investigations_comment.command(name="remove")
+@cases_comment.command(name="remove")
 @tracing
-def investigations_comments_remove(
+def cases_comments_remove(
     comment_id: Annotated[str, typer.Option(help="Comment Identifier.")],
     tenant: Annotated[Optional[str], typer.Option(help="Tenant Identifier.")] = None,
     region: Annotated[Optional[str], typer.Option(help="Region Identifier.")] = None,
 ):
-    """Remove a comment to an investigation."""
+    """Remove a comment from a case."""
     arguments = inspect.currentframe().f_locals
     service = get_service(environment=region, tenant_id=tenant)
 
-    results = service.investigations2.mutation.delete_investigation_comment(
-        DeleteInvestigationCommentInput(
+    results = service.investigations2.mutation.delete_case_comment(
+        DeleteCaseCommentInput(
             comment_id=comment_id,
         )
     )
 
     normalized_results = TaegisResult(
         raw_results=results,
-        service="investigations",
+        service="cases",
         tenant_id=service.tenant_id,
         region=service.environment,
         arguments=arguments,

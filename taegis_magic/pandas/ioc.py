@@ -140,9 +140,9 @@ def event_count_by_logical_type_paginated(
         arguments=arguments
     )
     pages.append(results)
-    while results.next:
+    while results.next_:
         results = service.multi_tenant_ioc.query.event_count_page(
-            next_token=results.next
+            next_token=results.next_
         )
         pages.append(results)
 

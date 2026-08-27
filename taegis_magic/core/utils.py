@@ -13,6 +13,8 @@ def get_tenant_id_column(df: pd.DataFrame) -> str:
         tenant_column = "tenant_id"
     elif "tenant.id" in df.columns:
         tenant_column = "tenant.id"
+    elif "tenant.id_" in df.columns:
+        tenant_column = "tenant.id_"
     elif "event_data.tenant_id" in df.columns:
         tenant_column = "event_data.tenant_id"
 

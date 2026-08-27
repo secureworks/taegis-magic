@@ -3,7 +3,7 @@
 import logging
 from dataclasses import asdict, dataclass, field
 from pprint import pprint
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
 import typer
 from dataclasses_json import config, dataclass_json
@@ -27,7 +27,6 @@ from taegis_sdk_python.services.sharelinks.types import (
     ExtraParamCreateInput,
     ShareLinkCreateInput,
 )
-from typing_extensions import Annotated
 
 from taegis_magic.commands.configure import QUERIES_SECTION
 from taegis_magic.commands.utils.investigations import insert_search_query
@@ -77,7 +76,7 @@ class AlertsResultsNormalizer(TaegisResultsNormalizer):
             return self.aggregate
 
         return [
-            asdict(alert) for result in self.raw_results for alert in result.alerts.list
+            asdict(alert) for result in self.raw_results or [] for alert in result.alerts.list_ or []
         ]
 
     @property
@@ -110,10 +109,13 @@ class AlertsResultsNormalizer(TaegisResultsNormalizer):
             Returns number of results.
         """
         log.debug("Calling AlertsResultsNormalizer.total_returned...")
-        return (
-            sum([len(result.alerts.list) for result in self.raw_results])
-            if self.raw_results
-            else -1
+        if not self.raw_results:
+            return -1
+
+        return sum(
+            len(result.alerts.list_ or [])
+            for result in self.raw_results
+            if result.alerts is not None
         )
 
     @property
@@ -181,7 +183,7 @@ class AlertsResultsNormalizer(TaegisResultsNormalizer):
         )
 
         self._shareable_url = (
-            f'{service.core.sync_url.replace("api.", "")}/share/{result.id}'
+            f'{service.core.sync_url.replace("api.", "")}/share/{result.id_}'
         )
         return self._shareable_url
 
@@ -213,7 +215,7 @@ class CustomAlert2(Alert2):
 class CustomAlertsList(AlertsList):
     """My Custom AlertsList."""
 
-    list: Optional[List[CustomAlert2]] = field(
+    list_: Optional[list[CustomAlert2]] = field(
         default=None, metadata=config(field_name="list")
     )
 
@@ -340,7 +342,7 @@ def _search_single_tenant(
             if isinstance(response, AlertsResponse) and response.alerts is not None:
                 poll_responses.append(response)
                 # CX-92571 work around
-                if sum(len(response.alerts.list) for response in poll_responses) >= int(
+                if sum(len(response.alerts.list_) for response in poll_responses) >= int(
                     limit
                 ):
                     break

@@ -11,7 +11,13 @@ from typing import List, Optional
 
 import pandas as pd
 from dataclasses_json import dataclass_json
-from taegis_sdk_python import GraphQLService
+from taegis_sdk_python import GraphQLService, build_output_string
+from taegis_sdk_python.services.investigations2.types import (
+    CaseType,
+    CaseTypes,
+    CaseTypesArguments,
+)
+from taegis_sdk_python.utils import remove_output_node
 
 from taegis_magic.commands.utils._database import find_database
 from taegis_magic.core.graphql.subjects import lookup_federated_subject
@@ -104,9 +110,11 @@ def get_evidence_id_column(df: pd.DataFrame) -> str:
         id_column = "resource_id"
     elif "id" in df.columns:
         id_column = "id"
+    elif "id_" in df.columns:
+        id_column = "id_"
     else:
         raise ValueError(
-            "DataFrame must contain 'taegis_magic.evidence_id', 'resource_id', or 'id' column."
+            "DataFrame must contain 'taegis_magic.evidence_id', 'resource_id', 'id' or 'id_' column."
         )
 
     return id_column
@@ -477,8 +485,8 @@ def lookup_assignee_id(service: GraphQLService, assignee_id: str) -> str:
             users = service.users.query.tdrusers(email=assignee_id)
 
         if users:
-            log.debug(f"User {assignee_id} found. Using ID: {users[0].id}")
-            assignee_id = users[0].id
+            log.debug(f"User {assignee_id} found. Using ID: {users[0].id_}")
+            assignee_id = users[0].id_
 
             if not assignee_id:
                 raise ValueError(f"Could not determine User ID: {users}")
@@ -486,3 +494,52 @@ def lookup_assignee_id(service: GraphQLService, assignee_id: str) -> str:
             log.warning(f"User {assignee_id} not found.  Using ID: {assignee_id}...")
 
     return assignee_id
+
+def lookup_case_types(service: GraphQLService) -> CaseTypes:
+    """Lookup Taegis Case types."""
+    output = build_output_string(CaseTypes)
+    output = remove_output_node(output, "allowedNextTypes")
+
+    with service(output=output):
+        results = service.investigations2.query.case_types(CaseTypesArguments())
+
+    return results
+
+def seek_case_type(case_types: CaseTypes, name: str):
+    """Find case type from id, name or title."""
+    name = name.lower()
+
+    try:
+        type_ = next(iter(
+            type_ 
+            for type_ in case_types.types or [] 
+            if (
+                type_.id_.lower() == name or 
+                type_.name.lower() == name or 
+                type_.title.lower() == name
+            )
+        ))
+    except StopIteration:
+        raise ValueError(f"Case Type not found: {name}")
+
+    return type_
+
+def seek_case_status(case_type: CaseType, name: str):
+    """Find case status from id, name or title."""
+    name = name.lower()
+
+    try:
+        status = next(iter(
+            status 
+            for status in case_type.supported_primary_statuses or [] 
+            if (
+                status.id_.lower() == name or 
+                status.name.lower() == name or 
+                status.title.lower() == name
+            )
+        ))
+    except StopIteration:
+        raise ValueError(f"Case Status not found: {name}")
+
+
+    return status
