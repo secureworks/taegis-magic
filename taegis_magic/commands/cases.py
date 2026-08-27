@@ -31,7 +31,10 @@ from taegis_sdk_python.services.investigations2.types import (
     CaseFilesArguments,
     Cases,
     CasesArguments,
+    CaseSecondaryStatusesArguments,
     CasesPagination,
+    CaseTypes,
+    CaseTypesArguments,
     CreateCaseInput,
     CreateKeyFindingsDocumentInput,
     DeleteCaseCommentInput,
@@ -59,7 +62,10 @@ from taegis_magic.commands.utils.investigations import (
     insert_search_query,
     list_search_queries,
     lookup_assignee_id,
+    lookup_case_types,
     read_database,
+    seek_case_status,
+    seek_case_type,
     stage_investigation_evidence,
     unstage_investigation_evidence,
 )
@@ -102,6 +108,7 @@ app.add_typer(
 
 
 class CasePriority(str, Enum):
+    INFORMATIONAL = "INFORMATIONAL"
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
@@ -109,10 +116,11 @@ class CasePriority(str, Enum):
 
 
 CASE_PRIORITY_MAP = {
-    CasePriority.LOW: 1,
-    CasePriority.MEDIUM: 2,
-    CasePriority.HIGH: 3,
-    CasePriority.CRITICAL: 4,
+    CasePriority.INFORMATIONAL: 2,
+    CasePriority.LOW: 4,
+    CasePriority.MEDIUM: 6,
+    CasePriority.HIGH: 8,
+    CasePriority.CRITICAL: 10,
 }
 
 
@@ -165,7 +173,10 @@ class CasesSearchResultsNormalizer(TaegisResultsNormalizer):
     @property
     def results_returned(self) -> int:
         """Total number returned by API."""
-        return -1 if self.raw_results is None else len(self.results)
+        if self.raw_results is None:
+            return -1
+
+        return sum(len(result.cases or []) for result in self.raw_results)
 
     def get_shareable_url(self, index: int = 0) -> str:
         """Query Shareable Link."""
@@ -253,7 +264,7 @@ class CasesCreatedResultsNormalizer(TaegisResultsNormalizer):
                 f"""
                 | Case ID  | Short ID                | Title                | Type                | Share Link           |
                 | -------- | ----------------------- | -------------------- | ------------------- | -------------------- |
-                | {case_id} | {short_id} | {title} | {case_type} | {self.shareable_url} |
+                | {case_id} | {short_id} | {title} | {case_type.title} | {self.shareable_url} |
                 """
             )
 
@@ -273,7 +284,7 @@ class CasesCreatedResultsNormalizer(TaegisResultsNormalizer):
         result = service.sharelinks.mutation.create_share_link(
             ShareLinkCreateInput(
                 link_ref=case.id_,
-                link_type="caseId",
+                link_type="investigationId",
                 tenant_id=self.tenant_id,
             )
         )
@@ -336,6 +347,7 @@ def build_create_case_input(
         key_findings=CreateKeyFindingsDocumentInput(
             content=key_findings.read_text(),
             document_type=DocumentType.MARKDOWN,
+            document_version="1.0",
         ),
     )
 
@@ -346,12 +358,16 @@ def federated_case_create(
     """createCase creates a new case with the provided arguments."""
     endpoint = "createCase"
 
+    output = build_output_string(TaegisMagicCase)
+    output = remove_output_node(output, "allowedNextTypes")
+    output = remove_output_node(output, "allowedNextSources")
+
     result = service.investigations2.execute_mutation(
         endpoint=endpoint,
         variables={
             "input": prepare_input(input_),
         },
-        output=build_output_string(TaegisMagicCase),
+        output=output,
     )
     if result.get(endpoint) is not None:
         return TaegisMagicCase.from_dict(result.get(endpoint))
@@ -374,6 +390,91 @@ def federated_cases_search(
     if result.get(endpoint) is not None:
         return TaegisMagicCases.from_dict(result.get(endpoint))
     raise GraphQLNoRowsInResultSetError("for query cases")
+
+
+@app.command(name="types")
+@tracing
+def case_types(
+    transition_from_id: Annotated[
+        Optional[str], typer.Option(help="Filter types by transition source.")
+    ] = None,
+    case_id: Annotated[
+        Optional[str], typer.Option(help="Filter types for a case.")
+    ] = None,
+    tenant: Annotated[
+        Optional[str], typer.Option(help="Taegis Tenant Identifier.")
+    ] = None,
+    region: Annotated[
+        Optional[str], typer.Option(help="Taegis Region Identifier.")
+    ] = None,
+) -> TaegisResults:
+    """List available case types."""
+    arguments = inspect.currentframe().f_locals
+    service = get_service(environment=region, tenant_id=tenant)
+
+    output = build_output_string(CaseTypes)
+    output = remove_output_node(output, "allowedNextTypes")
+    output = remove_output_node(output, "allowedNextSources")
+
+    with service(output=output):
+        results = service.investigations2.query.case_types(
+            CaseTypesArguments(
+                transition_from_id=transition_from_id,
+                case_id=case_id,
+            )
+        )
+
+    return TaegisResults(
+        raw_results=results.types or [],
+        service="cases",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=arguments,
+    )
+
+
+@app.command(name="secondary-statuses")
+@tracing
+def case_secondary_statuses(
+    type_id: Annotated[
+        Optional[str], typer.Option(help="Filter statuses by case type.")
+    ] = None,
+    primary_status_id: Annotated[
+        Optional[str], typer.Option(help="Filter statuses by primary status.")
+    ] = None,
+    case_id: Annotated[
+        Optional[str], typer.Option(help="Filter statuses for a case.")
+    ] = None,
+    include_automation_statuses: Annotated[
+        bool, typer.Option(help="Include automation-only statuses.")
+    ] = False,
+    tenant: Annotated[
+        Optional[str], typer.Option(help="Taegis Tenant Identifier.")
+    ] = None,
+    region: Annotated[
+        Optional[str], typer.Option(help="Taegis Region Identifier.")
+    ] = None,
+) -> TaegisResults:
+    """List available secondary case statuses."""
+    arguments = inspect.currentframe().f_locals
+    service = get_service(environment=region, tenant_id=tenant)
+
+    results = service.investigations2.query.case_secondary_statuses(
+        CaseSecondaryStatusesArguments(
+            type_id=type_id,
+            primary_status_id=primary_status_id,
+            case_id=case_id,
+            include_automation_statuses=include_automation_statuses,
+        )
+    )
+
+    return TaegisResults(
+        raw_results=results.secondary_statuses or [],
+        service="cases",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        arguments=arguments,
+    )
 
 
 @cases_evidence.command(name="stage")
@@ -599,15 +700,15 @@ def create(
     key_findings: Annotated[
         Path, typer.Option(help="Markdown file with key findings.")
     ],
+    type_id: Annotated[
+        str, typer.Option("--type-id", help="Case Type Identifier.")
+    ] = "security_case",
+    primary_status_id: Annotated[
+        str, typer.Option(help="Case Primary Status Identifier.")
+    ] = 'open',
     priority: Annotated[
         CasePriority, typer.Option(help="Case Priority.")
     ] = CasePriority.MEDIUM,
-    type_id: Annotated[
-        Optional[str], typer.Option("--type-id", help="Case Type Identifier.")
-    ] = None,
-    primary_status_id: Annotated[
-        Optional[str], typer.Option(help="Case Primary Status Identifier.")
-    ] = None,
     assignee_id: Annotated[
         str,
         typer.Option(
@@ -636,6 +737,14 @@ def create(
     alerts = None
     events = None
     search_queries = None
+
+    case_types = lookup_case_types(service)
+    case_type = seek_case_type(case_types, type_id)
+    case_status = seek_case_status(case_type, primary_status_id)
+
+    type_id = case_type.id_
+    primary_status_id = case_status.id_
+
 
     if database:
         evidence = get_investigation_evidence(database, service.tenant_id, "NEW")

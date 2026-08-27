@@ -10,7 +10,7 @@ from enum import Enum
 from itertools import product
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict, List, Optional, Union
+from typing import Annotated, Any, Dict, List, Optional, Union
 
 import requests
 import typer
@@ -45,7 +45,6 @@ from taegis_sdk_python.services.investigations2.types import (
 from taegis_sdk_python.services.queries.types import QLQueriesInput
 from taegis_sdk_python.services.sharelinks.types import ShareLinkCreateInput
 from taegis_sdk_python.services.subjects.types import Subject as FederatedSubject
-from typing_extensions import Annotated
 
 from taegis_magic.commands.utils._database import find_database, find_dataframe
 from taegis_magic.commands.utils.investigations import (
@@ -217,7 +216,7 @@ class InvestigationsSearchResultsNormalizer(TaegisResultsNormalizer):
         )
 
         self._shareable_url[index] = (
-            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id_}"
         )
         return self._shareable_url[index]
 
@@ -293,7 +292,7 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
                 f"""
                 | Investigation ID  | Short ID                | Title                | Type                | Share Link           |
                 | ----------------- | ----------------------- | -------------------- | ------------------- | -------------------- |
-                | {self.raw_results.id} | {self.raw_results.short_id} | {self.raw_results.title} | {self.raw_results.type} | {self.shareable_url} |
+                | {self.raw_results.id_} | {self.raw_results.short_id} | {self.raw_results.title} | {self.raw_results_} | {self.shareable_url} |
                 """
             )
 
@@ -318,14 +317,14 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
 
         result = service.sharelinks.mutation.create_share_link(
             ShareLinkCreateInput(
-                link_ref=investigation.id,
+                link_ref=investigation.id_,
                 link_type="investigationId",
                 tenant_id=self.tenant_id,
             )
         )
 
         self._shareable_url = (
-            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+            service.investigations.sync_url.replace("api.", "") + f"/share/{result.id_}"
         )
 
         return self._shareable_url
@@ -682,7 +681,7 @@ def create(
         search_queries=search_queries,
         status=status,
         title=title,
-        type=type_,
+        type_=type_,
     )
 
     if dry_run:
@@ -983,60 +982,60 @@ def investigations_merge(
 
     result = service.sharelinks.mutation.create_share_link(
         ShareLinkCreateInput(
-            link_ref=source_investigation.id,
+            link_ref=source_investigation.id_,
             link_type="investigationId",
             tenant_id=tenant,
         )
     )
 
     source_shareable_url = (
-        service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+        service.investigations.sync_url.replace("api.", "") + f"/share/{result.id_}"
     )
 
     result = service.sharelinks.mutation.create_share_link(
         ShareLinkCreateInput(
-            link_ref=target_investigation.id,
+            link_ref=target_investigation.id_,
             link_type="investigationId",
             tenant_id=tenant,
         )
     )
 
     target_shareable_url = (
-        service.investigations.sync_url.replace("api.", "") + f"/share/{result.id}"
+        service.investigations.sync_url.replace("api.", "") + f"/share/{result.id_}"
     )
 
     results = service.investigations2.mutation.add_comment_to_investigation(
         AddCommentToInvestigationInput(
-            investigation_id=source_investigation.id,
-            comment=f"Investigation evidence moved into {target_investigation.id} ({target_shareable_url}).",
+            investigation_id=source_investigation.id_,
+            comment=f"Investigation evidence moved into {target_investigation.id_} ({target_shareable_url}).",
         )
     )
     log.debug(f"Add comment to investigation: {results}")
 
     results = service.investigations2.mutation.add_comment_to_investigation(
         AddCommentToInvestigationInput(
-            investigation_id=target_investigation.id,
-            comment=f"Investigation evidence moved from {source_investigation.id} ({source_shareable_url}).",
+            investigation_id=target_investigation.id_,
+            comment=f"Investigation evidence moved from {source_investigation.id_} ({source_shareable_url}).",
         )
     )
     log.debug(f"Add comment to investigation: {results}")
 
     results = service.investigations2.mutation.update_investigation_v2(
         UpdateInvestigationV2Input(
-            id=source_investigation.id,
+            id=source_investigation.id_,
             status=close_status,
             title=f"Merged Investigation: {source_investigation.title}",
         )
     )
     log.debug(f"Close source investigation: {results}")
     results = service.investigations2.mutation.archive_investigation_v2(
-        ArchiveInvestigationInput(id=source_investigation.id)
+        ArchiveInvestigationInput(id=source_investigation.id_)
     )
     log.debug(f"Archive source investigation: {results}")
 
     results = service.investigations2.mutation.add_evidence_to_investigation(
         AddEvidenceToInvestigationInput(
-            investigation_id=target_investigation.id,
+            investigation_id=target_investigation.id_,
             alerts=[
                 evidence.alert_id for evidence in source_investigation.alerts_evidence
             ],
@@ -1353,7 +1352,7 @@ def investigations_attachment_upload(
 
     verify_upload = service.investigations2.query.investigation_file_v2(
         InvestigationFileV2Arguments(
-            file_id=results.file.id,
+            file_id=results.file.id_,
         )
     )
     log.debug(verify_upload)

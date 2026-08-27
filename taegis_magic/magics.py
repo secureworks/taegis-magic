@@ -137,6 +137,11 @@ def taegis_magics_command_parser() -> ArgumentParser:
         help="Use a template file instead of providing cell input",
     )
     parser.add_argument(
+        "--cell-template-display",
+        action="store_true",
+        help="Display the template contents without running command.",
+    )
+    parser.add_argument(
         "--cache",
         action="store_true",
         help="Save output to cache / Load output from cache (if present)",
@@ -232,6 +237,12 @@ class TaegisMagics(Magics):
                 cell = template.render(**self.shell.user_ns)
                 log.debug("Template rendered successfully")
 
+                if magic_args.cell_template_display:
+                    cell = cell.replace("\n", "<br>").replace(" ", "&nbsp;")
+                    display_markdown(cell, raw=True)
+                    log.debug("Display template and exit...")
+                    return
+
             if magic_args and not magic_args.cache:
                 magic_args.cache = config[QUERIES_SECTION].getboolean(
                     "cache", fallback=False
@@ -242,8 +253,7 @@ class TaegisMagics(Magics):
                     raise ValueError("--assign must be set with cache...")
 
                 if (
-                    TAEGIS_MAGIC_NOTEBOOK_FILENAME in self.shell.user_ns
-                    and self.shell.user_ns[TAEGIS_MAGIC_NOTEBOOK_FILENAME]
+                    self.shell.user_ns.get(TAEGIS_MAGIC_NOTEBOOK_FILENAME)
                 ):
                     notebook_filename = self.shell.user_ns[
                         TAEGIS_MAGIC_NOTEBOOK_FILENAME
@@ -352,9 +362,7 @@ class TaegisMagics(Magics):
                 display_cache(magic_args.assign, cache_digest, result)
                 save_notebook()
             else:
-                if magic_args.disable_return_display == "all":
-                    pass
-                elif (
+                if magic_args.disable_return_display == "all" or (
                     magic_args.disable_return_display == "on_empty"
                     and result.results_returned == 0
                 ):

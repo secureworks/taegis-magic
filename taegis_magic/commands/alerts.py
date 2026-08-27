@@ -3,23 +3,10 @@
 import logging
 from dataclasses import asdict, dataclass, field
 from pprint import pprint
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
 import typer
 from dataclasses_json import config, dataclass_json
-from taegis_magic.commands.configure import QUERIES_SECTION
-from taegis_magic.commands.utils.investigations import insert_search_query
-from taegis_magic.commands.utils.nl_queries import insert_nl_search_query
-from taegis_magic.core.log import tracing
-from taegis_magic.core.macros import resolve_tenants
-from taegis_magic.core.normalizer import (
-    TaegisResults,
-    TaegisResultsNormalizer,
-    merge_normalizer_results,
-)
-from taegis_magic.core.service import get_service
-from typing_extensions import Annotated
-
 from taegis_sdk_python import (
     GraphQLNoRowsInResultSetError,
     GraphQLService,
@@ -40,6 +27,18 @@ from taegis_sdk_python.services.sharelinks.types import (
     ExtraParamCreateInput,
     ShareLinkCreateInput,
 )
+
+from taegis_magic.commands.configure import QUERIES_SECTION
+from taegis_magic.commands.utils.investigations import insert_search_query
+from taegis_magic.commands.utils.nl_queries import insert_nl_search_query
+from taegis_magic.core.log import tracing
+from taegis_magic.core.macros import resolve_tenants
+from taegis_magic.core.normalizer import (
+    TaegisResults,
+    TaegisResultsNormalizer,
+    merge_normalizer_results,
+)
+from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
 
@@ -77,7 +76,7 @@ class AlertsResultsNormalizer(TaegisResultsNormalizer):
             return self.aggregate
 
         return [
-            asdict(alert) for result in self.raw_results for alert in result.alerts.list_
+            asdict(alert) for result in self.raw_results or [] for alert in result.alerts.list_ or []
         ]
 
     @property
@@ -110,10 +109,13 @@ class AlertsResultsNormalizer(TaegisResultsNormalizer):
             Returns number of results.
         """
         log.debug("Calling AlertsResultsNormalizer.total_returned...")
-        return (
-            sum([len(result.alerts.list_) for result in self.raw_results])
-            if self.raw_results
-            else -1
+        if not self.raw_results:
+            return -1
+
+        return sum(
+            len(result.alerts.list_ or [])
+            for result in self.raw_results
+            if result.alerts is not None
         )
 
     @property
@@ -213,7 +215,7 @@ class CustomAlert2(Alert2):
 class CustomAlertsList(AlertsList):
     """My Custom AlertsList."""
 
-    list: Optional[List[CustomAlert2]] = field(
+    list_: Optional[list[CustomAlert2]] = field(
         default=None, metadata=config(field_name="list")
     )
 

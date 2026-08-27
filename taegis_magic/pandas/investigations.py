@@ -94,7 +94,7 @@ def lookup_evidence(df: pd.DataFrame, region: str) -> pd.DataFrame:
                         [
                             alerts_evidence,
                             to_dataframe(
-                                [asdict(alert) for alert in alerts.alerts.list]
+                                [asdict(alert) for alert in alerts.alerts.list_]
                             ),
                         ]
                     )
