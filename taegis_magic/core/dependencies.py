@@ -1,9 +1,11 @@
 """Dependency management for Taegis Magic notebooks."""
 
+import os
 import logging
 import re
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import nbformat
@@ -29,10 +31,14 @@ def read(
 
     try:
         cell = next(
-            iter(cell for cell in nb.cells if "pyproject" in cell.metadata.tags)
+            iter(
+                cell
+                for cell in nb.cells
+                if "pyproject" in cell.metadata.get("tags", [])
+            )
         )
     except StopIteration:
-        log.error(f'No cell with tag "pyproject" found in {notebook}')
+        log.debug(f'No cell with tag "pyproject" found in {notebook}')
         return None
 
     matches = list(
@@ -45,10 +51,57 @@ def read(
             line[2:] if line.startswith("# ") else line[1:]
             for line in matches[0].group("content").splitlines(keepends=True)
         )
-        return tomllib.loads(content)
+
+        try:
+            toml_content = tomllib.loads(content)
+        except tomllib.TOMLDecodeError as e:
+            log.error(f"Error parsing TOML in {notebook}: {e}")
+            return None
+
+        return toml_content
     else:
         log.warning(f'No {name} block found in cell with tag "pyproject" in {notebook}')
         return None
+
+
+def install_dependencies(
+    notebook: str,
+    virtual_environment: str,
+) -> None:
+    """Install dependencies declared in a notebook into a virtual environment.
+
+    The environment is created with ``uv venv`` when its Python interpreter does
+    not exist. Dependencies are installed with ``uv pip`` so the notebook can
+    be executed using the environment's interpreter.
+    """
+    document = read(notebook)
+    if not document:
+        return
+
+    dependencies = document.get("dependencies", [])
+    if not dependencies:
+        return
+    if not isinstance(dependencies, list) or not all(
+        isinstance(dependency, str) for dependency in dependencies
+    ):
+        raise ValueError("Notebook dependencies must be a list of strings")
+
+    environment_path = Path(virtual_environment)
+    python_name = "python.exe" if sys.platform == "win32" else "python"
+    python_path = environment_path / (
+        "Scripts" if sys.platform == "win32" else "bin"
+    ) / python_name
+
+    if not python_path.exists():
+        subprocess.run(
+            ["uv", "venv", str(environment_path)],
+            check=True,
+        )
+
+    subprocess.run(
+        ["uv", "run", "install", "--python", str(python_path), '--upgrade', *dependencies],
+        check=True,
+    )
 
 
 def clean_ansi_format(s: str) -> str:
