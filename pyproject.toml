@@ -42,6 +42,8 @@ dependencies = [
     "panel",
     "tabulator",
     "PyYAML>=6.0",
+    "tomli; python_version < '3.11'",
+    "tomli_w",
 ]
 
 [project.optional-dependencies]
