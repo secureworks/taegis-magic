@@ -1,0 +1,25 @@
+**Taegis Results**
+
+{% if obj.is_error %}
+<div style="background-color: #f8d7da; border: 1px solid #f5c2c7; color: #842029; padding: 12px;">
+
+| Field | Value |
+|-------|-------|
+| Status | {{ obj.status }} |
+| Result | {{ obj.result }} |
+| Error Type | {{ obj.error_type }} |
+| Message | {{ obj.message }} |
+| Code | {{ obj.code }} |
+| Path | {{ obj.path }} |
+| Correlation ID | {{ obj.correlation_id }} |
+
+</div>
+{% else %}
+| Field | Value |
+|-------|-------|
+| Region | {{ obj.region }} |
+| Tenant | {{ obj.tenant_id }} |
+| Service | {{ obj.service }} |
+| Correlation ID | {{ obj.correlation_id }} |
+| Total Results | {{ obj.total_results|validate_int }} |
+{% endif %}

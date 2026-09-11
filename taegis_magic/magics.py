@@ -320,6 +320,10 @@ class TaegisMagics(Magics):
             if not result:
                 return
 
+            if getattr(result, "is_error", False):
+                display(result, exclude=["text/plain"])
+                return
+
             self.shell.user_ns["_taegis_magic_result"] = result
             self.shell.user_ns["_taegis_magic_cell_contents"] = cell
 
