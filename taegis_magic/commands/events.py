@@ -3,6 +3,7 @@
 import inspect
 import logging
 from dataclasses import asdict, dataclass, field
+from functools import partial
 from typing import Any, Dict, List, Optional
 
 import typer
@@ -13,8 +14,10 @@ from taegis_magic.commands.utils.nl_queries import insert_nl_search_query
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResults, TaegisResultsNormalizer
 from taegis_magic.core.service import get_service
+from taegis_magic.core.time_chunks import render_time_chunked_queries
 from typing_extensions import Annotated
 
+from taegis_sdk_python.commons import execute_delimited_queries
 from taegis_sdk_python.config import get_config
 from taegis_sdk_python.services.events.types import (
     Event,
@@ -133,7 +136,7 @@ class TaegisEventQueryNormalizer(TaegisResultsNormalizer):
         return len(self.results)
 
     @property
-    def query_identifier(self) -> str:
+    def query_identifier(self) -> Optional[str]:
         """Generate a query identifier for Taegis XDR QL Event queries.
 
         Returns
@@ -151,11 +154,36 @@ class TaegisEventQueryNormalizer(TaegisResultsNormalizer):
         if not self.raw_results:
             return None
 
+        ids = set()
         for result in self.raw_results:
             if result.query_id:
-                return result.query_id
+                ids.add(result.query_id)
+
+        if len(ids) == 1:
+            return list(ids)[0]
+
+        if len(ids) > 1:
+            return '\n'.join(ids)
 
         return None
+
+    def _create_share_link(self, query_id: str) -> str:
+        """Create a Sharelinks URL for a given query identifier."""
+        service = get_service(environment=self.region, tenant_id=self.tenant_id)
+
+        result = service.sharelinks.mutation.create_share_link(
+            ShareLinkCreateInput(
+                link_ref=query_id,
+                link_target="cql",
+                link_type="queryId",
+                tenant_id=self.tenant_id,
+                extra_parameters=[
+                    ExtraParamCreateInput(key="sourceType", value="event"),
+                ],
+            )
+        )
+
+        return f'{service.core.sync_url.replace("api.", "")}/share/{result.id_}'
 
     @property
     def shareable_url(self) -> str:
@@ -175,24 +203,70 @@ class TaegisEventQueryNormalizer(TaegisResultsNormalizer):
         if self._shareable_url:
             return self._shareable_url
 
-        service = get_service(environment=self.region, tenant_id=self.tenant_id)
+        self._shareable_url = self._create_share_link(self.query_identifier)
+        return self._shareable_url
 
-        result = service.sharelinks.mutation.create_share_link(
-            ShareLinkCreateInput(
-                link_ref=self.query_identifier,
-                link_target="cql",
-                link_type="queryId",
-                tenant_id=self.tenant_id,
-                extra_parameters=[
-                    ExtraParamCreateInput(key="sourceType", value="event"),
-                ],
+
+@dataclass_json
+@dataclass
+class ChunkedTaegisEventQueryNormalizer(TaegisEventQueryNormalizer):
+    """Taegis Event Query Result Normalizer for time chunked searches."""
+
+    @property
+    def chunk_query_identifiers(self) -> List[str]:
+        """Query identifier of each time chunk.
+
+        Each time chunk is submitted as its own query; the result pages of a
+        chunk share that query's identifier.
+
+        Returns
+        -------
+        List[str]
+            Query Identifiers
+        """
+        return list(
+            dict.fromkeys(
+                result.query_id for result in self.raw_results if result.query_id
             )
         )
 
-        self._shareable_url = (
-            f'{service.core.sync_url.replace("api.", "")}/share/{result.id_}'
-        )
-        return self._shareable_url
+    @property
+    def chunks(self) -> int:
+        """Number of time chunks returning results.
+
+        Returns
+        -------
+        int
+            Returns number of time chunks.
+        """
+        return len(self.chunk_query_identifiers)
+
+    @property
+    def shareable_url(self) -> str:
+        """Generate a shareable url for Taegis XDR.
+
+        Returns
+        -------
+        str
+            Share Link url.
+        """
+        if self._shareable_url:
+            return self._shareable_url
+
+        # each time chunk has its own query identifier and shareable link
+        if self.chunks > 1:
+            if not self.raw_results:
+                return "Not able to create shareable link"
+
+            urls = [
+                self._create_share_link(query_id)
+                for query_id in self.chunk_query_identifiers
+            ]
+
+            self._shareable_url = "\n".join(urls)
+            return self._shareable_url
+
+        return super().shareable_url
 
 
 def get_next_page(events_results: List[EventQueryResults]) -> Optional[str]:
@@ -205,6 +279,62 @@ def get_next_page(events_results: List[EventQueryResults]) -> Optional[str]:
         )
     except StopIteration:
         return None
+
+
+def _event_query(
+    cell: str,
+    region: Optional[str] = None,
+    tenant: Optional[str] = None,
+) -> List[EventQueryResults]:
+    """Execute an events query and page through the results."""
+    service = get_service(tenant_id=tenant, environment=region)
+    options = EventQueryOptions(
+        timestamp_ascending=True,
+        page_size=1000,
+        max_rows=100000,
+        aggregation_off=False,
+    )
+
+    results = []
+
+    result = service.events.subscription.event_query(
+        cell,
+        options=options,
+        metadata={
+            "callerName": CONFIG[QUERIES_SECTION].get(
+                "callername", fallback="Taegis Magic"
+            ),
+        },
+    )
+    results.extend(result)
+    next_page = get_next_page(result)
+
+    while next_page:
+        result = service.events.subscription.event_page(next_page)
+        results.extend(result)
+        next_page = get_next_page(result)
+
+    return results
+
+
+def _event_query_time_chunked(
+    queries: str,
+    region: Optional[str],
+    tenant: Optional[str],
+) -> List[EventQueryResults]:
+    """Execute `---` delimited time chunked events queries concurrently."""
+    chunk_results, errors = execute_delimited_queries(
+        queries,
+        partial(_event_query, region=region, tenant=tenant),
+        error_handling="partial",
+    )
+
+    for error in errors:
+        log.error(
+            f"Cannot retrieve results for time chunk::{error.item}::{error.error}"
+        )
+
+    return [result for chunk_result in chunk_results for result in chunk_result]
 
 
 @app.command()
@@ -220,19 +350,35 @@ def search(
     ),
     database: Annotated[str, typer.Option()] = ":memory:",
     ai: Annotated[bool, typer.Option()] = False,
+    time_window: Annotated[
+        Optional[str],
+        typer.Option(
+            help="Total duration to search (i.e. 30d), split into --time-chunk queries."
+        ),
+    ] = None,
+    time_chunk: Annotated[
+        Optional[str],
+        typer.Option(help="Duration of each time chunk query (i.e. 7d)."),
+    ] = None,
 ):
-    """Taegis Events search."""
+    """Taegis Events search.
+
+    --time-window and --time-chunk must be set together to search a total
+    duration as concurrent time chunked queries.  Durations are expressed as
+    a number and a unit (s, m, h, d, w, mo, y).  The query cannot set its own
+    EARLIEST/LATEST; they are appended, unless the query already contains the
+    `EARLIEST='{{ window.earliest }}' LATEST='{{ window.latest }}'` placeholders.
+    """
     if not cell:
         cell = ""
 
+    if bool(time_window) != bool(time_chunk):
+        raise ValueError("--time-window and --time-chunk must be set together.")
+
+    if time_window and ai:
+        raise ValueError("--ai cannot be used with time chunked searches.")
+
     service = get_service(tenant_id=tenant, environment=region)
-    options = EventQueryOptions(
-        timestamp_ascending=True,
-        page_size=1000,
-        max_rows=100000,
-        aggregation_off=False,
-    )
-    results = []
 
     if ai:
         llm_results = service.llm_service.query.nl_search_v2(
@@ -257,37 +403,38 @@ def search(
 
         cell = llm_results.ql
 
-    result = service.events.subscription.event_query(
-        cell,
-        options=options,
-        metadata={
-            "callerName": CONFIG[QUERIES_SECTION].get(
-                "callername", fallback="Taegis Magic"
-            ),
-        },
-    )
-    results.extend(result)
-    next_page = get_next_page(result)
+    arguments = {
+        "cell": cell,
+        "tenant": service.tenant_id,
+        "region": service.environment,
+        "save": save,
+        "track": track,
+        "database": database,
+    }
 
-    while next_page:
-        result = service.events.subscription.event_page(next_page)
-        results.extend(result)
-        next_page = get_next_page(result)
+    if time_window and time_chunk:
+        normalizer = ChunkedTaegisEventQueryNormalizer
+        query = render_time_chunked_queries(cell, time_window, time_chunk)
+        log.debug(f"Time chunked queries::{query}")
+        results = _event_query_time_chunked(query, region, tenant)
+        arguments.update(
+            {
+                "time_window": time_window,
+                "time_chunk": time_chunk,
+            }
+        )
+    else:
+        normalizer = TaegisEventQueryNormalizer
+        query = cell
+        results = _event_query(cell, region=region, tenant=tenant)
 
-    normalized_results = TaegisEventQueryNormalizer(
+    normalized_results = normalizer(
         raw_results=results,
         service="events",
         tenant_id=service.tenant_id,
         region=service.environment,
-        arguments={
-            "cell": cell,
-            "tenant": service.tenant_id,
-            "region": service.environment,
-            "save": save,
-            "track": track,
-            "database": database,
-        },
-        query=cell,
+        arguments=arguments,
+        query=query,
         is_saved=save,
     )
 
