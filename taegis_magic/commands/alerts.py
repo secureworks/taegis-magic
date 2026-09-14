@@ -2,6 +2,7 @@
 
 import logging
 from dataclasses import asdict, dataclass, field
+from functools import partial
 from pprint import pprint
 from typing import Annotated, Any, Dict, List, Optional
 
@@ -13,6 +14,7 @@ from taegis_sdk_python import (
     build_output_string,
     prepare_input,
 )
+from taegis_sdk_python.commons import execute_delimited_queries
 from taegis_sdk_python.config import get_config
 from taegis_sdk_python.services.alerts.types import (
     Alert2,
@@ -27,7 +29,6 @@ from taegis_sdk_python.services.sharelinks.types import (
     ExtraParamCreateInput,
     ShareLinkCreateInput,
 )
-
 from taegis_magic.commands.configure import QUERIES_SECTION
 from taegis_magic.commands.utils.investigations import insert_search_query
 from taegis_magic.commands.utils.nl_queries import insert_nl_search_query
@@ -39,6 +40,7 @@ from taegis_magic.core.normalizer import (
     merge_normalizer_results,
 )
 from taegis_magic.core.service import get_service
+from taegis_magic.core.time_chunks import render_time_chunked_queries
 
 log = logging.getLogger(__name__)
 
@@ -142,15 +144,53 @@ class AlertsResultsNormalizer(TaegisResultsNormalizer):
 
     @property
     def query_identifier(self) -> Optional[str]:
-        """Alerts Service Query Identifier."""
-        log.debug("Calling AlertsResultsNormalizer.query_identifier...")
+        """Generate a query identifier for Taegis XDR QL Event queries.
+
+        Returns
+        -------
+        str
+            Query Identifier
+
+        Raises
+        ------
+        ValueError
+            No query found to generate query id
+        ValueError
+            No query id returned from Query API
+        """
         if not self.raw_results:
             return None
 
-        if self.raw_results[0].query_id:
-            return self.raw_results[0].query_id
+        ids = set()
+        for result in self.raw_results:
+            if result.query_id:
+                ids.add(result.query_id)
+
+        if len(ids) == 1:
+            return list(ids)[0]
+
+        if len(ids) > 1:
+            return '\n'.join(ids)
 
         return None
+
+    def _create_share_link(self, query_id: str) -> str:
+        """Create a Sharelinks URL for a given query identifier."""
+        service = get_service(environment=self.region, tenant_id=self.tenant_id)
+
+        result = service.sharelinks.mutation.create_share_link(
+            ShareLinkCreateInput(
+                link_ref=query_id,
+                link_target="cql",
+                link_type="queryId",
+                tenant_id=self.tenant_id,
+                extra_parameters=[
+                    ExtraParamCreateInput(key="sourceType", value="alert"),
+                ],
+            )
+        )
+
+        return f'{service.core.sync_url.replace("api.", "")}/share/{result.id_}'
 
     @property
     def shareable_url(self) -> str:
@@ -168,24 +208,78 @@ class AlertsResultsNormalizer(TaegisResultsNormalizer):
         if not self.query_identifier:
             return "Unable to create shareable link"
 
-        service = get_service(environment=self.region, tenant_id=self.tenant_id)
-
-        result = service.sharelinks.mutation.create_share_link(
-            ShareLinkCreateInput(
-                link_ref=self.query_identifier,
-                link_target="cql",
-                link_type="queryId",
-                tenant_id=self.tenant_id,
-                extra_parameters=[
-                    ExtraParamCreateInput(key="sourceType", value="alert"),
-                ],
-            )
-        )
-
-        self._shareable_url = (
-            f'{service.core.sync_url.replace("api.", "")}/share/{result.id_}'
-        )
+        self._shareable_url = self._create_share_link(self.query_identifier)
         return self._shareable_url
+
+
+@dataclass_json
+@dataclass
+class ChunkedAlertsResultsNormalizer(AlertsResultsNormalizer):
+    """Taegis Alerts Normalizer for time chunked searches."""
+
+    @property
+    def chunk_results(self) -> List[AlertsResponse]:
+        """First response of each time chunk.
+
+        Each time chunk search returns part 1 (part 0 when there are no
+        results); the polled parts of a chunk return part 2 and above.
+        """
+        log.debug("Calling ChunkedAlertsResultsNormalizer.chunk_results...")
+        return [
+            response
+            for response in self.raw_results
+            if response.alerts is not None
+            and (response.alerts.part is None or response.alerts.part <= 1)
+        ]
+
+    @property
+    def chunks(self) -> int:
+        """Number of time chunks returning results."""
+        log.debug("Calling ChunkedAlertsResultsNormalizer.chunks...")
+        return len(self.chunk_results)
+
+    @property
+    def chunk_total_results(self) -> int:
+        """Sum of the total results reported by each time chunk."""
+        log.debug("Calling ChunkedAlertsResultsNormalizer.chunk_total_results...")
+        return sum(
+            response.alerts.total_results or 0 for response in self.chunk_results
+        )
+
+    @property
+    def total_results(self) -> int:
+        log.debug("Calling ChunkedAlertsResultsNormalizer.total_results...")
+        # This signifies an error
+        if not self.raw_results:
+            return -1
+
+        return self.chunk_total_results
+
+    @property
+    def shareable_url(self) -> str:
+        """Alerts Service Sharelinks URL."""
+        log.debug("Calling ChunkedAlertsResultsNormalizer.shareable_url...")
+        if self._shareable_url:
+            return self._shareable_url
+
+        # each time chunk has its own query identifier and shareable link
+        if self.chunks > 1:
+            if not self.raw_results or self.aggregate:
+                return "Unable to create shareable link"
+
+            urls = [
+                self._create_share_link(response.query_id)
+                for response in self.chunk_results
+                if response.query_id
+            ]
+
+            if not urls:
+                return "Unable to create shareable link"
+
+            self._shareable_url = "\n".join(urls)
+            return self._shareable_url
+
+        return super().shareable_url
 
 
 @dataclass_json
@@ -342,9 +436,9 @@ def _search_single_tenant(
             if isinstance(response, AlertsResponse) and response.alerts is not None:
                 poll_responses.append(response)
                 # CX-92571 work around
-                if sum(len(response.alerts.list_) for response in poll_responses) >= int(
-                    limit
-                ):
+                if sum(
+                    len(response.alerts.list_) for response in poll_responses
+                ) >= int(limit):
                     break
 
     return AlertsResultsNormalizer(
@@ -363,6 +457,60 @@ def _search_single_tenant(
     )
 
 
+def _search_single_tenant_time_chunked(
+    cell: str,
+    region: Optional[str],
+    tenant_id: Optional[str],
+    limit: int,
+    graphql_output: Optional[str],
+    time_window: str,
+    time_chunk: str,
+) -> ChunkedAlertsResultsNormalizer:
+    """Execute a time chunked alerts search against a single tenant."""
+    queries = render_time_chunked_queries(cell, time_window, time_chunk)
+    log.debug(f"Time chunked queries::{queries}")
+
+    service = get_service(environment=region, tenant_id=tenant_id)
+
+    chunk_normalizers, errors = execute_delimited_queries(
+        queries,
+        partial(
+            _search_single_tenant,
+            region=region,
+            tenant_id=tenant_id,
+            limit=limit,
+            graphql_output=graphql_output,
+        ),
+        error_handling="partial",
+    )
+
+    for error in errors:
+        log.error(
+            f"Cannot retrieve results for time chunk::{error.item}::{error.error}"
+        )
+
+    return ChunkedAlertsResultsNormalizer(
+        raw_results=[
+            response
+            for normalizer in chunk_normalizers
+            for response in normalizer.raw_results
+        ],
+        service="alerts",
+        tenant_id=service.tenant_id,
+        region=service.environment,
+        query=queries,
+        arguments={
+            "cell": cell,
+            "region": service.environment,
+            "tenant": service.tenant_id,
+            "limit": limit,
+            "graphql_output": graphql_output,
+            "time_window": time_window,
+            "time_chunk": time_chunk,
+        },
+    )
+
+
 @app.command()
 @tracing
 def search(
@@ -376,11 +524,27 @@ def search(
     ),
     database: Annotated[str, typer.Option()] = ":memory:",
     ai: Annotated[bool, typer.Option()] = False,
+    time_window: Annotated[
+        Optional[str],
+        typer.Option(
+            help="Total duration to search (i.e. 30d), split into --time-chunk queries."
+        ),
+    ] = None,
+    time_chunk: Annotated[
+        Optional[str],
+        typer.Option(help="Duration of each time chunk query (i.e. 7d)."),
+    ] = None,
 ) -> Optional[AlertsResultsNormalizer]:
     """
     Search Taegis Alerts service.
 
     Supports @macro syntax in --tenant to search across multiple tenants.
+
+    --time-window and --time-chunk must be set together to search a total
+    duration as concurrent time chunked queries.  Durations are expressed as
+    a number and a unit (s, m, h, d, w, mo, y).  The query cannot set its own
+    EARLIEST/LATEST; they are appended, unless the query already contains the
+    `EARLIEST='{{ window.earliest }}' LATEST='{{ window.latest }}'` placeholders.
     """
     if not cell:
         cell = ""
@@ -388,12 +552,29 @@ def search(
     if "aggregate" in cell:
         limit = 1
 
+    if bool(time_window) != bool(time_chunk):
+        raise ValueError("--time-window and --time-chunk must be set together.")
+
+    if time_window and ai:
+        raise ValueError("--ai cannot be used with time chunked searches.")
+
     tenant_ids = resolve_tenants(tenant, region)
 
-    all_results = [
-        _search_single_tenant(cell, region, tid, limit, graphql_output, ai, database)
-        for tid in tenant_ids
-    ]
+    all_results: List[AlertsResultsNormalizer]
+    if time_window and time_chunk:
+        all_results = [
+            _search_single_tenant_time_chunked(
+                cell, region, tid, limit, graphql_output, time_window, time_chunk
+            )
+            for tid in tenant_ids
+        ]
+    else:
+        all_results = [
+            _search_single_tenant(
+                cell, region, tid, limit, graphql_output, ai, database
+            )
+            for tid in tenant_ids
+        ]
 
     if len(all_results) == 1:
         results = all_results[0]
