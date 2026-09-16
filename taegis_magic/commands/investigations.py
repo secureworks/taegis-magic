@@ -292,7 +292,7 @@ class InvestigationsCreatedResultsNormalizer(TaegisResultsNormalizer):
                 f"""
                 | Investigation ID  | Short ID                | Title                | Type                | Share Link           |
                 | ----------------- | ----------------------- | -------------------- | ------------------- | -------------------- |
-                | {self.raw_results.id_} | {self.raw_results.short_id} | {self.raw_results.title} | {self.raw_results_} | {self.shareable_url} |
+                | {self.raw_results.id_} | {self.raw_results.short_id} | {self.raw_results.title} | {self.raw_results.type_} | {self.shareable_url} |
                 """
             )
 
