@@ -1,6 +1,7 @@
 import importlib.resources as pkg_resources
 import inspect
 import logging
+import subprocess
 import sys
 import traceback
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ from taegis_sdk_python.services.notebooks.types import Notebook
 from typing_extensions import Annotated
 
 from taegis_magic.commands.utils.role_checker import has_role
+from taegis_magic.core import dependencies
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResult
 from taegis_magic.core.notebook import generate_report
@@ -247,6 +249,23 @@ def execute(
         bool,
         typer.Option("--report-mode/--no-report-mode", help="Flag for hiding input."),
     ] = False,
+    install_dependencies: Annotated[
+        bool,
+        typer.Option(
+            "--install-dependencies/--no-install-dependencies",
+            help="Read the cell tagged 'pyproject' from the input notebook and install"
+            " the dependencies it declares before execution.",
+        ),
+    ] = True,
+    virtual_environment: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--virtual-environment",
+            help="Virtual environment to install the notebook dependencies into."
+            " Created with `uv venv` if it does not exist."
+            " Defaults to the current environment.",
+        ),
+    ] = None,
     title: Annotated[Optional[str], typer.Option(help="Investigation Title.")] = None,
     tenant: Annotated[Optional[str], typer.Option(help="Taegis Tenant ID.")] = None,
     region: Annotated[Optional[str], typer.Option(help="Taegis Region.")] = None,
@@ -321,6 +340,20 @@ def execute(
             )
         else:
             parameters["TAEGIS_MAGIC_NOTEBOOK_FILENAME"] = str(input_notebook.resolve())
+
+    if install_dependencies and not prepare_only:
+        environment = virtual_environment or Path(sys.prefix)
+        try:
+            dependencies.install_dependencies(str(input_notebook), str(environment))
+        except FileNotFoundError:
+            print(
+                "`uv` is required to install notebook dependencies. "
+                "Install `uv` or rerun with --no-install-dependencies."
+            )
+            raise typer.Exit(code=1)
+        except (ValueError, subprocess.CalledProcessError) as exc:
+            print(f"Failed to install notebook dependencies: {exc}")
+            raise typer.Exit(code=1)
 
     try:
         papermill.execute_notebook(
