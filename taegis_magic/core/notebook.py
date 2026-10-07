@@ -22,6 +22,8 @@ from traitlets.config import Config
 
 log = logging.getLogger(__name__)
 
+TAEGIS_MAGIC_NOTEBOOK_FILENAME = "TAEGIS_MAGIC_NOTEBOOK_FILENAME"
+
 VERSION_6 = parse_version("6")
 VERSION_7 = parse_version("7")
 VERSION_8 = parse_version("8")
@@ -94,11 +96,15 @@ def find_notebook_name() -> Optional[str]:
     return notebook_name
 
 
-def save_notebook(delay: int = 0):
-    """Save the current notebook."""
+def save_notebook(delay: int = 0, quiet: bool = False):
+    """Save the current notebook.
+
+    When quiet, unsupported frontends are logged at debug level instead of error.
+    """
+    unsupported_log = log.debug if quiet else log.error
     ip = get_ipython()
     if "__vsc_ipynb_file__" in ip.user_ns:
-        log.error(
+        unsupported_log(
             "save_notebook does not work in VS Code notebooks, please save manually before proceeding."
         )
         return
@@ -140,7 +146,7 @@ def save_notebook(delay: int = 0):
             log.exception(f"Failed to save notebook: {exc}")
 
     else:
-        log.error(
+        unsupported_log(
             "Cannot save notebook, unsupported notebook version.  Please save manually before proceeding."
         )
         return

@@ -31,12 +31,11 @@ from taegis_magic.core.cache import (
 )
 from taegis_magic.core.log import TRACE_LOG_LEVEL, get_module_logger, get_sdk_logger
 from taegis_magic.core.notebook import (
+    TAEGIS_MAGIC_NOTEBOOK_FILENAME,
     find_notebook_name,
     generate_report,
     save_notebook,
 )
-
-TAEGIS_MAGIC_NOTEBOOK_FILENAME = "TAEGIS_MAGIC_NOTEBOOK_FILENAME"
 
 log = logging.getLogger(__name__)
 set_defaults()
@@ -366,9 +365,13 @@ class TaegisMagics(Magics):
                 display_cache(magic_args.assign, cache_digest, result)
                 save_notebook()
             else:
-                if magic_args.disable_return_display == "all" or (
-                    magic_args.disable_return_display == "on_empty"
-                    and result.results_returned == 0
+                if (
+                    magic_args.disable_return_display == "all"
+                    or getattr(result, "hide_display", False)
+                    or (
+                        magic_args.disable_return_display == "on_empty"
+                        and result.results_returned == 0
+                    )
                 ):
                     pass
                 else:
