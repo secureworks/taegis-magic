@@ -68,7 +68,23 @@ class TaegisResultsNormalizer:
             """
             return value if value >= 0 else "N/A"
 
+        def nl_to_br(value: str) -> str:
+            """Convert newlines to <br> for HTML representation.
+
+            Parameters
+            ----------
+            value : str
+                Value to convert
+
+            Returns
+            -------
+            str
+                Converted value
+            """
+            return value.replace("\n", "<br>")
+
         normalizer_jina_env.filters["validate_int"] = validate_int
+        normalizer_jina_env.filters["nl_to_br"] = nl_to_br
 
         template = normalizer_jina_env.get_template(template_name)
         return template.render(obj=self)
