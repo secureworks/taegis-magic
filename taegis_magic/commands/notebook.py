@@ -1,28 +1,47 @@
+import hashlib
 import importlib.resources as pkg_resources
 import inspect
 import logging
 import sys
+import time
 import traceback
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from time import sleep
 from typing import List, Optional
 
 import nbclient
+import pandas as pd
 import papermill
 import typer
 import yaml
 from gql.transport.exceptions import TransportQueryError
+from IPython import get_ipython
 from papermill.iorw import NoDatesSafeLoader, read_yaml_file
 from taegis_sdk_python import GraphQLService
 from taegis_sdk_python.services.notebooks.types import Notebook
 from typing_extensions import Annotated
 
 from taegis_magic.commands.utils.role_checker import has_role
+from taegis_magic.core.cache import (
+    clear_live_variable_cache_outputs,
+    clear_variable_cache,
+    decode_base64_obj_as_pickle,
+    delete_variable_cache_entry,
+    display_variable_cache,
+    get_session_variable_cache_hashes,
+    get_variable_cache_item,
+    get_variable_cache_list,
+    get_variable_cache_preview,
+)
 from taegis_magic.core.log import tracing
 from taegis_magic.core.normalizer import TaegisResult
-from taegis_magic.core.notebook import generate_report
+from taegis_magic.core.notebook import (
+    TAEGIS_MAGIC_NOTEBOOK_FILENAME,
+    generate_report,
+    save_notebook,
+)
 from taegis_magic.core.service import get_service
 
 log = logging.getLogger(__name__)
@@ -31,6 +50,21 @@ app = typer.Typer(help="Taegis Notebook Commands.")
 
 remote = typer.Typer(help="Taegis Remote Notebook Commands.")
 app.add_typer(remote, name="remote")
+
+cache = typer.Typer(help="Taegis Notebook Variable Cache Commands.")
+app.add_typer(cache, name="cache")
+
+RELOAD_WARNING = (
+    "Some removed output may still be in the open notebook. If it is still shown, "
+    "reload the notebook from disk before saving again, otherwise the open copy "
+    "will overwrite this change."
+)
+
+
+class HiddenTaegisResult(TaegisResult):
+    """Result that the %taegis magic does not display."""
+
+    hide_display = True
 
 
 @dataclass
@@ -43,6 +77,42 @@ class RemoteNotebookResult:
     success: bool = False
     message: Optional[str] = None
     remote_instance_data: Optional[any] = None
+
+
+@dataclass
+class CacheDumpResult:
+    name: str
+    type_name: str
+
+
+@dataclass
+class CacheLoadResult:
+    name: str
+    type_name: str
+
+
+@dataclass
+class CacheDeleteResult:
+    name: str
+    removed: bool
+
+
+@dataclass
+class CacheClearResult:
+    removed_count: int
+    cleared_cells: int = 0
+
+
+@dataclass
+class CacheEntryPreview:
+    name: str
+    type_name: str
+    preview: str
+
+
+@dataclass
+class CacheListResult:
+    entries: List[CacheEntryPreview] = field(default_factory=list)
 
 
 class LOG_LEVEL(str, Enum):
@@ -398,6 +468,204 @@ def create(
 
     return TaegisResult(
         raw_results=NotebookResult(action="create"),
+        service="notebook",
+        tenant_id=None,
+        region=None,
+        arguments=arguments,
+    )
+
+
+# Notebook variable cache commands, run from a live kernel via the %taegis magic
+
+
+def _get_user_ns() -> dict:
+    ip = get_ipython()
+    if ip is None:
+        print(
+            "This command must be run inside a live notebook session using the %taegis magic."
+        )
+        raise typer.Exit(code=1)
+    return ip.user_ns
+
+
+def _get_notebook_path() -> Path:
+    notebook_filename = _get_user_ns().get(TAEGIS_MAGIC_NOTEBOOK_FILENAME)
+    if not notebook_filename:
+        print(
+            f"{TAEGIS_MAGIC_NOTEBOOK_FILENAME} is not set. Set it to the notebook's file path, "
+            "or reload the extension (%reload_ext taegis_magic)."
+        )
+        raise typer.Exit(code=1)
+
+    notebook_fp = Path(notebook_filename)
+    if not notebook_fp.exists():
+        print(
+            f"Notebook {notebook_filename} does not exist on disk. Save the notebook before "
+            "using notebook cache commands."
+        )
+        raise typer.Exit(code=1)
+
+    return notebook_fp
+
+
+@cache.command()
+@tracing
+def dump(
+    name: Annotated[str, typer.Argument(help="Name of the variable to cache.")],
+):
+    """Cache a notebook variable in the current cell's output."""
+    arguments = inspect.currentframe().f_locals
+
+    user_ns = _get_user_ns()
+    if name not in user_ns:
+        print(f"Variable '{name}' not found in the notebook namespace.")
+        raise typer.Exit(code=1)
+
+    value = user_ns[name]
+    cache_digest = hashlib.sha256(f"{name}:{time.time()}".encode()).hexdigest()
+
+    display_variable_cache(name, cache_digest, value)
+    save_notebook(quiet=True)
+
+    return HiddenTaegisResult(
+        raw_results=CacheDumpResult(name=name, type_name=type(value).__name__),
+        service="notebook",
+        tenant_id=None,
+        region=None,
+        arguments=arguments,
+    )
+
+
+@cache.command()
+@tracing
+def load(
+    name: Annotated[str, typer.Argument(help="Name of the cached variable to load.")],
+):
+    """Load a cached variable into the notebook namespace."""
+    arguments = inspect.currentframe().f_locals
+
+    notebook_fp = _get_notebook_path()
+    item = get_variable_cache_item(notebook_fp, name)
+    if not item:
+        print(f"'{name}' not found in the notebook variable cache.")
+        raise typer.Exit(code=1)
+
+    value = decode_base64_obj_as_pickle(item.get("data", ""))
+    _get_user_ns()[name] = value
+
+    return TaegisResult(
+        raw_results=CacheLoadResult(name=name, type_name=type(value).__name__),
+        service="notebook",
+        tenant_id=None,
+        region=None,
+        arguments=arguments,
+    )
+
+
+@cache.command()
+@tracing
+def delete(
+    name: Annotated[str, typer.Argument(help="Name of the cached variable to remove.")],
+):
+    """Remove a cached variable from the notebook's saved outputs."""
+    arguments = inspect.currentframe().f_locals
+
+    notebook_fp = _get_notebook_path()
+    live_hashes = get_session_variable_cache_hashes(name)
+    removed_hashes = delete_variable_cache_entry(notebook_fp, name)
+    if not removed_hashes and not live_hashes:
+        print(f"'{name}' not found in the notebook variable cache, nothing removed.")
+        raise typer.Exit(code=1)
+
+    clear_live_variable_cache_outputs(removed_hashes + live_hashes)
+
+    message = f"Removed '{name}' from the notebook variable cache."
+    if any(h not in live_hashes for h in removed_hashes):
+        message = f"{message} {RELOAD_WARNING}"
+    print(message)
+
+    return TaegisResult(
+        raw_results=CacheDeleteResult(name=name, removed=True),
+        service="notebook",
+        tenant_id=None,
+        region=None,
+        arguments=arguments,
+    )
+
+
+@cache.command()
+@tracing
+def clear():
+    """Remove all cached variables and clear the output of cache dump cells."""
+    arguments = inspect.currentframe().f_locals
+
+    notebook_fp = _get_notebook_path()
+    live_hashes = get_session_variable_cache_hashes()
+    outcome = clear_variable_cache(notebook_fp)
+    removed_hashes = list(dict.fromkeys(outcome.removed_hashes + live_hashes))
+
+    if removed_hashes or outcome.cleared_cells:
+        clear_live_variable_cache_outputs(removed_hashes)
+
+        message = f"Removed {len(removed_hashes)} cached variable entries"
+        if outcome.cleared_cells:
+            message = (
+                f"{message} and cleared the output of {outcome.cleared_cells} "
+                "cache dump cells"
+            )
+        message = f"{message}."
+        if outcome.other_outputs_removed or any(
+            h not in live_hashes for h in outcome.removed_hashes
+        ):
+            message = f"{message} {RELOAD_WARNING}"
+        print(message)
+    else:
+        print("No cached variable entries found, nothing to clear.")
+
+    return TaegisResult(
+        raw_results=CacheClearResult(
+            removed_count=len(removed_hashes), cleared_cells=outcome.cleared_cells
+        ),
+        service="notebook",
+        tenant_id=None,
+        region=None,
+        arguments=arguments,
+    )
+
+
+@cache.command(name="list")
+@tracing
+def list_cache():
+    """List cached variables with their type and a value preview."""
+    arguments = inspect.currentframe().f_locals
+
+    notebook_fp = _get_notebook_path()
+    names = list(
+        dict.fromkeys(name for name, _ in get_variable_cache_list(notebook_fp) if name)
+    )
+
+    entries = []
+    for name in names:
+        preview = get_variable_cache_preview(notebook_fp, name)
+        if preview:
+            entries.append(
+                CacheEntryPreview(name=name, type_name=preview[0], preview=preview[1])
+            )
+
+    if entries:
+        print(
+            pd.DataFrame(
+                [
+                    {"name": e.name, "type": e.type_name, "preview": e.preview}
+                    for e in entries
+                ]
+            ).to_string(index=False)
+        )
+    else:
+        print("No cached variable entries found in this notebook.")
+
+    return TaegisResult(
+        raw_results=CacheListResult(entries=entries),
         service="notebook",
         tenant_id=None,
         region=None,
