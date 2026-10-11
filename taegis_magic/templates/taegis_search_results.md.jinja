@@ -1,7 +1,7 @@
 **Taegis Search Results**
 
 {% if obj.query_identifier -%}
-ID: *{{ obj.query_identifier }}*
+ID: *{{ obj.query_identifier|nl_to_br }}*
 {% endif %}
 
 {% if obj.aggregate %}
@@ -11,5 +11,5 @@ ID: *{{ obj.query_identifier }}*
 {% else %}
 |Region          |Tenant             |Service          |Status          |Num. Total                          |Num. Returned                          |Link                   |
 |----------------|-------------------|-----------------|----------------|------------------------------------|---------------------------------------|:----------------------|
-|{{ obj.region }}|{{ obj.tenant_id }}|{{ obj.service }}|{{ obj.status }}|{{ obj.total_results|validate_int }}|{{ obj.results_returned|validate_int }}|{{ obj.shareable_url }}|
+|{{ obj.region }}|{{ obj.tenant_id }}|{{ obj.service }}|{{ obj.status }}|{{ obj.total_results|validate_int }}|{{ obj.results_returned|validate_int }}|{{ obj.shareable_url|nl_to_br }}|
 {% endif %}

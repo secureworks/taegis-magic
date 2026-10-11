@@ -366,22 +366,33 @@ def read_database(
 
 
 def insert_search_query(database_uri: str, normalized_results):
-    """Insert a Taegis search query."""
+    """Insert a Taegis search query.
+
+    A time chunked search has one query identifier per chunk, joined with
+    newlines in `query_identifier`; each one is stored as its own row.
+    """
     db = find_database(database_uri)
 
+    query_identifier = normalized_results.query_identifier
+    if query_identifier and "\n" in query_identifier:
+        query_ids = query_identifier.split("\n")
+    else:
+        query_ids = [query_identifier]
+
     with db:
-        db.execute(
-            """
-        INSERT INTO search_queries VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'));
-        """,
-            (
-                normalized_results.query_identifier,
-                normalized_results.tenant_id,
-                normalized_results.query,
-                normalized_results.results_returned,
-                normalized_results.total_results,
-            ),
-        )
+        for query_id in query_ids:
+            db.execute(
+                """
+            INSERT INTO search_queries VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'));
+            """,
+                (
+                    query_id,
+                    normalized_results.tenant_id,
+                    normalized_results.query,
+                    normalized_results.results_returned,
+                    normalized_results.total_results,
+                ),
+            )
 
 
 def list_search_queries(database_uri: str):
