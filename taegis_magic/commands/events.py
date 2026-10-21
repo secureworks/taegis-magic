@@ -27,6 +27,7 @@ from taegis_sdk_python.services.sharelinks.types import (
     ExtraParamCreateInput,
     ShareLinkCreateInput,
 )
+from taegis_sdk_python.commons import events_search
 
 log = logging.getLogger(__name__)
 
@@ -256,13 +257,15 @@ def search(
         insert_nl_search_query(database, cell, llm_results)
 
         cell = llm_results.ql
-
+    
     result = service.events.subscription.event_query(
-        cell,
+        query=cell,
         options=options,
-        metadata={
-            "callerName": CONFIG[QUERIES_SECTION].get(
+        metadata={"callerName": CONFIG[QUERIES_SECTION].get(
                 "callername", fallback="Taegis Magic"
+            ),
+            "querySource": CONFIG[QUERIES_SECTION].get(
+                "querysource", fallback="taegis-magic"
             ),
         },
     )
