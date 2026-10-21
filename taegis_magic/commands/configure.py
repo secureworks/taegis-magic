@@ -416,6 +416,31 @@ def callername(
     )
     return results
 
+@queries.command(name="querysource")
+@tracing
+def querysource(
+    name: Annotated[
+        str,
+        typer.Argument(
+            help="Query Source to use for Alert/Event queries; used for searching/filtering results from the Queries API."
+        ),
+    ],
+):
+    """Configure Alert/Event query source by default."""
+    write_to_config(
+        QUERIES_SECTION,
+        "querysource",
+        name,
+    )
+
+    results = ConfigurationNormalizer(
+        service="configure",
+        tenant_id="None",
+        region="None",
+        raw_results=[dict(querysource=name)],
+    )
+    return results
+
 
 @queries.command(name="disable-return-display")
 @tracing
