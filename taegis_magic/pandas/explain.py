@@ -14,6 +14,7 @@ from taegis_magic.core.service import get_service
 from taegis_magic.core.utils import to_dataframe
 
 log = logging.getLogger(__name__)
+EVENT_PREFIX="event://priv:scwx.process:"
 
 
 def get_command_line_explanation(
@@ -63,11 +64,11 @@ def get_command_line_explanation(
 
     service = get_service(environment=region, tenant_id=tenant_id)
     event_ids = [
-        event_id for event_id in df[event_id_column].tolist() if event_id.startswith("event://priv:scwx.process:")
+        event_id for event_id in df[event_id_column].tolist() if event_id.startswith(EVENT_PREFIX)
     ]
     
     if not event_ids:
-        log.error(f"No valid event IDs found in column '{event_id_column}'. Ensure that the column contains valid event IDs starting with 'event://priv:scwx.process:'.")
+        log.error(f"No valid event IDs found in column '{event_id_column}'. Ensure that the column contains valid event IDs starting with '{EVENT_PREFIX}'.")
         return pd.DataFrame()
 
     explanation_input = CommandLineExplanationInput(events=event_ids)
@@ -97,11 +98,13 @@ def get_command_line_explanation(
         )
         return pd.DataFrame()
 
+    explanations_df = explanations_df.add_prefix("command_line.")
+    
     ret_df = pd.merge(
         left=df,
         right=explanations_df,
         left_on=event_id_column,
-        right_on="event",
+        right_on="command_line.event",
         suffixes=(None, ".explain"),
     )
 
@@ -183,13 +186,15 @@ def get_event_explanation(
             "Could not generate explanation for events. Please make sure supplied DataFrame contains valid events."
         )
         return pd.DataFrame()
-
+    
+    explanations_df = explanations_df.add_prefix("event.")
+    
     ret_df = pd.merge(
         df,
         explanations_df,
         how="left",
         left_on=event_id_column,
-        right_on="event",
+        right_on="event.event",
         suffixes=(None, ".explain"),
     )
 
