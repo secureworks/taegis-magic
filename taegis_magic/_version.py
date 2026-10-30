@@ -1,3 +1,3 @@
 """Version identifier."""
 
-__version__ = "2026.10.21"
+__version__ = "2026.10.30"

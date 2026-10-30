@@ -399,7 +399,7 @@ def regioned_multi_tenant_ioc_search(
         return []
 
     with service(environment=region):
-        tenant_ids = tenants[tenants["first_environment"] == region]["id"].tolist()
+        tenant_ids = tenants[tenants["first_environment"] == region]["id_"].tolist()
 
         return multi_tenant_ioc_search(
             service=service,
